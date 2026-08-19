@@ -1,0 +1,158 @@
+@import "tailwindcss";
+
+@theme {
+  /* Palette pulled from the shirts themselves:
+     near-black cotton, bleached amber, bone splatter */
+  --color-ink: #191408;
+  --color-inkdeep: #110d05;
+  --color-bark: #241d0e;
+  --color-panel: #2a2211;
+  --color-bone: #f0e7d1;
+  --color-faded: #b3a689;
+  --color-gold: #cf9440;
+  --color-goldlight: #e3b96e;
+  --color-rust: #a8622a;
+
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-ink);
+  color: var(--color-bone);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* faint fabric grain over everything */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+::selection {
+  background: var(--color-gold);
+  color: var(--color-inkdeep);
+}
+
+/* ---------- shared bits ---------- */
+
+.kicker {
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-gold);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.8rem 1.7rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease,
+    color 0.15s ease, opacity 0.15s ease;
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+}
+
+.btn-gold {
+  background: var(--color-gold);
+  color: var(--color-inkdeep);
+}
+.btn-gold:hover:not(:disabled) {
+  background: var(--color-goldlight);
+  transform: translateY(-1px);
+}
+
+.btn-ghost {
+  border: 1px solid color-mix(in srgb, var(--color-bone) 28%, transparent);
+  color: var(--color-bone);
+}
+.btn-ghost:hover:not(:disabled) {
+  border-color: var(--color-gold);
+  color: var(--color-goldlight);
+  transform: translateY(-1px);
+}
+
+.input {
+  width: 100%;
+  border-radius: 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--color-bone) 18%, transparent);
+  background: rgba(0, 0, 0, 0.28);
+  padding: 0.72rem 1rem;
+  color: var(--color-bone);
+  font-size: 0.95rem;
+}
+.input::placeholder {
+  color: color-mix(in srgb, var(--color-faded) 75%, transparent);
+}
+.input:focus {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 1px;
+}
+
+.card {
+  background: linear-gradient(160deg, var(--color-bark), var(--color-panel));
+  border: 1px solid color-mix(in srgb, var(--color-bone) 10%, transparent);
+  border-radius: 1.25rem;
+}
+
+.size-pill {
+  border: 1px solid color-mix(in srgb, var(--color-bone) 25%, transparent);
+  border-radius: 9999px;
+  padding: 0.45rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-bone);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.size-pill:hover {
+  border-color: var(--color-gold);
+}
+.size-pill[data-active="true"] {
+  background: var(--color-gold);
+  border-color: var(--color-gold);
+  color: var(--color-inkdeep);
+  font-weight: 700;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise {
+  animation: rise 0.7s ease both;
+}
+.rise-1 { animation-delay: 0.08s; }
+.rise-2 { animation-delay: 0.16s; }
+.rise-3 { animation-delay: 0.24s; }
