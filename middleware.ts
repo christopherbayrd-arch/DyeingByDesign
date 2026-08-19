@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ADMIN_COOKIE, safeEqual, sessionToken } from "@/lib/adminAuth";
 
-// Protects /admin with a simple password prompt (HTTP Basic auth).
-// Set ADMIN_PASSWORD in your environment variables. Username can be anything.
-export const config = { matcher: ["/admin/:path*", "/admin"] };
+// Protects the owner area (/admin pages and /api/admin endpoints).
+// The owner signs in at /admin/login with ADMIN_PASSWORD.
+export const config = {
+  matcher: ["/admin/:path*", "/admin", "/api/admin/:path*"],
+};
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
+  // the login page and login API are public (you have to be able to log in)
+  if (pathname === "/admin/login" || pathname === "/api/admin/login") {
+    return NextResponse.next();
+  }
+
   const password = process.env.ADMIN_PASSWORD;
   if (!password) {
     return new NextResponse(
@@ -13,19 +23,18 @@ export function middleware(req: NextRequest) {
     );
   }
 
-  const auth = req.headers.get("authorization");
-  if (auth?.startsWith("Basic ")) {
-    try {
-      const decoded = atob(auth.slice(6));
-      const pass = decoded.slice(decoded.indexOf(":") + 1);
-      if (pass === password) return NextResponse.next();
-    } catch {
-      // fall through to 401
-    }
+  const cookie = req.cookies.get(ADMIN_COOKIE)?.value ?? "";
+  const expected = await sessionToken(password);
+  if (cookie && safeEqual(cookie, expected)) {
+    return NextResponse.next();
   }
 
-  return new NextResponse("Password required", {
-    status: 401,
-    headers: { "WWW-Authenticate": 'Basic realm="Dyeing By Design admin"' },
-  });
+  // not signed in
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const loginUrl = req.nextUrl.clone();
+  loginUrl.pathname = "/admin/login";
+  loginUrl.search = "";
+  return NextResponse.redirect(loginUrl);
 }

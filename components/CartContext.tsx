@@ -9,9 +9,18 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { PRODUCTS } from "@/lib/products";
 
-export type CartLine = { slug: string; size: string; qty: number };
+// Each cart line carries a snapshot of what the buyer saw (name, price, photo)
+// so the cart renders instantly. The server always re-checks real prices and
+// stock from the database at checkout — the snapshot is display-only.
+export type CartLine = {
+  slug: string;
+  size: string;
+  qty: number;
+  name: string;
+  priceCents: number;
+  card: string;
+};
 
 type CartApi = {
   lines: CartLine[];
@@ -25,7 +34,7 @@ type CartApi = {
 };
 
 const CartCtx = createContext<CartApi | null>(null);
-const STORAGE_KEY = "dbd-cart-v1";
+const STORAGE_KEY = "dbd-cart-v2";
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([]);
@@ -36,7 +45,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) setLines(parsed);
+        if (Array.isArray(parsed)) setLines(parsed.filter((l) => l && l.slug && l.size));
       }
     } catch {
       // corrupted cart? start fresh
@@ -58,7 +67,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const i = prev.findIndex((p) => p.slug === line.slug && p.size === line.size);
       if (i >= 0) {
         const next = [...prev];
-        next[i] = { ...next[i], qty: Math.min(10, next[i].qty + line.qty) };
+        next[i] = { ...line, qty: Math.min(10, next[i].qty + line.qty) };
         return next;
       }
       return [...prev, line];
@@ -78,11 +87,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const clear = useCallback(() => setLines([]), []);
 
   const subtotalCents = useMemo(
-    () =>
-      lines.reduce((sum, l) => {
-        const p = PRODUCTS.find((p) => p.slug === l.slug);
-        return sum + (p ? p.priceCents * l.qty : 0);
-      }, 0),
+    () => lines.reduce((sum, l) => sum + l.priceCents * l.qty, 0),
     [lines]
   );
 

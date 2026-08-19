@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import AdminNav from "@/components/AdminNav";
 import { getDb } from "@/lib/db";
 import { fmtPrice } from "@/lib/products";
 
@@ -42,7 +43,8 @@ export default async function AdminPage() {
     return (
       <div className="mx-auto max-w-3xl px-5 pt-16">
         <h1 className="font-display text-3xl font-semibold">Admin</h1>
-        <p className="mt-4 text-faded">
+        <AdminNav active="orders" />
+        <p className="mt-6 text-faded">
           No database connected yet. Add <code>DATABASE_URL</code> from Neon to your
           environment variables (README has the walkthrough), then reload.
         </p>
@@ -67,6 +69,7 @@ export default async function AdminPage() {
     <div className="mx-auto max-w-6xl px-5 pt-14">
       <p className="kicker">Order desk</p>
       <h1 className="mt-2 font-display text-4xl font-semibold">Admin</h1>
+      <AdminNav active="orders" />
 
       {dbError && <p className="mt-6 rounded-xl border border-rust/50 bg-rust/10 p-4 text-sm">{dbError}</p>}
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/components/CartContext";
-import { COLOR, PRODUCTS, SHIPPING_CENTS, fmtPrice } from "@/lib/products";
+import { COLOR, SHIPPING_CENTS, fmtPrice } from "@/lib/products";
 
 export default function CartView() {
   const { lines, ready, remove, setQty, subtotalCents } = useCart();
@@ -18,7 +18,9 @@ export default function CartView() {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: lines }),
+        body: JSON.stringify({
+          items: lines.map(({ slug, size, qty }) => ({ slug, size, qty })),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.url) {
@@ -53,48 +55,48 @@ export default function CartView() {
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
       <ul className="space-y-4">
-        {lines.map((line, i) => {
-          const p = PRODUCTS.find((p) => p.slug === line.slug);
-          if (!p) return null;
-          return (
-            <li key={`${line.slug}-${line.size}`} className="card flex gap-4 p-4">
-              <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl">
-                <Image src={p.card} alt={p.name} fill sizes="96px" className="object-cover" />
+        {lines.map((line, i) => (
+          <li key={`${line.slug}-${line.size}`} className="card flex gap-4 p-4">
+            <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl">
+              {line.card ? (
+                <Image src={line.card} alt={line.name} fill sizes="96px" className="object-cover" />
+              ) : (
+                <div className="h-full w-full bg-black/30" />
+              )}
+            </div>
+            <div className="flex flex-1 flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="font-display text-lg font-semibold">{line.name}</p>
+                <p className="mt-0.5 text-sm text-faded">
+                  {COLOR} · Size {line.size}
+                </p>
+                <button
+                  onClick={() => remove(i)}
+                  className="mt-2 text-xs text-faded underline underline-offset-2 transition hover:text-rust"
+                >
+                  Remove
+                </button>
               </div>
-              <div className="flex flex-1 flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-display text-lg font-semibold">{p.name}</p>
-                  <p className="mt-0.5 text-sm text-faded">
-                    {COLOR} · Size {line.size}
-                  </p>
-                  <button
-                    onClick={() => remove(i)}
-                    className="mt-2 text-xs text-faded underline underline-offset-2 transition hover:text-rust"
-                  >
-                    Remove
-                  </button>
-                </div>
-                <div className="flex items-center gap-4">
-                  <select
-                    value={line.qty}
-                    onChange={(e) => setQty(i, Number(e.target.value))}
-                    className="input w-auto py-1.5 text-sm"
-                    aria-label={`Quantity for ${p.name}`}
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="w-16 text-right font-semibold text-goldlight">
-                    {fmtPrice(p.priceCents * line.qty)}
-                  </span>
-                </div>
+              <div className="flex items-center gap-4">
+                <select
+                  value={line.qty}
+                  onChange={(e) => setQty(i, Number(e.target.value))}
+                  className="input w-auto py-1.5 text-sm"
+                  aria-label={`Quantity for ${line.name}`}
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+                <span className="w-16 text-right font-semibold text-goldlight">
+                  {fmtPrice(line.priceCents * line.qty)}
+                </span>
               </div>
-            </li>
-          );
-        })}
+            </div>
+          </li>
+        ))}
       </ul>
 
       <aside className="card h-fit p-6">
@@ -118,8 +120,8 @@ export default function CartView() {
         </button>
         {error && <p className="mt-3 text-sm text-rust">{error}</p>}
         <p className="mt-4 text-xs leading-relaxed text-faded">
-          Secure card, Apple Pay, and Google Pay checkout by Stripe. Every shirt is made
-          for you — allow 5 to 7 days before it ships.
+          Secure card, Apple Pay, and Google Pay checkout by Stripe. Prices and
+          availability are double checked at checkout.
         </p>
       </aside>
     </div>

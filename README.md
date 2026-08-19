@@ -1,16 +1,37 @@
 # Dyeing By Design — the website
 
-Hand bleached leaf shirts, made in Maine. This is the full store: product
-pages, cart, Stripe checkout, custom request form, drop email list, and a
-password-protected admin page — built with Next.js, ready for GitHub → Vercel,
-with Neon as the database.
+Hand bleached leaf shirts, made in Maine. This is the full store **and** the
+back office: product pages, cart, Stripe checkout, custom request form, drop
+email list, plus an owner login where you manage products, prices, photos,
+and per-size stock — built with Next.js, ready for GitHub → Vercel, with Neon
+as the database and Vercel Blob for photo uploads.
 
 **BRANDING.md** in this folder has the name/slogan/domain kit and the growth
 playbook.
 
 ---
 
-## Run it on your computer (optional but nice)
+## The owner's back room (start here if the site is already live)
+
+- **Log in:** go to `yoursite.com/admin/login` and enter the password
+  (that's the `ADMIN_PASSWORD` environment variable in Vercel). Sessions last
+  30 days; changing the password in Vercel signs everyone out.
+- **Orders & requests** (`/admin`): paid orders appear automatically with the
+  shipping address, plus custom requests and the drop email list.
+- **Products & stock** (`/admin/products`): add designs, edit names, prices,
+  stories, upload photos from your phone or computer, and control
+  availability:
+  - **Always available** = made to order, no limits.
+  - **Track stock by size** = you set a count per size (S–2XL). A size at 0
+    shows as sold out, checkout refuses quantities you don't have, and every
+    paid order subtracts automatically.
+  - **Shown / Hidden** toggles whether a design appears on the site at all.
+    New designs start hidden until you're ready.
+- Changes go live on the storefront within about a minute.
+
+---
+
+## Run it on your computer (optional)
 
 You need Node.js installed (nodejs.org, the LTS version).
 
@@ -19,9 +40,10 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. The site fully works without any keys — checkout
-and the forms just show friendly "not set up yet" messages until you finish
-the steps below.
+Open http://localhost:3000. The site fully works without any keys — checkout,
+the forms, and the admin just show friendly "not set up yet" messages until
+the steps below are done. To use the admin locally, put `ADMIN_PASSWORD=something`
+in a `.env.local` file.
 
 ---
 
@@ -29,142 +51,130 @@ the steps below.
 
 ### Step 1 — Put it on GitHub
 
-1. Create a free account at github.com if you don't have one.
-2. Easiest path: install **GitHub Desktop** (desktop.github.com) → File →
-   Add local repository → pick this folder → "create a repository" when
-   prompted → Publish repository (keep it private if you like — Vercel can
-   still see it).
-
-   Or by command line:
-   ```bash
-   git init
-   git add .
-   git commit -m "Dyeing By Design launch"
-   ```
-   then create an empty repo on GitHub and follow its "push an existing
-   repository" instructions.
+Easiest: **GitHub Desktop** (desktop.github.com) → File → Add local
+repository → pick this folder → create a repository when prompted → Publish.
+(Private is fine — Vercel can still see it.) Uploading the folder contents
+through github.com's "Add files via upload" also works — just make sure
+`package.json` ends up at the top level of the repo, not inside a subfolder.
 
 ### Step 2 — Deploy on Vercel
 
-1. Sign up at vercel.com **with your GitHub account** (free Hobby plan is fine).
-2. Add New → Project → Import your repository → Deploy. That's it — Vercel
-   detects Next.js automatically.
-3. You'll get a live URL like `dyeing-by-design.vercel.app`. From now on,
-   every push to GitHub redeploys the site automatically.
+vercel.com → sign up with GitHub → Add New → Project → import the repo →
+Deploy. Every push/upload to GitHub redeploys automatically.
 
-### Step 3 — Set up Neon (the database)
+### Step 3 — Neon (the database)
 
-1. Sign up at neon.tech (free tier is plenty to start).
-2. Create a project (call it `dyeing-by-design`, any US region).
-3. Open the **SQL Editor**, paste the entire contents of `schema.sql` from
-   this folder, and Run. That creates your three tables: orders, custom
-   requests, and the drop email list.
-4. Click **Connect** and copy the connection string (starts with
-   `postgresql://...`). That's your `DATABASE_URL`.
+1. neon.tech → create a project (free tier is plenty).
+2. Open the **SQL Editor**, paste the entire contents of `schema.sql`, Run.
+   That creates orders, custom requests, the drop list, **and the products
+   table pre-loaded with the four launch designs**. Safe to re-run any time —
+   it never wipes data. (If you set the database up before the products
+   update, just run `schema.sql` again to add the new table.)
+3. Click **Connect** and copy the connection string → that's `DATABASE_URL`.
 
-   Tip: Vercel also has a Neon integration (Vercel → Storage → Neon) that
-   creates the database and adds `DATABASE_URL` for you — either way works;
-   you still need to run `schema.sql` in the SQL Editor.
+### Step 4 — Stripe (payments)
 
-### Step 4 — Set up Stripe (payments)
-
-1. Sign up at stripe.com and activate the account (business info, bank
-   account for payouts).
-2. **Developers → API keys** → copy the **Secret key**. Use the *test* key
-   (`sk_test_...`) first so you can practice; switch to the *live* key
-   (`sk_live_...`) when you're ready for real money.
+1. stripe.com → create and activate an account.
+2. **Developers → API keys** → copy the Secret key (`sk_test_...` to practice,
+   `sk_live_...` for real money).
 3. **Developers → Webhooks → Add endpoint**:
-   - Endpoint URL: `https://YOUR-SITE-URL/api/webhook`
-   - Events: select **checkout.session.completed**
-   - After creating it, copy the **Signing secret** (`whsec_...`).
-   This is how paid orders get written into your Neon database automatically.
-4. Test it with Stripe's test card: `4242 4242 4242 4242`, any future date,
-   any CVC. Then check `/admin` — the order should be sitting there.
+   - URL: `https://YOUR-SITE/api/webhook`
+   - Event: **checkout.session.completed**
+   - Copy the **Signing secret** (`whsec_...`).
+   The webhook is what writes paid orders into Neon and subtracts stock.
+4. Test with card `4242 4242 4242 4242`, any future date, any CVC — then
+   check `/admin` for the order.
 
-### Step 5 — Add the environment variables in Vercel
+### Step 5 — Photo storage (Vercel Blob)
 
-Vercel → your project → Settings → Environment Variables. Add all five
-(they're listed with explanations in `.env.example`):
+So the admin's "Upload photo" buttons work:
+
+1. In Vercel: your project → **Storage** tab → **Create** → **Blob** →
+   accept the defaults and **Connect** it to this project.
+2. That automatically adds the `BLOB_READ_WRITE_TOKEN` environment variable.
+3. Redeploy. Uploads now land in Blob storage and the site serves them
+   directly. (Free tier includes plenty of space for product photos.)
+
+### Step 6 — Environment variables
+
+Vercel → project → Settings → Environment Variables (all explained in
+`.env.example`):
 
 | Name | Value |
 |---|---|
 | `DATABASE_URL` | from Neon (step 3) |
 | `STRIPE_SECRET_KEY` | from Stripe (step 4) |
 | `STRIPE_WEBHOOK_SECRET` | from Stripe (step 4) |
-| `ADMIN_PASSWORD` | any strong password you choose |
-| `NEXT_PUBLIC_SITE_URL` | your site's full URL, e.g. `https://dyeingbydesign.shop` |
+| `ADMIN_PASSWORD` | the owner login password — pick something strong |
+| `NEXT_PUBLIC_SITE_URL` | your site's full URL, e.g. `https://www.dyeingbydesign.com` |
+| `BLOB_READ_WRITE_TOKEN` | added automatically by the Blob store (step 5) |
 
-Then **redeploy** (Deployments → ⋯ on the latest → Redeploy) so they take
-effect.
+Then **redeploy** (Deployments → ⋯ → Redeploy) so they take effect.
 
-### Step 6 — Your domain
+### Step 7 — Your domain
 
-Buy the domain (see BRANDING.md for the shortlist), then Vercel → Settings →
-Domains → Add. Vercel shows you exactly what to change at your registrar,
-and HTTPS is automatic. Afterwards, update `NEXT_PUBLIC_SITE_URL` and the
-Stripe webhook URL to the new domain.
+Vercel → Settings → Domains → Add → follow the DNS records it shows you at
+your registrar. Afterwards update `NEXT_PUBLIC_SITE_URL` and the Stripe
+webhook URL to the new domain.
 
 ---
 
-## Everyday things you'll actually do
+## Everyday things
 
-**See orders, custom requests, and email signups:** go to `/admin` on your
-site and enter your `ADMIN_PASSWORD` (leave the username blank). Orders appear
-there automatically after checkout, with the shipping address.
+**Add or change a product:** log in → Products & stock. Photos: use a
+square-ish photo for the grid, any tall/portrait photo for the design page.
+The maple, oak, and fern designs are seeded with crops of the sumac shirt as
+technique samples — replace them with real photos from the admin when you've
+made those shirts, and untick "technique sample."
 
-**Change a price, name, or story:** edit `lib/products.ts` — everything about
-the four designs lives in that one file. Shipping cost lives there too
-(`SHIPPING_CENTS`). Push to GitHub and the site updates itself.
+**Run a limited drop:** create the design (or edit an existing one), switch
+it to "Track stock by size," enter the counts, flip it to Shown, and email
+the drop list (the emails are in `/admin`). Sizes sell down to 0 and show
+sold out on their own.
 
-**Swap in real photos (important):** the maple, oak, and fern pages currently
-show crops of your sumac shirt as technique samples (they're honest about it —
-each has a small "photo shows the technique" note). When you've made real
-ones: photograph them straight on in good light, drop the files into
-`public/images/`, and update the `image` and `card` paths in
-`lib/products.ts`. Square-ish photos work best for the `card` one.
+**Change flat shipping:** `SHIPPING_CENTS` in `lib/products.ts` (500 = $5.00),
+then push to GitHub.
 
-**Edit words on a page:** homepage text is in `app/page.tsx`, the process +
-FAQ page is `app/about/page.tsx`, the custom page is `app/custom/page.tsx`.
-The words are right there in the code — edit, push, done.
-
-**Announce a drop:** your signup emails are in `/admin` (and in Neon). Copy
-them into BCC in your email app for v1; when the list outgrows that, add a
-free Mailchimp/Buttondown account.
+**Announce a drop:** copy the signup emails from `/admin` into BCC for v1;
+graduate to Mailchimp/Buttondown when the list outgrows that.
 
 ---
 
 ## What's wired up where
 
 ```
-app/page.tsx              homepage
+app/page.tsx              homepage (products from the database)
 app/shop/                 design grid + individual design pages
 app/custom/               special request form  → saved to Neon
 app/about/                process story + care + FAQ
 app/cart/                 cart (stored in the visitor's browser)
 app/success/              post-checkout thank you page
-app/admin/                password-protected order desk
-app/api/checkout/         creates the Stripe Checkout session
-app/api/webhook/          Stripe → writes paid orders into Neon
-app/api/special-request/  saves custom requests
-app/api/signup/           saves drop-list emails
-components/               header, footer, cards, cart, forms
-lib/products.ts           ★ your designs, prices, sizes — edit here
-lib/db.ts                 Neon connection helper
-middleware.ts             the /admin password gate
-schema.sql                run once in Neon's SQL editor
-scripts/                  art + screenshot helpers (not part of the site)
+app/admin/                owner area: orders, custom requests, drop list
+app/admin/login/          owner login page
+app/admin/products/       product & stock manager
+app/api/checkout/         creates the Stripe Checkout session (server-side
+                          price + stock enforcement)
+app/api/webhook/          Stripe → writes orders into Neon + subtracts stock
+app/api/admin/*           login/logout, product editing, photo upload
+components/               header, footer, cards, cart, forms, product manager
+lib/products.ts           types, shipping constant, fallback designs
+lib/catalog.ts            reads live products from Neon
+lib/adminAuth.ts          owner session cookie helpers
+middleware.ts             guards /admin and /api/admin
+schema.sql                run in Neon's SQL editor (safe to re-run)
+scripts/                  art generation helper (not part of the site)
 ```
 
-Prices are enforced on the server from `lib/products.ts` — nobody can pay a
-made-up price from their browser. Real keys belong only in `.env.local` (which
-git ignores) and in Vercel's environment variables — never commit them.
+Security notes: prices and stock are enforced on the server from the
+database — nobody can pay a made-up price or over-order from their browser.
+Real keys belong only in `.env.local` (git-ignored) and Vercel's environment
+variables — never commit them.
 
 ---
 
 ## Going further, whenever you want
 
-Ask Claude to: add more shirt colors, add hoodies or totes, build real drop
-inventory with sold-out states, email you when an order or custom request
-lands (Resend has a free tier), add order status emails, or hook up a
-Mailchimp export for the drop list. The database and structure are already
-shaped for all of it.
+Ask Claude to: add more shirt colors or product types (hoodies, totes), email
+you when an order or custom request lands (Resend has a free tier), send
+customers shipping-status emails, add discount codes, or separate logins for
+two people. The database and structure are already shaped for it.

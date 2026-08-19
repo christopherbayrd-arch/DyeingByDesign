@@ -2,9 +2,13 @@ import Image from "next/image";
 import Link from "next/link";
 import ProductCard from "@/components/ProductCard";
 import SignupForm from "@/components/SignupForm";
-import { PRODUCTS } from "@/lib/products";
+import { getProducts } from "@/lib/catalog";
 
-export default function HomePage() {
+// Product grid refreshes from the database every 60 seconds
+export const revalidate = 60;
+
+export default async function HomePage() {
+  const products = await getProducts();
   return (
     <>
       {/* ---------- HERO ---------- */}
@@ -56,7 +60,7 @@ export default function HomePage() {
           </p>
         </div>
         <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {PRODUCTS.map((p) => (
+          {products.map((p) => (
             <ProductCard key={p.slug} product={p} />
           ))}
         </div>

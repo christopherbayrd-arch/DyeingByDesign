@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/components/CartContext";
-import { COLOR, SIZES, fmtPrice, type Product } from "@/lib/products";
+import { COLOR, availableQty, fmtPrice, isSoldOut, type Product } from "@/lib/products";
 
 export default function AddToCart({ product }: { product: Product }) {
   const { add } = useCart();
@@ -13,13 +13,30 @@ export default function AddToCart({ product }: { product: Product }) {
   const [buying, setBuying] = useState(false);
   const [error, setError] = useState("");
 
+  const soldOut = isSoldOut(product);
+  const maxForSize = size ? Math.min(5, availableQty(product, size)) : 5;
+
+  function pickSize(s: string) {
+    setSize(s);
+    setError("");
+    const cap = Math.min(5, availableQty(product, s));
+    if (qty > cap) setQty(Math.max(1, cap));
+  }
+
   function handleAdd() {
     if (!size) {
       setError("Pick a size first.");
       return;
     }
     setError("");
-    add({ slug: product.slug, size, qty });
+    add({
+      slug: product.slug,
+      size,
+      qty,
+      name: product.name,
+      priceCents: product.priceCents,
+      card: product.card,
+    });
     setAdded(true);
     setTimeout(() => setAdded(false), 2600);
   }
@@ -49,6 +66,24 @@ export default function AddToCart({ product }: { product: Product }) {
     setBuying(false);
   }
 
+  if (soldOut) {
+    return (
+      <div>
+        <p className="inline-block rounded-full border border-rust/60 px-4 py-2 text-sm font-semibold text-rust">
+          Sold out — for now
+        </p>
+        <p className="mt-4 text-sm leading-relaxed text-faded">
+          This one went fast. Join the drop list at the bottom of the page and you&apos;ll
+          be first to hear when it&apos;s back, or{" "}
+          <Link href="/custom" className="underline underline-offset-2 hover:text-goldlight">
+            request a custom
+          </Link>{" "}
+          version.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between text-sm">
@@ -56,21 +91,29 @@ export default function AddToCart({ product }: { product: Product }) {
         <span className="text-faded">Color: {COLOR}</span>
       </div>
       <div className="flex flex-wrap gap-2">
-        {SIZES.map((s) => (
-          <button
-            key={s}
-            type="button"
-            className="size-pill"
-            data-active={size === s}
-            onClick={() => {
-              setSize(s);
-              setError("");
-            }}
-          >
-            {s}
-          </button>
-        ))}
+        {product.sizes.map((s) => {
+          const avail = availableQty(product, s);
+          const out = avail <= 0;
+          return (
+            <button
+              key={s}
+              type="button"
+              className="size-pill disabled:cursor-not-allowed disabled:opacity-35 disabled:line-through"
+              data-active={size === s}
+              disabled={out}
+              title={out ? "Sold out in this size" : undefined}
+              onClick={() => pickSize(s)}
+            >
+              {s}
+            </button>
+          );
+        })}
       </div>
+      {product.trackStock && size && availableQty(product, size) <= 3 && (
+        <p className="mt-2 text-xs font-medium text-goldlight">
+          Only {availableQty(product, size)} left in {size}.
+        </p>
+      )}
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 text-sm text-faded">
@@ -81,7 +124,7 @@ export default function AddToCart({ product }: { product: Product }) {
             className="input w-auto py-2"
             aria-label="Quantity"
           >
-            {[1, 2, 3, 4, 5].map((n) => (
+            {Array.from({ length: Math.max(1, maxForSize) }, (_, i) => i + 1).map((n) => (
               <option key={n} value={n}>
                 {n}
               </option>
@@ -108,8 +151,10 @@ export default function AddToCart({ product }: { product: Product }) {
       {error && <p className="mt-3 text-sm text-rust">{error}</p>}
 
       <p className="mt-5 text-xs leading-relaxed text-faded">
-        {fmtPrice(product.priceCents)} + $5 flat shipping (US). Made for you after you
-        order — allow 5 to 7 days before it ships.
+        {fmtPrice(product.priceCents)} + $5 flat shipping (US).{" "}
+        {product.trackStock
+          ? "In stock and ready to ship in 1 to 2 days."
+          : "Made for you after you order — allow 5 to 7 days before it ships."}
       </p>
     </div>
   );
