@@ -77,9 +77,9 @@ export default function ArtistPage() {
           </div>
 
           <p className="mt-8 border-t border-bone/10 pt-6 text-sm leading-relaxed text-faded">
-            Every order is cut, laid out, sprayed, neutralized, washed, and packed by the
-            same two hands you see up there holding the fishing rod. If you have a
-            question about your shirt, you&apos;re talking to the person who made it.
+            Every order is laid out, sprayed, neutralized, washed, and packed by the guy
+            in the photo. If you have a question about your shirt, you&apos;re talking to
+            the person who made it.
           </p>
         </div>
       </div>

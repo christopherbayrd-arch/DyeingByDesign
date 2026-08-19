@@ -6,12 +6,9 @@ export default function Footer() {
     <footer className="mt-24 border-t border-bone/10 bg-inkdeep/60">
       <div className="mx-auto grid max-w-6xl gap-10 px-5 py-14 md:grid-cols-3">
         <div>
-          <div className="flex items-center gap-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/leaf-mark.svg" alt="" width={26} height={26} />
-            <span className="font-display text-lg font-semibold">Dyeing By Design</span>
-          </div>
-          <p className="mt-3 max-w-xs text-sm leading-relaxed text-faded">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/images/logo.png" alt="Dyeing By Design" width={190} height={113} />
+          <p className="mt-4 max-w-xs text-sm leading-relaxed text-faded">
             Real leaves, heavyweight cotton, and a careful pass of bleach. Hand made in
             Maine, one shirt at a time.
           </p>
