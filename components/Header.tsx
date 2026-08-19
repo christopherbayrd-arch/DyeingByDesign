@@ -27,6 +27,9 @@ export default function Header() {
           <Link href="/about" className="transition hover:text-goldlight">
             Process
           </Link>
+          <Link href="/artist" className="transition hover:text-goldlight">
+            Artist
+          </Link>
           <Link
             href="/cart"
             className="relative flex items-center gap-1.5 rounded-full border border-bone/25 px-3.5 py-1.5 text-bone transition hover:border-gold hover:text-goldlight"

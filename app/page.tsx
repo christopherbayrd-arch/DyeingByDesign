@@ -141,6 +141,34 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ---------- THE MAKER ---------- */}
+      <section className="mx-auto max-w-6xl px-5 pt-24">
+        <div className="card flex flex-col items-center gap-7 p-8 sm:flex-row sm:p-10">
+          <div className="relative h-36 w-36 shrink-0 overflow-hidden rounded-full border-2 border-gold/50 sm:h-44 sm:w-44">
+            <Image
+              src="/images/artist-square.jpg"
+              alt="The artist behind Dyeing By Design"
+              fill
+              sizes="176px"
+              className="object-cover"
+            />
+          </div>
+          <div className="text-center sm:text-left">
+            <p className="kicker">The maker</p>
+            <h2 className="mt-2 font-display text-2xl font-semibold sm:text-3xl">
+              One artist. Two hands. Every shirt.
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-faded sm:mx-0">
+              Born and raised in Brunswick, Maine — working since the paper route days,
+              now turning dye, bleach, and a lifetime of drive into wearable one of ones.
+            </p>
+            <Link href="/artist" className="btn btn-ghost mt-5">
+              Meet the artist
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ---------- DROPS ---------- */}
       <section className="mx-auto max-w-3xl px-5 pt-24 text-center">
         <p className="kicker">Limited drops</p>

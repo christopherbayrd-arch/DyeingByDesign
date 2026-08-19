@@ -26,6 +26,7 @@ export default function Footer() {
             <li><Link className="transition hover:text-goldlight" href="/shop">The designs</Link></li>
             <li><Link className="transition hover:text-goldlight" href="/custom">Custom requests</Link></li>
             <li><Link className="transition hover:text-goldlight" href="/about">How it&apos;s made + care</Link></li>
+            <li><Link className="transition hover:text-goldlight" href="/artist">Meet the artist</Link></li>
             <li><Link className="transition hover:text-goldlight" href="/cart">Your cart</Link></li>
           </ul>
         </div>
