@@ -78,12 +78,11 @@ export const DEFAULT_PRODUCTS: Product[] = [
     slug: "maple",
     name: "Maple",
     species: "Sugar maple · Acer saccharum",
-    blurb: "Five points everyone knows, printed the hard way.",
+    blurb: "Leaves scattered like they just fell there. Deep gold burn.",
     story:
-      "A single big maple leaf reads bold across the chest, with smaller ones drifting toward the shoulder. In the fall we pick leaves the day they drop, while they still lie flat and full, and every one prints a little different.",
-    image: "/images/design-maple.jpg",
+      "Maple leaves laid out across the whole shirt, front and back, the way they land on the ground in October. We pick them the day they drop, while they still lie flat and full, then spray until the cotton burns to gold and the leaves keep their dark. Every shirt catches the spray differently, so no two ever land the same.",
+    image: "/images/maple-shirt.jpg",
     card: "/images/design-maple.jpg",
-    samplePhoto: true,
     sort: 2,
   },
   {

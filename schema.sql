@@ -69,9 +69,9 @@ insert into products (slug, name, species, blurb, story, image, card, price_cent
 ),
 (
   'maple', 'Maple', 'Sugar maple · Acer saccharum',
-  'Five points everyone knows, printed the hard way.',
-  'A single big maple leaf reads bold across the chest, with smaller ones drifting toward the shoulder. In the fall we pick leaves the day they drop, while they still lie flat and full, and every one prints a little different.',
-  '/images/design-maple.jpg', '/images/design-maple.jpg', 3999, true, null, 2
+  'Leaves scattered like they just fell there. Deep gold burn.',
+  'Maple leaves laid out across the whole shirt, front and back, the way they land on the ground in October. We pick them the day they drop, while they still lie flat and full, then spray until the cotton burns to gold and the leaves keep their dark. Every shirt catches the spray differently, so no two ever land the same.',
+  '/images/maple-shirt.jpg', '/images/design-maple.jpg', 3999, false, null, 2
 ),
 (
   'oak', 'Oak', 'Northern red oak · Quercus rubra',
@@ -86,3 +86,12 @@ insert into products (slug, name, species, blurb, story, image, card, price_cent
   '/images/design-fern.jpg', '/images/design-fern.jpg', 3999, true, null, 4
 )
 on conflict (slug) do nothing;
+
+-- Refresh the maple design if this database was seeded before the real
+-- maple shirt was photographed (harmless to run when it's already current,
+-- and it leaves any edits you made in /admin/products alone apart from
+-- the photo + sample flag).
+update products
+set image = '/images/maple-shirt.jpg',
+    sample_photo = false
+where slug = 'maple' and image = '/images/design-maple.jpg';
