@@ -27,6 +27,11 @@ playbook.
     paid order subtracts automatically.
   - **Shown / Hidden** toggles whether a design appears on the site at all.
     New designs start hidden until you're ready.
+- **Announce a drop** (`/admin/drop`): write one email and send it to
+  everyone on the drop list. Send yourself a test first — it's the exact
+  email subscribers get. Everyone receives their own copy (nobody sees
+  anyone else's address) and every email carries an unsubscribe link.
+  Emailing the list needs a verified sending domain — see step 6.
 - Changes go live on the storefront within about a minute.
 
 ---
@@ -68,8 +73,9 @@ Deploy. Every push/upload to GitHub redeploys automatically.
 2. Open the **SQL Editor**, paste the entire contents of `schema.sql`, Run.
    That creates orders, custom requests, the drop list, **and the products
    table pre-loaded with the four launch designs**. Safe to re-run any time —
-   it never wipes data. (If you set the database up before the products
-   update, just run `schema.sql` again to add the new table.)
+   it never wipes data. **Run it again any time this file changes** — it
+   adds new tables and columns (products, drop unsubscribes) without
+   touching what's already there.
 3. Click **Connect** and copy the connection string → that's `DATABASE_URL`.
 
 ### Step 4 — Stripe (payments)
@@ -95,7 +101,36 @@ So the admin's "Upload photo" buttons work:
 3. Redeploy. Uploads now land in Blob storage and the site serves them
    directly. (Free tier includes plenty of space for product photos.)
 
-### Step 6 — Environment variables
+### Step 6 — Email notifications (Resend)
+
+So you hear about orders instead of having to check the site:
+
+1. Sign up free at **resend.com** (3,000 emails a month free — plenty).
+2. **API Keys → Create API Key** → copy it. That's `RESEND_API_KEY`.
+3. Set `NOTIFY_EMAIL` to wherever alerts should land. **Important:** until
+   you verify a domain (below), Resend only lets you send to the address
+   you signed up with — so use that one first.
+4. Redeploy, log into `/admin`, and hit **Send test email**. The badge at
+   the top of that page tells you whether alerts are on.
+
+**Optional — email customers too.** To send the branded "we got your
+order" confirmation to buyers, and send from your own address instead of
+Resend's test one, verify the domain:
+
+1. Resend → **Domains → Add Domain** → `dyeingbydesign.com`.
+2. Resend shows a few DNS records. Add them in **Vercel → your project →
+   Domains → dyeingbydesign.com** (Vercel runs your DNS now that the
+   nameservers point there).
+3. Once Resend marks the domain verified, set
+   `EMAIL_FROM=Dyeing By Design <hello@dyeingbydesign.com>` and redeploy.
+
+Until `EMAIL_FROM` is set, customer confirmations are simply skipped —
+buyers still get Stripe's payment receipt, and you still get your alerts.
+
+To see what the emails look like without sending one, log in and visit
+`/api/admin/preview-email?k=order` (also `request`, `customer`, `drop`, `test`).
+
+### Step 7 — Environment variables
 
 Vercel → project → Settings → Environment Variables (all explained in
 `.env.example`):
@@ -108,10 +143,13 @@ Vercel → project → Settings → Environment Variables (all explained in
 | `ADMIN_PASSWORD` | the owner login password — pick something strong |
 | `NEXT_PUBLIC_SITE_URL` | your site's full URL, e.g. `https://www.dyeingbydesign.com` |
 | `BLOB_READ_WRITE_TOKEN` | added automatically by the Blob store (step 5) |
+| `RESEND_API_KEY` | from Resend (step 6) — optional but recommended |
+| `NOTIFY_EMAIL` | where order alerts go (step 6) |
+| `EMAIL_FROM` | only after verifying your domain in Resend (step 6) |
 
 Then **redeploy** (Deployments → ⋯ → Redeploy) so they take effect.
 
-### Step 7 — Your domain
+### Step 8 — Your domain
 
 Vercel → Settings → Domains → Add → follow the DNS records it shows you at
 your registrar. Afterwards update `NEXT_PUBLIC_SITE_URL` and the Stripe
@@ -123,7 +161,7 @@ webhook URL to the new domain.
 
 **Add or change a product:** log in → Products & stock. Photos: use a
 square-ish photo for the grid, any tall/portrait photo for the design page.
-The maple, oak, and fern designs are seeded with crops of the sumac shirt as
+The oak and fern designs are still seeded with crops of the sumac shirt as
 technique samples — replace them with real photos from the admin when you've
 made those shirts, and untick "technique sample."
 
@@ -135,8 +173,18 @@ sold out on their own.
 **Change flat shipping:** `SHIPPING_CENTS` in `lib/products.ts` (500 = $5.00),
 then push to GitHub.
 
-**Announce a drop:** copy the signup emails from `/admin` into BCC for v1;
-graduate to Mailchimp/Buttondown when the list outgrows that.
+**Order alerts:** when a payment clears you get an email with what to
+make, the size, the shipping address, and the total — hit reply and it
+goes straight to the customer. Custom requests email you too, also
+reply-ready. Nothing about email can break a sale: if Resend is down or a
+key is wrong, the order still saves and still shows in `/admin`.
+
+**Announce a drop:** log in → **Announce a drop**. Write a subject,
+headline, and message, optionally feature one of your designs (it pulls
+in the photo, name, and price), then send yourself a test. When it looks
+right, hit send and confirm. The sidebar shows how many people are on
+the list and what you've sent before. Unsubscribes are handled for you
+and are permanent.
 
 ---
 
@@ -155,7 +203,12 @@ app/admin/products/       product & stock manager
 app/api/checkout/         creates the Stripe Checkout session (server-side
                           price + stock enforcement)
 app/api/webhook/          Stripe → writes orders into Neon + subtracts stock
-app/api/admin/*           login/logout, product editing, photo upload
+app/api/admin/*           login/logout, products, photo upload,
+                          test + preview email
+lib/email.ts              Resend setup and the email templates
+lib/orderFormat.ts        order data → readable email lines
+app/admin/drop/           write and send a drop announcement
+app/unsubscribe/          one-click unsubscribe confirmation page
 components/               header, footer, cards, cart, forms, product manager
 lib/products.ts           types, shipping constant, fallback designs
 lib/catalog.ts            reads live products from Neon

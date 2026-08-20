@@ -95,3 +95,20 @@ update products
 set image = '/images/maple-shirt.jpg',
     sample_photo = false
 where slug = 'maple' and image = '/images/design-maple.jpg';
+
+-- ============ DROP ANNOUNCEMENTS ============
+-- Every subscriber gets a private unsubscribe token, and unsubscribes are
+-- honored forever (the row stays so nobody gets re-added by accident).
+alter table drop_signups add column if not exists unsub_token uuid not null default gen_random_uuid();
+alter table drop_signups add column if not exists unsubscribed boolean not null default false;
+alter table drop_signups add column if not exists unsubscribed_at timestamptz;
+
+-- A log of what you've sent, so you can see the history in /admin/drop
+create table if not exists drop_sends (
+  id          serial primary key,
+  subject     text not null,
+  headline    text not null default '',
+  sent        integer not null default 0,
+  failed      integer not null default 0,
+  created_at  timestamptz not null default now()
+);

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import AdminNav from "@/components/AdminNav";
+import EmailStatus from "@/components/EmailStatus";
+import { emailConfig } from "@/lib/email";
 import { getDb } from "@/lib/db";
 import { fmtPrice } from "@/lib/products";
 
@@ -38,12 +40,18 @@ function shipTo(shipping: unknown) {
 
 export default async function AdminPage() {
   const sql = getDb();
+  const mail = emailConfig();
 
   if (!sql) {
     return (
       <div className="mx-auto max-w-3xl px-5 pt-16">
         <h1 className="font-display text-3xl font-semibold">Admin</h1>
         <AdminNav active="orders" />
+        <EmailStatus
+          hasKey={mail.hasKey}
+          notify={mail.notify}
+          canEmailCustomers={mail.canEmailCustomers}
+        />
         <p className="mt-6 text-faded">
           No database connected yet. Add <code>DATABASE_URL</code> from Neon to your
           environment variables (README has the walkthrough), then reload.
@@ -70,6 +78,11 @@ export default async function AdminPage() {
       <p className="kicker">Order desk</p>
       <h1 className="mt-2 font-display text-4xl font-semibold">Admin</h1>
       <AdminNav active="orders" />
+      <EmailStatus
+        hasKey={mail.hasKey}
+        notify={mail.notify}
+        canEmailCustomers={mail.canEmailCustomers}
+      />
 
       {dbError && <p className="mt-6 rounded-xl border border-rust/50 bg-rust/10 p-4 text-sm">{dbError}</p>}
 

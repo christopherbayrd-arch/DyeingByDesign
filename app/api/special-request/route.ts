@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { emailConfig, sendEmail, requestAlertHtml } from "@/lib/email";
+import { siteUrl } from "@/lib/orderFormat";
 
 // Saves a custom shirt request from the /custom page into Neon.
 export async function POST(req: Request) {
@@ -35,6 +37,22 @@ export async function POST(req: Request) {
       insert into special_requests (name, email, size, idea)
       values (${name}, ${email}, ${size || null}, ${idea})
     `;
+
+    // Tell the shop about it — never let email trouble fail the request
+    try {
+      const cfg = emailConfig();
+      if (cfg.canNotifyOwner) {
+        const res = await sendEmail({
+          to: cfg.notify,
+          subject: `Custom request from ${name}`,
+          replyTo: email,
+          html: requestAlertHtml({ name, email, size, idea, siteUrl: siteUrl() }),
+        });
+        if (!res.ok) console.error("request email failed:", res.error);
+      }
+    } catch (err) {
+      console.error("request notification error:", err);
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
