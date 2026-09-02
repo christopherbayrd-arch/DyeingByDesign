@@ -39,8 +39,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: blob.url });
   } catch (err) {
     console.error("upload error:", err);
+    const why = String((err as Error)?.message ?? err);
+    const hint = /private/i.test(why)
+      ? " Your Blob store is set to Private — create a new store with Public access in Vercel → Storage, connect it to this project, and redeploy."
+      : "";
     return NextResponse.json(
-      { error: "Upload failed. Try again in a minute." },
+      { error: `Upload failed: ${why.slice(0, 200)}.${hint}` },
       { status: 500 }
     );
   }

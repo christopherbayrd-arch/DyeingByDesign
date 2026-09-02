@@ -95,7 +95,8 @@ export async function POST(req: Request) {
           artworkUrl = blob.url;
         } catch (err) {
           console.error("artwork upload failed:", err);
-          artworkNote = "(artwork upload failed — ask them to email it)";
+          const why = String((err as Error)?.message ?? err).slice(0, 160);
+          artworkNote = `(artwork upload failed — ask them to email it. Reason: ${why})`;
         }
       }
     }
