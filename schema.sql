@@ -44,6 +44,7 @@ create table if not exists products (
   slug         text unique not null,
   name         text not null,
   species      text not null default '',
+  line         text not null default 'botanical',  -- 'botanical' (real leaves) or 'stencil' (graphic & stencil)
   blurb        text not null default '',
   story        text not null default '',
   image        text not null default '',   -- big photo on the design page
@@ -99,6 +100,11 @@ where slug = 'maple' and image = '/images/design-maple.jpg';
 -- ============ DROP ANNOUNCEMENTS ============
 -- Every subscriber gets a private unsubscribe token, and unsubscribes are
 -- honored forever (the row stays so nobody gets re-added by accident).
+-- v3: product lines (Botanical vs Graphic & Stencil) + custom request artwork
+alter table products add column if not exists line text not null default 'botanical';
+alter table special_requests add column if not exists kind text not null default 'leaves';   -- leaves | logo | graphic | other
+alter table special_requests add column if not exists artwork_url text;                       -- uploaded logo/graphic (Vercel Blob)
+
 alter table drop_signups add column if not exists unsub_token uuid not null default gen_random_uuid();
 alter table drop_signups add column if not exists unsubscribed boolean not null default false;
 alter table drop_signups add column if not exists unsubscribed_at timestamptz;

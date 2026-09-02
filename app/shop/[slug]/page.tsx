@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import AddToCart from "@/components/AddToCart";
 import ProductCard from "@/components/ProductCard";
 import { getProduct, getProducts } from "@/lib/catalog";
+import { lineInfo } from "@/lib/products";
 
 // Re-checked against the database every 60 seconds, so admin edits
 // (price, stock, new photos) go live within a minute.
@@ -34,13 +35,19 @@ export default async function DesignPage({
   const product = await getProduct(slug);
   if (!product) notFound();
 
-  const others = (await getProducts()).filter((p) => p.slug !== product.slug).slice(0, 3);
+  const isStencil = product.line === "stencil";
+  const all = (await getProducts()).filter((p) => p.slug !== product.slug);
+  // Show siblings from the same line first, then fill from the other line
+  const others = [
+    ...all.filter((p) => p.line === product.line),
+    ...all.filter((p) => p.line !== product.line),
+  ].slice(0, 3);
 
   return (
     <div className="mx-auto max-w-6xl px-5 pt-10">
       <nav className="text-xs text-faded">
         <Link href="/shop" className="transition hover:text-goldlight">
-          ← All designs
+          ← The lineup
         </Link>
       </nav>
 
@@ -62,14 +69,17 @@ export default async function DesignPage({
           )}
           {product.samplePhoto && (
             <span className="absolute bottom-3 left-3 rounded-full bg-inkdeep/80 px-3 py-1.5 text-[0.7rem] font-medium text-bone/90 backdrop-blur">
-              Photo shows the technique — your {product.name.toLowerCase()} print will be
+              Photo shows the technique — your {product.name.toLowerCase()} piece will be
               its own
             </span>
           )}
         </div>
 
         <div>
-          {product.species && <p className="kicker">{product.species}</p>}
+          <p className="kicker">
+            {lineInfo(product.line).short}
+            {product.species ? ` · ${product.species}` : ""}
+          </p>
           <h1 className="mt-2 font-display text-4xl font-semibold sm:text-5xl">
             {product.name}
           </h1>
@@ -83,14 +93,37 @@ export default async function DesignPage({
             <li>· Heavyweight 100% cotton tee, unisex fit</li>
             <li>· Bleach fully neutralized and washed before shipping</li>
             <li>· Wash cold, inside out. Hang dry or tumble low.</li>
-            <li>· One of one — leaf placement and burn vary shirt to shirt</li>
+            <li>
+              · One of one —{" "}
+              {isStencil
+                ? "even from the same stencil, the burn and amber tone land differently on every shirt"
+                : "leaf placement and burn vary shirt to shirt"}
+            </li>
           </ul>
+
+          <div className="mt-6 rounded-xl bg-black/20 p-5">
+            <p className="kicker">Why bleach, not print</p>
+            <ul className="mt-3 space-y-2 text-sm leading-relaxed text-faded">
+              <li>
+                <strong className="text-bone">Zero feel.</strong> The design is burned into the
+                fibers — no stiff plastic patch on your chest.
+              </li>
+              <li>
+                <strong className="text-bone">Won&apos;t crack, peel, or wash out.</strong> There is
+                nothing sitting on top of the fabric to come off.
+              </li>
+              <li>
+                <strong className="text-bone">100% unique.</strong> Same {isStencil ? "stencil" : "leaf"},
+                different shirt — the bleach reacts a little differently every time.
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
 
       {others.length > 0 && (
         <div className="mt-20">
-          <h2 className="font-display text-2xl font-semibold">The other leaves</h2>
+          <h2 className="font-display text-2xl font-semibold">More from the lineup</h2>
           <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
             {others.map((p) => (
               <ProductCard key={p.slug} product={p} />

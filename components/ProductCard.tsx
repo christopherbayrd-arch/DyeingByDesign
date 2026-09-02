@@ -14,7 +14,7 @@ export default function ProductCard({ product }: { product: Product }) {
         {product.card ? (
           <Image
             src={product.card}
-            alt={`${product.name} bleach design shirt`}
+            alt={`${product.name} hand-bleached shirt`}
             fill
             sizes="(max-width: 768px) 50vw, 25vw"
             className={

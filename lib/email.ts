@@ -107,7 +107,7 @@ export function orderAlertHtml(o: {
 }) {
   const items = o.itemLines.map((l) => `<li style="margin:0 0 6px;">${escapeHtml(l)}</li>`).join("");
   const body = `
-    <p style="margin:0 0 18px;color:#f0e7d1;">Someone just bought a shirt. Time to go pick some leaves.</p>
+    <p style="margin:0 0 18px;color:#f0e7d1;">Someone just bought a shirt. Time to pick some leaves — or cut a stencil.</p>
     <div style="background:rgba(0,0,0,.25);border-radius:12px;padding:16px 18px;margin-bottom:18px;">
       <p style="margin:0 0 8px;font:600 12px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#cf9440;">To make</p>
       <ul style="margin:0;padding-left:18px;font:400 15px/1.6 Helvetica,Arial,sans-serif;color:#f0e7d1;">${items}</ul>
@@ -130,14 +130,22 @@ export function requestAlertHtml(r: {
   email: string;
   size: string;
   idea: string;
+  kind?: string;
+  artworkUrl?: string | null;
+  artworkNote?: string;
   siteUrl: string;
 }) {
+  const artwork = r.artworkUrl
+    ? `<a href="${escapeHtml(r.artworkUrl)}" style="color:#e3b96e;">Open the file</a>`
+    : escapeHtml(r.artworkNote || "none attached");
   const body = `
     <p style="margin:0 0 18px;color:#f0e7d1;">Someone wants a one of one. These are worth answering fast.</p>
     <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
       ${row("From", escapeHtml(r.name))}
       ${row("Email", escapeHtml(r.email))}
+      ${row("Type", escapeHtml(r.kind || "Leaves / botanical"))}
       ${row("Size", escapeHtml(r.size || "not sure yet"))}
+      ${row("Artwork", artwork)}
     </table>
     <div style="background:rgba(0,0,0,.25);border-radius:12px;padding:16px 18px;margin-top:16px;">
       <p style="margin:0 0 8px;font:600 12px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#cf9440;">Their idea</p>
@@ -159,7 +167,7 @@ export function customerOrderHtml(o: {
   const items = o.itemLines.map((l) => `<li style="margin:0 0 6px;">${escapeHtml(l)}</li>`).join("");
   const hi = o.firstName ? `${escapeHtml(o.firstName)}, thank you.` : "Thank you.";
   const body = `
-    <p style="margin:0 0 18px;color:#f0e7d1;">${hi} Your order is in the queue, and it gets made by hand — real leaves, real bleach, no two alike.</p>
+    <p style="margin:0 0 18px;color:#f0e7d1;">${hi} Your order is in the queue, and it gets made by hand — real leaves or a hand-cut stencil, real bleach, no two alike.</p>
     <div style="background:rgba(0,0,0,.25);border-radius:12px;padding:16px 18px;margin-bottom:18px;">
       <p style="margin:0 0 8px;font:600 12px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#cf9440;">Your order</p>
       <ul style="margin:0;padding-left:18px;font:400 15px/1.6 Helvetica,Arial,sans-serif;color:#f0e7d1;">${items}</ul>
@@ -219,7 +227,7 @@ export function dropHtml(d: DropContent) {
       <a href="${d.ctaUrl}" style="display:inline-block;background:#cf9440;color:#110d05;text-decoration:none;font:700 15px/1 Helvetica,Arial,sans-serif;padding:15px 26px;border-radius:999px;">${escapeHtml(d.ctaLabel)}</a>
     </p>`;
 
-  const foot = `You're getting this because you asked to hear about drops from Dyeing By Design, hand bleached leaf shirts made in Maine.<br>
+  const foot = `You're getting this because you asked to hear about drops from Dyeing By Design, hand bleached botanical and stencil shirts made in Maine.<br>
     <a href="${d.unsubUrl}" style="color:#7d735c;">Unsubscribe</a>`;
 
   return shell(d.headline, body, foot);

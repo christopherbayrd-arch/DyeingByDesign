@@ -11,11 +11,33 @@
 //       database is connected.
 // ============================================================
 
+export type ProductLine = "botanical" | "stencil";
+
+export const LINES: { key: ProductLine; name: string; tagline: string; short: string }[] = [
+  {
+    key: "botanical",
+    name: "The Botanical Line",
+    short: "Botanical",
+    tagline: "Real leaves laid by hand — sumac, maple, oak, fern, and whatever the season drops.",
+  },
+  {
+    key: "stencil",
+    name: "The Graphic & Stencil Line",
+    short: "Graphic & Stencil",
+    tagline: "Custom cut shapes, celestial icons, wildlife silhouettes, and bold geometric work.",
+  },
+];
+
+export function lineInfo(key: string) {
+  return LINES.find((l) => l.key === key) ?? LINES[0];
+}
+
 export type Product = {
   id?: number;
   slug: string;
   name: string;
-  species: string;
+  species: string;    // italic sub-line: a species for leaves, a style note for stencils
+  line: ProductLine;  // which lineup the design belongs to
   blurb: string;
   story: string;
   image: string;        // big photo on the design page
@@ -52,6 +74,7 @@ export function fmtPrice(cents: number) {
 }
 
 const base = {
+  line: "botanical" as ProductLine,
   priceCents: 3999,
   sizes: SIZES,
   trackStock: false,

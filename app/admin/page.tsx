@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { kindLabel } from "@/lib/requests";
 import AdminNav from "@/components/AdminNav";
 import EmailStatus from "@/components/EmailStatus";
 import { emailConfig } from "@/lib/email";
@@ -139,12 +140,23 @@ export default async function AdminPage() {
                   {String(r.name)}{" "}
                   <span className="font-normal text-faded">
                     · {String(r.email)}
+                    {r.kind ? ` · ${kindLabel(String(r.kind))}` : ""}
                     {r.size ? ` · size ${String(r.size)}` : ""}
                   </span>
                 </p>
                 <p className="text-xs text-faded">{fmtDate(r.created_at)}</p>
               </div>
               <p className="mt-2 whitespace-pre-wrap leading-relaxed text-faded">{String(r.idea)}</p>
+              {r.artwork_url ? (
+                <a
+                  href={String(r.artwork_url)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-block text-xs text-goldlight underline underline-offset-2"
+                >
+                  Open attached artwork ↗
+                </a>
+              ) : null}
             </div>
           ))}
         </div>

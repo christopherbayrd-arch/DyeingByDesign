@@ -7,15 +7,15 @@ import Footer from "@/components/Footer";
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: {
-    default: "Dyeing By Design — hand bleached leaf shirts, made in Maine",
+    default: "Dyeing By Design — hand bleached botanical & stencil shirts, made in Maine",
     template: "%s · Dyeing By Design",
   },
   description:
-    "Real leaves, heavyweight cotton, and a careful pass of bleach. Sumac, maple, oak, and fern shirts made one at a time in Maine. No two alike.",
+    "Real botanicals, custom stencils, and hand-cut graphics on heavyweight cotton. Bleached by hand in Maine, one shirt at a time. No two alike.",
   openGraph: {
     title: "Dyeing By Design",
     description:
-      "Hand bleached leaf shirts made one at a time in Maine. One of a kind. By design.",
+      "Hand bleached botanical and stencil shirts made one at a time in Maine. One of a kind. By design.",
     images: ["/images/design-sumac.jpg"],
   },
 };

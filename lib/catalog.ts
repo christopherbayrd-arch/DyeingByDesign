@@ -1,7 +1,7 @@
 // Server-side product catalog. Reads from Neon when connected;
 // falls back to the built-in four designs so the site always renders.
 import { getDb } from "@/lib/db";
-import { DEFAULT_PRODUCTS, SIZES, type Product } from "@/lib/products";
+import { DEFAULT_PRODUCTS, SIZES, type Product, type ProductLine } from "@/lib/products";
 
 type Row = Record<string, unknown>;
 
@@ -14,6 +14,7 @@ export function rowToProduct(r: Row): Product {
     slug: String(r.slug),
     name: String(r.name ?? ""),
     species: String(r.species ?? ""),
+    line: (r.line === "stencil" ? "stencil" : "botanical") as ProductLine,
     blurb: String(r.blurb ?? ""),
     story: String(r.story ?? ""),
     image: String(r.image ?? ""),

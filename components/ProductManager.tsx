@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { SIZES, fmtPrice, type Product } from "@/lib/products";
+import { LINES, SIZES, fmtPrice, type Product, type ProductLine } from "@/lib/products";
 
 type Draft = {
   name: string;
   slug: string;
   species: string;
+  line: ProductLine;
   blurb: string;
   story: string;
   priceDollars: string; // edited as "39.99"
@@ -25,6 +26,7 @@ function toDraft(p: Product): Draft {
     name: p.name,
     slug: p.slug,
     species: p.species,
+    line: p.line ?? "botanical",
     blurb: p.blurb,
     story: p.story,
     priceDollars: (p.priceCents / 100).toFixed(2),
@@ -150,6 +152,7 @@ function ProductEditor({
           name: draft.name,
           slug: draft.slug,
           species: draft.species,
+          line: draft.line,
           blurb: draft.blurb,
           story: draft.story,
           priceCents: Number.isFinite(cents) ? cents : undefined,
@@ -238,6 +241,7 @@ function ProductEditor({
           </p>
           <p className="text-xs text-faded">
             /shop/{draft.slug}
+            {" · "}{draft.line === "stencil" ? "Graphic & Stencil" : "Botanical"}
             {draft.trackStock ? ` · ${totalStock} in stock` : " · always available"}
           </p>
         </div>
@@ -323,8 +327,23 @@ function ProductEditor({
             <input className="input" value={draft.slug} onChange={(e) => set("slug", e.target.value)} />
           </label>
           <label className="block text-sm">
-            <span className="mb-1 block font-medium">Species line (italic, under the name)</span>
-            <input className="input" value={draft.species} onChange={(e) => set("species", e.target.value)} placeholder="Paper birch · Betula papyrifera" />
+            <span className="mb-1 block font-medium">Lineup</span>
+            <select className="input" value={draft.line} onChange={(e) => set("line", e.target.value as ProductLine)}>
+              {LINES.map((l) => (
+                <option key={l.key} value={l.key}>{l.name}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm">
+            <span className="mb-1 block font-medium">
+              {draft.line === "stencil" ? "Style line (italic, under the name)" : "Species line (italic, under the name)"}
+            </span>
+            <input
+              className="input"
+              value={draft.species}
+              onChange={(e) => set("species", e.target.value)}
+              placeholder={draft.line === "stencil" ? "Hand-cut stencil · Celestial" : "Paper birch · Betula papyrifera"}
+            />
           </label>
           <label className="block text-sm sm:col-span-2">
             <span className="mb-1 block font-medium">Card one-liner</span>

@@ -42,6 +42,7 @@ export async function PATCH(
       .replace(/^-+|-+$/g, "");
     if (!slug) slug = cur.slug;
     const species = str(body.species, cur.species, 160);
+    const line = body.line === "stencil" || body.line === "botanical" ? body.line : cur.line;
     const blurb = str(body.blurb, cur.blurb, 300);
     const story = str(body.story, cur.story, 8000);
     const image = str(body.image, cur.image, 600);
@@ -79,6 +80,7 @@ export async function PATCH(
         name = ${name},
         slug = ${slug},
         species = ${species},
+        line = ${line},
         blurb = ${blurb},
         story = ${story},
         image = ${image},

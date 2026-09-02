@@ -1,6 +1,6 @@
 # Dyeing By Design — the website
 
-Hand bleached leaf shirts, made in Maine. This is the full store **and** the
+Hand bleached shirts — real botanicals and hand-cut stencils — made in Maine. This is the full store **and** the
 back office: product pages, cart, Stripe checkout, custom request form, drop
 email list, plus an owner login where you manage products, prices, photos,
 and per-size stock — built with Next.js, ready for GitHub → Vercel, with Neon
@@ -71,6 +71,9 @@ Deploy. Every push/upload to GitHub redeploys automatically.
 
 1. neon.tech → create a project (free tier is plenty).
 2. Open the **SQL Editor**, paste the entire contents of `schema.sql`, Run.
+   (Re-run it any time the file changes — v3 added the product **line** column
+   for the Botanical / Graphic & Stencil split, and **kind** + **artwork_url**
+   on custom requests for logo uploads. Existing rows default to Botanical.)
    That creates orders, custom requests, the drop list, **and the products
    table pre-loaded with the four launch designs**. Safe to re-run any time —
    it never wipes data. **Run it again any time this file changes** — it

@@ -13,6 +13,7 @@ export async function GET(req: Request) {
       name: "Jamie Cote",
       email: "jamie@example.com",
       size: "XL",
+      kind: "Leaves / botanical",
       idea: "We got married under a big oak at my grandparents' place in Bowdoinham. I can mail you a box of leaves from it. Hoping for two shirts for our anniversary in October.",
       siteUrl: site,
     });

@@ -19,7 +19,7 @@ export default function Header() {
 
         <nav className="ml-auto flex items-center gap-5 text-sm font-medium text-faded">
           <Link href="/shop" className="transition hover:text-goldlight">
-            Designs
+            The lineup
           </Link>
           <Link href="/custom" className="transition hover:text-goldlight">
             Custom
