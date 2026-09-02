@@ -81,7 +81,19 @@ Deploy. Every push/upload to GitHub redeploys automatically.
    touching what's already there.
 3. Click **Connect** and copy the connection string → that's `DATABASE_URL`.
 
-### Step 4 — Stripe (payments)
+### Step 4 — Stripe (payments) — **optional for now**
+
+> **Ordering is currently set to email mode** (`ORDER_MODE = "email"` at the
+> top of `lib/products.ts`). Customers add shirts to the cart, fill in their
+> name, email, and shipping address, and hit *Send the order*. You get an
+> email (reply-to is the customer, so just hit Reply with payment details) and
+> a phone push, the order lands on `/admin` as **Awaiting payment**, and the
+> customer gets a copy once your sending domain is verified. Nothing is
+> charged on the site. If email isn't connected yet, the cart hands the
+> customer a pre-written email to send from their own mail app instead.
+> When you're ready for card checkout, do this step and flip that one line
+> to `"stripe"`.
+
 
 1. stripe.com → create and activate an account.
 2. **Developers → API keys** → copy the Secret key (`sk_test_...` to practice,
@@ -133,6 +145,16 @@ buyers still get Stripe's payment receipt, and you still get your alerts.
 To see what the emails look like without sending one, log in and visit
 `/api/admin/preview-email?k=order` (also `request`, `customer`, `drop`, `test`).
 
+### Step 6b — Phone alerts (Pushover, optional, 5 minutes)
+
+1. Install **Pushover** on your phone (free 30-day trial, then $5 one time)
+   and create an account.
+2. pushover.net → copy **Your User Key** from the dashboard.
+3. pushover.net/apps/build → name it "Dyeing By Design" → copy the **API Token**.
+4. Add both as env vars (next step), redeploy, then press **Send test push**
+   on `/admin`. Orders (cash-register sound) and custom requests (chime) both
+   push, with a link that opens the order desk.
+
 ### Step 7 — Environment variables
 
 Vercel → project → Settings → Environment Variables (all explained in
@@ -147,7 +169,9 @@ Vercel → project → Settings → Environment Variables (all explained in
 | `NEXT_PUBLIC_SITE_URL` | your site's full URL, e.g. `https://www.dyeingbydesign.com` |
 | `BLOB_READ_WRITE_TOKEN` | added automatically by the Blob store (step 5) |
 | `RESEND_API_KEY` | from Resend (step 6) — optional but recommended |
-| `NOTIFY_EMAIL` | where order alerts go (step 6) |
+| `NOTIFY_EMAIL` | where order alerts go (step 6) — also the address the mailto fallback uses |
+| `PUSHOVER_USER_KEY` | phone alerts (optional) — your user key from pushover.net |
+| `PUSHOVER_APP_TOKEN` | phone alerts (optional) — the app token from pushover.net/apps/build |
 | `EMAIL_FROM` | only after verifying your domain in Resend (step 6) |
 
 Then **redeploy** (Deployments → ⋯ → Redeploy) so they take effect.

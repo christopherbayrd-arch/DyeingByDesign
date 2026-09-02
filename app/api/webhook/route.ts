@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { getDb } from "@/lib/db";
 import { emailConfig, sendEmail, orderAlertHtml, customerOrderHtml } from "@/lib/email";
+import { sendPush } from "@/lib/notify";
 import { itemLinesFromMeta, shipToLine, money, siteUrl } from "@/lib/orderFormat";
 
 // Stripe calls this after a successful checkout. We save the order into Neon,
@@ -89,6 +90,15 @@ export async function POST(req: Request) {
         const itemLines = await itemLinesFromMeta(itemsMeta);
         const total = money(session.amount_total);
         const site = siteUrl();
+
+        sendPush({
+          title: `Paid order · ${total}`,
+          message: `${customerName || customerEmail}\n${itemLines.join(", ")}`,
+          url: `${site}/admin`,
+          urlTitle: "Open the order desk",
+          sound: "cashregister",
+          priority: 1,
+        }).catch(() => {});
 
         if (cfg.canNotifyOwner) {
           const res = await sendEmail({

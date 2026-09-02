@@ -30,8 +30,12 @@ const FAQ = [
     a: "Heavyweight 100% cotton tees with a true to size unisex fit. If you're between sizes, most people size up.",
   },
   {
+    q: "How do I pay?",
+    a: "There's no card checkout on the site right now. Add what you want to your cart, send us the order with your shipping address, and we reply within a day with payment details and a ship date. Nothing is charged until you hear from us.",
+  },
+  {
     q: "How long until it ships?",
-    a: "Each shirt is made after you order. Allow 5 to 7 days of making time, then US shipping with tracking. Flat $5 per order.",
+    a: "Each shirt is made after your order is paid. Allow 5 to 7 days of making time, then US shipping with tracking. Flat $5 per order.",
   },
   {
     q: "Returns?",

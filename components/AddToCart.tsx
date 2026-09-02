@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCart } from "@/components/CartContext";
-import { COLOR, availableQty, fmtPrice, isSoldOut, type Product } from "@/lib/products";
+import { COLOR, ORDER_MODE, availableQty, fmtPrice, isSoldOut, type Product } from "@/lib/products";
 
 export default function AddToCart({ product }: { product: Product }) {
   const { add } = useCart();
+  const router = useRouter();
   const [size, setSize] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
@@ -47,6 +49,19 @@ export default function AddToCart({ product }: { product: Product }) {
       return;
     }
     setError("");
+    if (ORDER_MODE === "email") {
+      // No card checkout — put it in the cart and go straight to the order form
+      add({
+        slug: product.slug,
+        size,
+        qty,
+        name: product.name,
+        priceCents: product.priceCents,
+        card: product.card,
+      });
+      router.push("/cart");
+      return;
+    }
     setBuying(true);
     try {
       const res = await fetch("/api/checkout", {
@@ -132,7 +147,7 @@ export default function AddToCart({ product }: { product: Product }) {
           </select>
         </label>
         <button className="btn btn-gold" onClick={handleBuyNow} disabled={buying}>
-          {buying ? "Heading to checkout…" : `Buy now · ${fmtPrice(product.priceCents * qty)}`}
+          {buying ? "Heading to checkout…" : `${ORDER_MODE === "email" ? "Order this one" : "Buy now"} · ${fmtPrice(product.priceCents * qty)}`}
         </button>
         <button className="btn btn-ghost" onClick={handleAdd} disabled={buying}>
           {added ? "Added ✓" : "Add to cart"}

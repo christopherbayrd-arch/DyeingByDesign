@@ -52,6 +52,13 @@ export type Product = {
   sort?: number;
 };
 
+// How people order.
+//   "email"  → no card on the site: the cart sends the order to the shop
+//              by email and Corey replies with payment details.
+//   "stripe" → Stripe Checkout (cards / Apple Pay). Needs the Stripe env
+//              vars from the README. Flip this one line to switch.
+export const ORDER_MODE: "email" | "stripe" = "email";
+
 // Flat shipping for the whole order, in cents ($5.00)
 export const SHIPPING_CENTS = 500;
 

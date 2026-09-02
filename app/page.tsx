@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import Lineup from "@/components/Lineup";
+import { RECENT } from "@/lib/recent";
 import SignupForm from "@/components/SignupForm";
 import { getProducts } from "@/lib/catalog";
 
@@ -59,6 +60,49 @@ export default async function HomePage() {
         </div>
         <div className="mt-10">
           <Lineup products={products} columns={4} compact />
+        </div>
+      </section>
+
+      {/* ---------- RECENT WORK ---------- */}
+      <section className="mx-auto max-w-6xl px-5 pt-24">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="kicker">Recent work</p>
+            <h2 className="mt-2 font-display text-3xl font-semibold sm:text-4xl">
+              Fresh off the line.
+            </h2>
+          </div>
+          <p className="max-w-sm text-sm leading-relaxed text-faded">
+            Real shirts, real light, no studio. What came out of the shop lately.
+          </p>
+        </div>
+        <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {RECENT.map((shot, i) => (
+            <figure
+              key={shot.src}
+              className={
+                "card group relative overflow-hidden " +
+                (shot.wide ? "col-span-2 row-span-2 aspect-[3/4] sm:aspect-auto" : "aspect-[3/4]")
+              }
+            >
+              <Image
+                src={shot.src}
+                alt={shot.alt}
+                fill
+                sizes={shot.wide ? "(max-width: 640px) 100vw, 50vw" : "(max-width: 640px) 50vw, 25vw"}
+                priority={i === 0}
+                className="object-cover transition duration-700 group-hover:scale-[1.03]"
+              />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-inkdeep/90 via-inkdeep/40 to-transparent p-4 pt-14">
+                <figcaption>
+                  <p className="font-display text-base font-semibold text-bone sm:text-lg">{shot.title}</p>
+                  {shot.note && (
+                    <p className="mt-0.5 hidden text-xs leading-relaxed text-bone/75 sm:block">{shot.note}</p>
+                  )}
+                </figcaption>
+              </div>
+            </figure>
+          ))}
         </div>
       </section>
 

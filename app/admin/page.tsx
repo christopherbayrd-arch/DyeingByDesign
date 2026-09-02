@@ -3,6 +3,7 @@ import { kindLabel } from "@/lib/requests";
 import AdminNav from "@/components/AdminNav";
 import EmailStatus from "@/components/EmailStatus";
 import { emailConfig } from "@/lib/email";
+import { pushConfig } from "@/lib/notify";
 import { getDb } from "@/lib/db";
 import { fmtPrice } from "@/lib/products";
 
@@ -83,6 +84,7 @@ export default async function AdminPage() {
         hasKey={mail.hasKey}
         notify={mail.notify}
         canEmailCustomers={mail.canEmailCustomers}
+        pushEnabled={pushConfig().enabled}
       />
 
       {dbError && <p className="mt-6 rounded-xl border border-rust/50 bg-rust/10 p-4 text-sm">{dbError}</p>}
@@ -96,6 +98,7 @@ export default async function AdminPage() {
             <thead>
               <tr className="border-b border-bone/10 text-xs uppercase tracking-wider text-faded">
                 <th className="p-3">When</th>
+                <th className="p-3">Status</th>
                 <th className="p-3">Customer</th>
                 <th className="p-3">Items</th>
                 <th className="p-3">Ship to</th>
@@ -104,11 +107,28 @@ export default async function AdminPage() {
             </thead>
             <tbody>
               {orders.length === 0 && (
-                <tr><td colSpan={5} className="p-4 text-faded">No orders yet — they&apos;ll appear here automatically after checkout.</td></tr>
+                <tr><td colSpan={6} className="p-4 text-faded">No orders yet — they&apos;ll appear here automatically when someone sends one.</td></tr>
               )}
               {orders.map((o) => (
                 <tr key={String(o.id)} className="border-b border-bone/5 align-top">
                   <td className="p-3 whitespace-nowrap text-faded">{fmtDate(o.created_at)}</td>
+                  <td className="p-3 whitespace-nowrap">
+                    <span
+                      className={
+                        "rounded-full px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-wider " +
+                        (o.status === "requested"
+                          ? "border border-gold/60 text-goldlight"
+                          : "bg-gold/20 text-goldlight")
+                      }
+                    >
+                      {o.status === "requested" ? "Awaiting payment" : String(o.status ?? "paid")}
+                    </span>
+                    {String(o.stripe_session_id ?? "").startsWith("email_") && (
+                      <div className="mt-1 text-[0.65rem] text-faded">
+                        {String(o.stripe_session_id).replace("email_", "")}
+                      </div>
+                    )}
+                  </td>
                   <td className="p-3">
                     <div className="font-medium">{String(o.name ?? "—")}</div>
                     <div className="text-faded">{String(o.email ?? "")}</div>

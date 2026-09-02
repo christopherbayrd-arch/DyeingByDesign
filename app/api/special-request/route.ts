@@ -3,6 +3,7 @@ import { put } from "@vercel/blob";
 import { getDb } from "@/lib/db";
 import { emailConfig, sendEmail, requestAlertHtml } from "@/lib/email";
 import { siteUrl } from "@/lib/orderFormat";
+import { sendPush } from "@/lib/notify";
 import {
   ARTWORK_MAX_BYTES,
   ARTWORK_TYPES,
@@ -128,6 +129,14 @@ export async function POST(req: Request) {
     } catch (err) {
       console.error("request notification error:", err);
     }
+
+    sendPush({
+      title: `Custom request · ${kindLabel(kind)}`,
+      message: `${name}${size ? ` · size ${size}` : ""}\n${idea.slice(0, 300)}`,
+      url: artworkUrl ?? `${siteUrl()}/admin`,
+      urlTitle: artworkUrl ? "See the artwork" : "Open the order desk",
+      sound: "magic",
+    }).catch(() => {});
 
     return NextResponse.json({ ok: true, artworkNote: artworkNote || undefined });
   } catch (err) {

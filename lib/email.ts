@@ -124,6 +124,67 @@ export function orderAlertHtml(o: {
   return shell("New order", body, "Sent automatically by your website when a payment clears.");
 }
 
+// ---------- 1b. ORDER REQUEST (email ordering, no card) → the shop ----------
+export function orderRequestAlertHtml(o: {
+  orderRef: string;
+  itemLines: string[];
+  customerName: string;
+  customerEmail: string;
+  subtotal: string;
+  shipping: string;
+  total: string;
+  shipTo: string;
+  note: string;
+  siteUrl: string;
+}) {
+  const items = o.itemLines.map((l) => `<li style="margin:0 0 6px;">${escapeHtml(l)}</li>`).join("");
+  const body = `
+    <p style="margin:0 0 18px;color:#f0e7d1;">New order request <strong style="color:#e3b96e;">${escapeHtml(o.orderRef)}</strong>. Nothing's been paid yet — hit reply, send payment details, and it's a sale.</p>
+    <div style="background:rgba(0,0,0,.25);border-radius:12px;padding:16px 18px;margin-bottom:18px;">
+      <p style="margin:0 0 8px;font:600 12px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#cf9440;">To make</p>
+      <ul style="margin:0;padding-left:18px;font:400 15px/1.6 Helvetica,Arial,sans-serif;color:#f0e7d1;">${items}</ul>
+    </div>
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+      ${row("Customer", escapeHtml(o.customerName || "—"))}
+      ${row("Email", escapeHtml(o.customerEmail || "—"))}
+      ${row("Ship to", escapeHtml(o.shipTo || "—").replace(/, /g, ",<br>"))}
+      ${row("Subtotal", escapeHtml(o.subtotal))}
+      ${row("Shipping", escapeHtml(o.shipping))}
+      ${row("Total due", `<strong style="color:#e3b96e;">${escapeHtml(o.total)}</strong>`)}
+      ${o.note ? row("Note", escapeHtml(o.note).replace(/\n/g, "<br>")) : ""}
+    </table>
+    <p style="margin:22px 0 0;">
+      <a href="mailto:${escapeHtml(o.customerEmail)}?subject=${encodeURIComponent(`Re: Order ${o.orderRef}`)}" style="display:inline-block;background:#cf9440;color:#110d05;text-decoration:none;font:700 14px/1 Helvetica,Arial,sans-serif;padding:13px 22px;border-radius:999px;">Reply with payment details</a>
+      &nbsp;&nbsp;
+      <a href="${o.siteUrl}/admin" style="display:inline-block;border:1px solid rgba(240,231,209,.3);color:#f0e7d1;text-decoration:none;font:600 14px/1 Helvetica,Arial,sans-serif;padding:13px 22px;border-radius:999px;">Order desk</a>
+    </p>`;
+  return shell("New order request", body, "Replying to this email goes straight to the customer.");
+}
+
+// ---------- 1c. ORDER REQUEST → the customer ----------
+export function customerOrderRequestHtml(o: {
+  firstName: string;
+  orderRef: string;
+  itemLines: string[];
+  total: string;
+  shipTo: string;
+  siteUrl: string;
+}) {
+  const items = o.itemLines.map((l) => `<li style="margin:0 0 6px;">${escapeHtml(l)}</li>`).join("");
+  const hi = o.firstName ? `${escapeHtml(o.firstName)}, thank you.` : "Thank you.";
+  const body = `
+    <p style="margin:0 0 18px;color:#f0e7d1;">${hi} Your order request is in. Nothing has been charged — we'll reply within a day with how to pay and when it'll ship.</p>
+    <div style="background:rgba(0,0,0,.25);border-radius:12px;padding:16px 18px;margin-bottom:18px;">
+      <p style="margin:0 0 8px;font:600 12px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#cf9440;">Order ${escapeHtml(o.orderRef)}</p>
+      <ul style="margin:0;padding-left:18px;font:400 15px/1.6 Helvetica,Arial,sans-serif;color:#f0e7d1;">${items}</ul>
+      <p style="margin:12px 0 0;color:#e3b96e;font-weight:700;">Total ${escapeHtml(o.total)} (includes $5 shipping)</p>
+      <p style="margin:8px 0 0;color:#f0e7d1;font-size:14px;">Ship to: ${escapeHtml(o.shipTo)}</p>
+    </div>
+    <p style="margin:0 0 8px;">Once it's paid, allow about 5 to 7 days of making time. Every piece is bleached by hand, one at a time.</p>
+    <p style="margin:0;">Need to change anything? Just reply to this email.</p>`;
+  return shell("We got your order request", body, "Reply to this email and it reaches the person who makes your shirt.");
+}
+
 // ---------- 2. NEW CUSTOM REQUEST → the shop ----------
 export function requestAlertHtml(r: {
   name: string;
