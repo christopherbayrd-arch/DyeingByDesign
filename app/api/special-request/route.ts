@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db";
 import { emailConfig, sendEmail, requestAlertHtml } from "@/lib/email";
 import { siteUrl } from "@/lib/orderFormat";
 import { sendPush } from "@/lib/notify";
+import { colorName, isColorKey } from "@/lib/products";
 import {
   ARTWORK_MAX_BYTES,
   ARTWORK_TYPES,
@@ -44,6 +45,8 @@ export async function POST(req: Request) {
     const name = String(fields.name ?? "").trim().slice(0, 120);
     const email = String(fields.email ?? "").trim().slice(0, 200);
     const size = String(fields.size ?? "").trim().slice(0, 10);
+    const colorRaw = String(fields.color ?? "").trim();
+    const color = isColorKey(colorRaw) ? colorRaw : "";
     const idea = String(fields.idea ?? "").trim().slice(0, 4000);
     const kindRaw = String(fields.kind ?? "").trim();
     const kind: RequestKind = isRequestKind(kindRaw) ? kindRaw : "other";
@@ -102,8 +105,8 @@ export async function POST(req: Request) {
     }
 
     await sql`
-      insert into special_requests (name, email, size, idea, kind, artwork_url)
-      values (${name}, ${email}, ${size || null}, ${idea}, ${kind}, ${artworkUrl})
+      insert into special_requests (name, email, size, idea, kind, artwork_url, color)
+      values (${name}, ${email}, ${size || null}, ${idea}, ${kind}, ${artworkUrl}, ${color || null})
     `;
 
     // Tell the shop about it — never let email trouble fail the request
@@ -118,6 +121,7 @@ export async function POST(req: Request) {
             name,
             email,
             size,
+            color: color ? colorName(color) : "",
             idea,
             kind: kindLabel(kind),
             artworkUrl,
@@ -133,7 +137,7 @@ export async function POST(req: Request) {
 
     sendPush({
       title: `Custom request · ${kindLabel(kind)}`,
-      message: `${name}${size ? ` · size ${size}` : ""}\n${idea.slice(0, 300)}`,
+      message: `${name}${size ? ` · size ${size}` : ""}${color ? ` · ${colorName(color)}` : ""}\n${idea.slice(0, 300)}`,
       url: artworkUrl ?? `${siteUrl()}/admin`,
       urlTitle: artworkUrl ? "See the artwork" : "Open the order desk",
       sound: "magic",

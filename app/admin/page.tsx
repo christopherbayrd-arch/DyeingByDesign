@@ -185,6 +185,7 @@ export default async function AdminPage() {
                     · {String(r.email)}
                     {r.kind ? ` · ${kindLabel(String(r.kind))}` : ""}
                     {r.size ? ` · size ${String(r.size)}` : ""}
+                    {r.color ? ` · ${colorName(String(r.color))}` : ""}
                   </span>
                 </p>
                 <p className="text-xs text-faded">{fmtDate(r.created_at)}</p>

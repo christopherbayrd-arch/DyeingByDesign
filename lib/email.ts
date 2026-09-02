@@ -190,6 +190,7 @@ export function requestAlertHtml(r: {
   name: string;
   email: string;
   size: string;
+  color?: string;
   idea: string;
   kind?: string;
   artworkUrl?: string | null;
@@ -206,6 +207,7 @@ export function requestAlertHtml(r: {
       ${row("Email", escapeHtml(r.email))}
       ${row("Type", escapeHtml(r.kind || "Leaves / botanical"))}
       ${row("Size", escapeHtml(r.size || "not sure yet"))}
+      ${row("Color", escapeHtml(r.color || "not sure yet"))}
       ${row("Artwork", artwork)}
     </table>
     <div style="background:rgba(0,0,0,.25);border-radius:12px;padding:16px 18px;margin-top:16px;">

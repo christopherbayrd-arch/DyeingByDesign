@@ -68,6 +68,7 @@ export const SIZES = ["S", "M", "L", "XL", "2XL"];
 // stored (cart, orders, stock); `name` is what people see; `hex` is the
 // swatch. To add a color, add a line — that's it.
 export const COLORS: { key: string; name: string; hex: string }[] = [
+  { key: "black", name: "Black", hex: "#141414" },
   { key: "cherry-red", name: "Cherry red", hex: "#b3222e" },
   { key: "electric-green", name: "Electric green", hex: "#3ddc3a" },
   { key: "forest-green", name: "Forest green", hex: "#1f4d2e" },

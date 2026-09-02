@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { SIZES } from "@/lib/products";
+import { COLORS, SIZES } from "@/lib/products";
+import ShirtPreview from "@/components/ShirtPreview";
 import { ARTWORK_ACCEPT, ARTWORK_MAX_BYTES, REQUEST_KINDS, type RequestKind } from "@/lib/requests";
 
 export default function CustomForm({ initialKind = "leaves" }: { initialKind?: RequestKind }) {
@@ -9,6 +10,7 @@ export default function CustomForm({ initialKind = "leaves" }: { initialKind?: R
   const [message, setMessage] = useState("");
   const [note, setNote] = useState("");
   const [kind, setKind] = useState<RequestKind>(initialKind);
+  const [color, setColor] = useState<string>("");
   const [fileName, setFileName] = useState("");
   const [fileError, setFileError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -114,6 +116,43 @@ export default function CustomForm({ initialKind = "leaves" }: { initialKind?: R
             placeholder="you@email.com"
           />
         </label>
+      </div>
+
+      <div className="text-sm">
+        <div className="mb-1.5 flex items-center justify-between">
+          <span className="font-medium">Shirt color</span>
+          <span className="text-faded">{color ? COLORS.find((c) => c.key === color)?.name : "Not sure yet — we can suggest one"}</span>
+        </div>
+        <input type="hidden" name="color" value={color} />
+        <div className="flex items-start gap-4">
+          <div className="flex flex-1 flex-wrap gap-2.5">
+            {COLORS.map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                aria-label={c.name}
+                title={c.name}
+                onClick={() => setColor(color === c.key ? "" : c.key)}
+                className={
+                  "relative h-9 w-9 rounded-full border-2 transition " +
+                  (color === c.key ? "border-goldlight scale-110" : "border-bone/20 hover:border-bone/60")
+                }
+                style={{ background: c.hex }}
+              >
+                {color === c.key && (
+                  <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white drop-shadow">✓</span>
+                )}
+              </button>
+            ))}
+          </div>
+          <div className="shrink-0 rounded-xl bg-black/20 p-2 text-center">
+            <ShirtPreview color={color || null} size={92} />
+            <p className="mt-0.5 text-[0.6rem] uppercase tracking-wider text-faded">the blank</p>
+          </div>
+        </div>
+        <p className="mt-2 text-xs leading-relaxed text-faded">
+          Bleach reads differently on every blank — dark colors give the highest contrast, brights go soft and pastel. Tap again to clear.
+        </p>
       </div>
 
       <label className="block text-sm">

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/CartContext";
+import ShirtPreview from "@/components/ShirtPreview";
 import { COLORS, ORDER_MODE, availableQty, fmtPrice, isSoldOut, type Product } from "@/lib/products";
 
 export default function AddToCart({ product }: { product: Product }) {
@@ -119,7 +120,8 @@ export default function AddToCart({ product }: { product: Product }) {
         <span className="font-medium text-faded">Shirt color</span>
         <span className="text-faded">{color ? COLORS.find((c) => c.key === color)?.name : "Pick one"}</span>
       </div>
-      <div className="flex flex-wrap gap-2.5">
+      <div className="flex items-start gap-4">
+      <div className="flex flex-1 flex-wrap gap-2.5">
         {COLORS.map((c) => {
           const anyLeft = product.sizes.some((s) => availableQty(product, s, c.key) > 0);
           return (
@@ -142,6 +144,11 @@ export default function AddToCart({ product }: { product: Product }) {
             </button>
           );
         })}
+      </div>
+      <div className="shrink-0 rounded-xl bg-black/20 p-2 text-center">
+        <ShirtPreview color={color} size={92} />
+        <p className="mt-0.5 text-[0.6rem] uppercase tracking-wider text-faded">the blank</p>
+      </div>
       </div>
 
       <div className="mb-1.5 mt-6 flex items-center justify-between text-sm">

@@ -104,7 +104,8 @@ where slug = 'maple' and image = '/images/design-maple.jpg';
 -- v3: product lines (Botanical vs Graphic & Stencil) + custom request artwork
 alter table products add column if not exists line text not null default 'botanical';
 alter table special_requests add column if not exists kind text not null default 'leaves';   -- leaves | logo | graphic | other
-alter table special_requests add column if not exists artwork_url text;                       -- uploaded logo/graphic (Vercel Blob)
+alter table special_requests add column if not exists artwork_url text;
+alter table special_requests add column if not exists color text;                             -- blank color key (lib/products.ts COLORS)                       -- uploaded logo/graphic (Vercel Blob)
 
 alter table drop_signups add column if not exists unsub_token uuid not null default gen_random_uuid();
 alter table drop_signups add column if not exists unsubscribed boolean not null default false;
