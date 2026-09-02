@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LINES, SIZES, fmtPrice, type Product, type ProductLine } from "@/lib/products";
+import { COLORS, LINES, SIZES, fmtPrice, stockKey, type Product, type ProductLine } from "@/lib/products";
 
 type Draft = {
   name: string;
@@ -21,7 +21,7 @@ type Draft = {
 
 function toDraft(p: Product): Draft {
   const stock: Record<string, string> = {};
-  for (const s of SIZES) stock[s] = String(p.stock?.[s] ?? 0);
+  for (const c of COLORS) for (const s of SIZES) stock[stockKey(c.key, s)] = String(p.stock?.[stockKey(c.key, s)] ?? 0);
   return {
     name: p.name,
     slug: p.slug,
@@ -142,7 +142,7 @@ function ProductEditor({
     setMessage("");
     const cents = Math.round(parseFloat(draft.priceDollars.replace(/[$,]/g, "")) * 100);
     const stock: Record<string, number> = {};
-    for (const s of SIZES) stock[s] = Math.max(0, Math.floor(Number(draft.stock[s]) || 0));
+    for (const k of Object.keys(draft.stock)) stock[k] = Math.max(0, Math.floor(Number(draft.stock[k]) || 0));
 
     try {
       const res = await fetch(`/api/admin/products/${product.id}`, {
@@ -216,7 +216,7 @@ function ProductEditor({
     setConfirmDelete(false);
   }
 
-  const totalStock = SIZES.reduce((n, s) => n + (Number(draft.stock[s]) || 0), 0);
+  const totalStock = Object.values(draft.stock).reduce((n, v) => n + (Number(v) || 0), 0);
 
   return (
     <div className="card p-5">
@@ -287,25 +287,45 @@ function ProductEditor({
           </label>
         </div>
         {draft.trackStock && (
-          <div className="mt-3 flex flex-wrap gap-3">
-            {SIZES.map((s) => (
-              <label key={s} className="text-xs text-faded">
-                <span className="mb-1 block text-center font-semibold text-bone">{s}</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={999}
-                  value={draft.stock[s]}
-                  onChange={(e) =>
-                    set("stock", { ...draft.stock, [s]: e.target.value })
-                  }
-                  className="input w-16 px-2 py-1.5 text-center"
-                />
-              </label>
-            ))}
-            <p className="w-full text-xs text-faded">
-              0 = that size shows as sold out. Counts go down automatically when orders
-              are paid.
+          <div className="mt-3 overflow-x-auto">
+            <table className="text-xs">
+              <thead>
+                <tr>
+                  <th className="pb-1 pr-3 text-left font-medium text-faded">Color</th>
+                  {SIZES.map((s) => (
+                    <th key={s} className="pb-1 px-1 text-center font-semibold text-bone">{s}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {COLORS.map((c) => (
+                  <tr key={c.key}>
+                    <td className="py-1 pr-3 whitespace-nowrap text-faded">
+                      <span className="mr-1.5 inline-block h-3 w-3 rounded-full border border-bone/30 align-middle" style={{ background: c.hex }} />
+                      {c.name}
+                    </td>
+                    {SIZES.map((s) => {
+                      const k = stockKey(c.key, s);
+                      return (
+                        <td key={k} className="px-1 py-1">
+                          <input
+                            type="number"
+                            min={0}
+                            max={999}
+                            value={draft.stock[k] ?? "0"}
+                            onChange={(e) => set("stock", { ...draft.stock, [k]: e.target.value })}
+                            className="input w-14 px-1.5 py-1 text-center"
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-2 text-xs text-faded">
+              0 = that color/size shows as sold out. Counts go down automatically when
+              card orders are paid; email orders you adjust by hand once they&apos;re paid.
             </p>
           </div>
         )}

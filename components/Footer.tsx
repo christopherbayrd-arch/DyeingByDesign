@@ -7,7 +7,7 @@ export default function Footer() {
       <div className="mx-auto grid max-w-6xl gap-10 px-5 py-14 md:grid-cols-3">
         <div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/logo.png" alt="Dyeing By Design" width={190} height={113} />
+          <img src="/images/logo.png" alt="Dyeing By Design" width={150} height={150} className="rounded-full" />
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-faded">
             Real botanicals, hand-cut stencils, and a careful pass of bleach. Hand made in
             Maine, one shirt at a time.

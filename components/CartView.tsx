@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/components/CartContext";
-import { COLOR, ORDER_MODE, SHIPPING_CENTS, fmtPrice } from "@/lib/products";
+import { COLORS, ORDER_MODE, SHIPPING_CENTS, colorName, fmtPrice } from "@/lib/products";
 
 type Done = { orderRef: string; mailto?: string; customerEmailed?: boolean; emailFailed?: boolean };
 
@@ -25,7 +25,7 @@ export default function CartView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
-          items: lines.map(({ slug, size, qty }) => ({ slug, size, qty })),
+          items: lines.map(({ slug, size, color, qty }) => ({ slug, size, color, qty })),
         }),
       });
       const body = await res.json().catch(() => ({}));
@@ -49,7 +49,7 @@ export default function CartView() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: lines.map(({ slug, size, qty }) => ({ slug, size, qty })),
+          items: lines.map(({ slug, size, color, qty }) => ({ slug, size, color, qty })),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -118,7 +118,7 @@ export default function CartView() {
     <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
       <ul className="space-y-4">
         {lines.map((line, i) => (
-          <li key={`${line.slug}-${line.size}`} className="card flex gap-4 p-4">
+          <li key={`${line.slug}-${line.size}-${line.color}`} className="card flex gap-4 p-4">
             <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl">
               {line.card ? (
                 <Image src={line.card} alt={line.name} fill sizes="96px" className="object-cover" />
@@ -129,8 +129,12 @@ export default function CartView() {
             <div className="flex flex-1 flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="font-display text-lg font-semibold">{line.name}</p>
-                <p className="mt-0.5 text-sm text-faded">
-                  {COLOR} · Size {line.size}
+                <p className="mt-0.5 flex items-center gap-1.5 text-sm text-faded">
+                  <span
+                    className="inline-block h-3 w-3 rounded-full border border-bone/30"
+                    style={{ background: COLORS.find((c) => c.key === line.color)?.hex }}
+                  />
+                  {colorName(line.color)} · Size {line.size}
                 </p>
                 <button
                   onClick={() => remove(i)}

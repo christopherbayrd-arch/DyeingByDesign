@@ -1,12 +1,17 @@
 // Turns the compact order metadata Stripe hands back
 // ("sumac|M|x2; maple|L|x1") into readable lines for emails.
 import { getProduct } from "@/lib/catalog";
+import { colorName } from "@/lib/products";
 
 export async function itemLinesFromMeta(meta: string | null | undefined): Promise<string[]> {
   if (!meta) return ["(items unavailable)"];
   const lines: string[] = [];
   for (const part of meta.split(";")) {
-    const [slug, size, qtyPart] = part.trim().split("|");
+    const bits = part.trim().split("|");
+    const slug = bits[0];
+    const size = bits[1];
+    const color = bits.length >= 4 ? bits[2] : "";
+    const qtyPart = bits[bits.length - 1];
     if (!slug) continue;
     const qty = Number(String(qtyPart ?? "").replace("x", "")) || 1;
     let name = slug.charAt(0).toUpperCase() + slug.slice(1);
@@ -16,7 +21,7 @@ export async function itemLinesFromMeta(meta: string | null | undefined): Promis
     } catch {
       // fall back to the slug — never block an email over a lookup
     }
-    lines.push(`${qty} × ${name} — size ${size ?? "?"}`);
+    lines.push(`${qty} × ${name} — ${color ? `${colorName(color)}, ` : ""}size ${size ?? "?"}`);
   }
   return lines.length ? lines : ["(items unavailable)"];
 }

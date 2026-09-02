@@ -5,7 +5,7 @@ import EmailStatus from "@/components/EmailStatus";
 import { emailConfig } from "@/lib/email";
 import { pushConfig } from "@/lib/notify";
 import { getDb } from "@/lib/db";
-import { fmtPrice } from "@/lib/products";
+import { colorName, fmtPrice } from "@/lib/products";
 
 export const metadata: Metadata = {
   title: "Admin",
@@ -29,6 +29,29 @@ function fmtDate(value: unknown) {
   } catch {
     return String(value ?? "");
   }
+}
+
+// "sumac|M|cherry-red|x2; fern|L|sky-blue|x1 | note: ..." → readable lines
+function itemsText(items: unknown) {
+  const raw = String(items ?? "");
+  if (!raw) return "—";
+  const [meta, ...rest] = raw.split(" | note: ");
+  const lines = meta
+    .split(";")
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => {
+      const bits = p.split("|");
+      if (bits.length < 3) return p;
+      const slug = bits[0];
+      const size = bits[1];
+      const color = bits.length >= 4 ? colorName(bits[2]) : "";
+      const qty = (bits[bits.length - 1] ?? "").replace("x", "");
+      const name = slug.charAt(0).toUpperCase() + slug.slice(1);
+      return `${qty} × ${name}${color ? ` · ${color}` : ""} · ${size}`;
+    });
+  const note = rest.join(" | note: ");
+  return lines.join("\n") + (note ? `\nNote: ${note}` : "");
 }
 
 function shipTo(shipping: unknown) {
@@ -133,7 +156,7 @@ export default async function AdminPage() {
                     <div className="font-medium">{String(o.name ?? "—")}</div>
                     <div className="text-faded">{String(o.email ?? "")}</div>
                   </td>
-                  <td className="p-3">{String(o.items ?? "—")}</td>
+                  <td className="p-3 whitespace-pre-line">{itemsText(o.items)}</td>
                   <td className="p-3 text-faded">{shipTo(o.shipping)}</td>
                   <td className="p-3 text-right font-semibold text-goldlight">
                     {typeof o.amount_total === "number" ? fmtPrice(o.amount_total) : "—"}

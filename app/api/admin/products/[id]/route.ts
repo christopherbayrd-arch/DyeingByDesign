@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { rowToProduct } from "@/lib/catalog";
-import { SIZES } from "@/lib/products";
+import { COLORS, SIZES, stockKey } from "@/lib/products";
 
 const NO_DB = { error: "No database connected yet (see README)." };
 
@@ -64,9 +64,12 @@ export async function PATCH(
     let stock = cur.stock;
     if (body.stock && typeof body.stock === "object") {
       stock = {};
-      for (const size of SIZES) {
-        const q = Math.floor(Number((body.stock as Record<string, unknown>)[size]));
-        stock[size] = Number.isFinite(q) && q > 0 ? Math.min(q, 999) : 0;
+      for (const c of COLORS) {
+        for (const size of SIZES) {
+          const k = stockKey(c.key, size);
+          const q = Math.floor(Number((body.stock as Record<string, unknown>)[k]));
+          stock[k] = Number.isFinite(q) && q > 0 ? Math.min(q, 999) : 0;
+        }
       }
     }
 

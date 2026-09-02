@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { getDb } from "@/lib/db";
 import { emailConfig, sendEmail, orderAlertHtml, customerOrderHtml } from "@/lib/email";
 import { sendPush } from "@/lib/notify";
+import { stockKey } from "@/lib/products";
 import { itemLinesFromMeta, shipToLine, money, siteUrl } from "@/lib/orderFormat";
 
 // Stripe calls this after a successful checkout. We save the order into Neon,
@@ -61,14 +62,19 @@ export async function POST(req: Request) {
         // (Stripe retries webhooks — this stops double-subtracting).
         if (isNew && itemsMeta) {
           for (const part of itemsMeta.split(";")) {
-            const [slug, size, qtyPart] = part.trim().split("|");
-            const qty = Number((qtyPart ?? "").replace("x", ""));
-            if (!slug || !size || !(qty >= 1)) continue;
+            const bits = part.trim().split("|");
+            // v3 meta: slug|size|color|xN   (older orders: slug|size|xN)
+            const slug = bits[0];
+            const size = bits[1];
+            const color = bits.length >= 4 ? bits[2] : "";
+            const qty = Number((bits[bits.length - 1] ?? "").replace("x", ""));
+            if (!slug || !size || !color || !(qty >= 1)) continue;
+            const key = stockKey(color, size);
             await sql`
               update products set stock = jsonb_set(
                 coalesce(stock, '{}'::jsonb),
-                array[${size}],
-                to_jsonb(greatest(coalesce((stock->>${size})::int, 0) - ${qty}, 0))
+                array[${key}],
+                to_jsonb(greatest(coalesce((stock->>${key})::int, 0) - ${qty}, 0))
               )
               where slug = ${slug} and track_stock = true
             `;

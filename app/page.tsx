@@ -55,7 +55,8 @@ export default async function HomePage() {
             </h2>
           </div>
           <p className="max-w-sm text-sm leading-relaxed text-faded">
-            Flat $5 shipping anywhere in the US. Made to order, one shirt at a time.
+            Six blank colors, every design. Flat $5 shipping anywhere in the US. Made to
+            order, one shirt at a time.
           </p>
         </div>
         <div className="mt-10">

@@ -16,6 +16,7 @@ import {
 export type CartLine = {
   slug: string;
   size: string;
+  color: string;     // color key, see COLORS in lib/products.ts
   qty: number;
   name: string;
   priceCents: number;
@@ -34,7 +35,7 @@ type CartApi = {
 };
 
 const CartCtx = createContext<CartApi | null>(null);
-const STORAGE_KEY = "dbd-cart-v2";
+const STORAGE_KEY = "dbd-cart-v3"; // v3: lines carry a color
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([]);
@@ -45,7 +46,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) setLines(parsed.filter((l) => l && l.slug && l.size));
+        if (Array.isArray(parsed)) setLines(parsed.filter((l) => l && l.slug && l.size && l.color));
       }
     } catch {
       // corrupted cart? start fresh
@@ -64,7 +65,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const add = useCallback((line: CartLine) => {
     setLines((prev) => {
-      const i = prev.findIndex((p) => p.slug === line.slug && p.size === line.size);
+      const i = prev.findIndex((p) => p.slug === line.slug && p.size === line.size && p.color === line.color);
       if (i >= 0) {
         const next = [...prev];
         next[i] = { ...line, qty: Math.min(10, next[i].qty + line.qty) };

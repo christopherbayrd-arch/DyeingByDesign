@@ -45,7 +45,7 @@ export type Product = {
   priceCents: number;
   sizes: string[];
   trackStock: boolean;  // false = always available (made to order)
-  stock: Record<string, number>; // per-size counts when trackStock is true
+  stock: Record<string, number>; // per "color:SIZE" counts when trackStock is true
   active: boolean;
   samplePhoto?: boolean;
   badge?: string | null;
@@ -63,17 +63,47 @@ export const ORDER_MODE: "email" | "stripe" = "email";
 export const SHIPPING_CENTS = 500;
 
 export const SIZES = ["S", "M", "L", "XL", "2XL"];
-export const COLOR = "Black"; // single blank color for launch
 
-// How many of a given size can be bought right now (Infinity = made to order)
-export function availableQty(p: Product, size: string): number {
+// Blank colors. Every design comes in every color. `key` is what gets
+// stored (cart, orders, stock); `name` is what people see; `hex` is the
+// swatch. To add a color, add a line — that's it.
+export const COLORS: { key: string; name: string; hex: string }[] = [
+  { key: "cherry-red", name: "Cherry red", hex: "#b3222e" },
+  { key: "electric-green", name: "Electric green", hex: "#3ddc3a" },
+  { key: "forest-green", name: "Forest green", hex: "#1f4d2e" },
+  { key: "sky-blue", name: "Sky blue", hex: "#7fb8e6" },
+  { key: "safety-pink", name: "Safety pink", hex: "#ff5fa2" },
+  { key: "safety-orange", name: "Safety orange", hex: "#ff6a13" },
+];
+
+export function colorName(key: string): string {
+  return COLORS.find((c) => c.key === key)?.name ?? key;
+}
+export function isColorKey(v: string): boolean {
+  return COLORS.some((c) => c.key === v);
+}
+
+// Stock is kept per color AND size, keyed "color-key:SIZE" (e.g. "cherry-red:M")
+export function stockKey(color: string, size: string) {
+  return `${color}:${size}`;
+}
+
+// How many of a color + size can be bought right now (Infinity = made to order)
+export function availableQty(p: Product, size: string, color?: string): number {
   if (!p.trackStock) return Infinity;
-  return Math.max(0, Number(p.stock?.[size] ?? 0));
+  if (color) return Math.max(0, Number(p.stock?.[stockKey(color, size)] ?? 0));
+  // no color given: total across colors for that size
+  return COLORS.reduce((n, c) => n + Math.max(0, Number(p.stock?.[stockKey(c.key, size)] ?? 0)), 0);
 }
 
 export function isSoldOut(p: Product): boolean {
   if (!p.trackStock) return false;
   return p.sizes.every((s) => availableQty(p, s) <= 0);
+}
+
+export function totalStock(p: Product): number {
+  if (!p.trackStock) return Infinity;
+  return p.sizes.reduce((n, s) => n + availableQty(p, s), 0);
 }
 
 export function fmtPrice(cents: number) {

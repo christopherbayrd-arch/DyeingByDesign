@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { getDb } from "@/lib/db";
 import { getProduct } from "@/lib/catalog";
-import { SHIPPING_CENTS, COLOR, availableQty, fmtPrice } from "@/lib/products";
+import { SHIPPING_CENTS, availableQty, colorName, fmtPrice, isColorKey } from "@/lib/products";
 import { emailConfig, sendEmail, orderRequestAlertHtml, customerOrderRequestHtml } from "@/lib/email";
 import { sendPush } from "@/lib/notify";
 import { siteUrl } from "@/lib/orderFormat";
@@ -21,7 +21,7 @@ import { siteUrl } from "@/lib/orderFormat";
 //  the customer can send the same order from their own mail app.
 // ============================================================
 
-type Line = { slug: string; size: string; qty: number };
+type Line = { slug: string; size: string; color: string; qty: number };
 
 export async function POST(req: Request) {
   try {
@@ -50,28 +50,30 @@ export async function POST(req: Request) {
     }
 
     const items: unknown[] = Array.isArray(body?.items) ? body.items : [];
-    const priced: { name: string; slug: string; size: string; qty: number; unit: number }[] = [];
+    const priced: { name: string; slug: string; size: string; color: string; qty: number; unit: number }[] = [];
     for (const raw of items.slice(0, 20)) {
       const it = raw as Partial<Line>;
       const qty = Math.floor(Number(it?.qty));
       const size = String(it?.size ?? "");
-      if (!it?.slug || !(qty >= 1 && qty <= 10)) continue;
+      const color = String(it?.color ?? "");
+      if (!it?.slug || !(qty >= 1 && qty <= 10) || !isColorKey(color)) continue;
       const product = await getProduct(String(it.slug));
       if (!product || !product.sizes.includes(size)) continue;
-      const avail = availableQty(product, size);
+      const avail = availableQty(product, size, color);
+      const combo = `${product.name} in ${colorName(color)} / ${size}`;
       if (avail <= 0) {
         return NextResponse.json(
-          { error: `${product.name} in size ${size} just sold out. Remove it from your cart to continue.` },
+          { error: `${combo} just sold out. Remove it from your cart to continue.` },
           { status: 409 }
         );
       }
       if (qty > avail) {
         return NextResponse.json(
-          { error: `Only ${avail} left of ${product.name} in size ${size} — lower the quantity to continue.` },
+          { error: `Only ${avail} left of ${combo} — lower the quantity to continue.` },
           { status: 409 }
         );
       }
-      priced.push({ name: product.name, slug: product.slug, size, qty, unit: product.priceCents });
+      priced.push({ name: product.name, slug: product.slug, size, color, qty, unit: product.priceCents });
     }
     if (priced.length === 0) {
       return NextResponse.json({ error: "Your cart looks empty." }, { status: 400 });
@@ -79,8 +81,8 @@ export async function POST(req: Request) {
 
     const subtotal = priced.reduce((n, l) => n + l.unit * l.qty, 0);
     const total = subtotal + SHIPPING_CENTS;
-    const itemLines = priced.map((l) => `${l.qty} × ${l.name} — size ${l.size} · ${COLOR} (${fmtPrice(l.unit)} each)`);
-    const itemsMeta = priced.map((l) => `${l.slug}|${l.size}|x${l.qty}`).join("; ");
+    const itemLines = priced.map((l) => `${l.qty} × ${l.name} — ${colorName(l.color)}, size ${l.size} (${fmtPrice(l.unit)} each)`);
+    const itemsMeta = priced.map((l) => `${l.slug}|${l.size}|${l.color}|x${l.qty}`).join("; ");
     const shipping = {
       name,
       address: { line1, line2: line2 || undefined, city, state, postal_code: postal, country: "US" },
@@ -178,7 +180,7 @@ export async function POST(req: Request) {
     // 3. the phone
     sendPush({
       title: `Order ${orderRef} · ${fmtPrice(total)}`,
-      message: `${name}\n${priced.map((l) => `${l.qty}× ${l.name} ${l.size}`).join(", ")}\n${city}, ${state}`,
+      message: `${name}\n${priced.map((l) => `${l.qty}× ${l.name} ${colorName(l.color)} ${l.size}`).join(", ")}\n${city}, ${state}`,
       url: `${site}/admin`,
       urlTitle: "Open the order desk",
       sound: "cashregister",

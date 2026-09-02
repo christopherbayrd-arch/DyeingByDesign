@@ -36,7 +36,8 @@ create table if not exists drop_signups (
 
 -- ============ PRODUCTS (managed from /admin/products) ============
 -- track_stock = false  →  "always available" (made to order)
--- track_stock = true   →  stock holds per-size counts, e.g. {"S":2,"M":0,"L":5}
+-- track_stock = true   →  stock holds per color+size counts keyed "color-key:SIZE",
+--                         e.g. {"cherry-red:M":2,"sky-blue:L":5}  (colors live in lib/products.ts)
 --                         checkout blocks anything beyond the count, and paid
 --                         orders subtract automatically.
 create table if not exists products (

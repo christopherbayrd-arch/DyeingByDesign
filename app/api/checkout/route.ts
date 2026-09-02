@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getProduct } from "@/lib/catalog";
-import { SHIPPING_CENTS, COLOR, availableQty } from "@/lib/products";
+import { SHIPPING_CENTS, availableQty, colorName, isColorKey } from "@/lib/products";
 
 // Creates a Stripe Checkout session from the cart.
 // Prices AND availability always come from the database on the server —
@@ -29,25 +29,27 @@ export async function POST(req: Request) {
     const metaParts: string[] = [];
 
     for (const raw of items.slice(0, 20)) {
-      const it = raw as { slug?: string; size?: string; qty?: number };
+      const it = raw as { slug?: string; size?: string; color?: string; qty?: number };
       const qty = Math.floor(Number(it?.qty));
       const size = String(it?.size ?? "");
-      if (!it?.slug || !(qty >= 1 && qty <= 10)) continue;
+      const color = String(it?.color ?? "");
+      if (!it?.slug || !(qty >= 1 && qty <= 10) || !isColorKey(color)) continue;
 
       const product = await getProduct(String(it.slug));
       if (!product || !product.sizes.includes(size)) continue;
 
       // stock check (Infinity when the product is made to order)
-      const avail = availableQty(product, size);
+      const avail = availableQty(product, size, color);
+      const combo = `${product.name} in ${colorName(color)} / ${size}`;
       if (avail <= 0) {
         return NextResponse.json(
-          { error: `${product.name} in size ${size} just sold out. Remove it from your cart to continue.` },
+          { error: `${combo} just sold out. Remove it from your cart to continue.` },
           { status: 409 }
         );
       }
       if (qty > avail) {
         return NextResponse.json(
-          { error: `Only ${avail} left of ${product.name} in size ${size} — lower the quantity to continue.` },
+          { error: `Only ${avail} left of ${combo} — lower the quantity to continue.` },
           { status: 409 }
         );
       }
@@ -59,14 +61,14 @@ export async function POST(req: Request) {
           unit_amount: product.priceCents,
           product_data: {
             name: `${product.name} — hand bleached tee`,
-            description: `Size ${size} · ${COLOR}${product.species ? ` · ${product.species}` : ""}`,
+            description: `${colorName(color)} · Size ${size}${product.species ? ` · ${product.species}` : ""}`,
             ...(canSendImages && product.card
               ? { images: [absoluteImage(product.card)] }
               : {}),
           },
         },
       });
-      metaParts.push(`${product.slug}|${size}|x${qty}`);
+      metaParts.push(`${product.slug}|${size}|${color}|x${qty}`);
     }
 
     if (line_items.length === 0) {

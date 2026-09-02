@@ -90,7 +90,7 @@ export default async function DesignPage({
           </div>
 
           <ul className="mt-8 space-y-2.5 border-t border-bone/10 pt-6 text-sm text-faded">
-            <li>· Heavyweight 100% cotton tee, unisex fit</li>
+            <li>· Heavyweight 100% cotton tee, unisex fit — six blank colors, pick yours above</li>
             <li>· Bleach fully neutralized and washed before shipping</li>
             <li>· Wash cold, inside out. Hang dry or tumble low.</li>
             <li>

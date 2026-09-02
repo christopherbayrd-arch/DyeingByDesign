@@ -4,36 +4,49 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/CartContext";
-import { COLOR, ORDER_MODE, availableQty, fmtPrice, isSoldOut, type Product } from "@/lib/products";
+import { COLORS, ORDER_MODE, availableQty, fmtPrice, isSoldOut, type Product } from "@/lib/products";
 
 export default function AddToCart({ product }: { product: Product }) {
   const { add } = useCart();
   const router = useRouter();
   const [size, setSize] = useState<string | null>(null);
+  const [color, setColor] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
   const [buying, setBuying] = useState(false);
   const [error, setError] = useState("");
 
   const soldOut = isSoldOut(product);
-  const maxForSize = size ? Math.min(5, availableQty(product, size)) : 5;
+  const maxForSize = size && color ? Math.min(5, availableQty(product, size, color)) : 5;
 
+  function clampQty(s: string | null, c: string | null) {
+    if (!s || !c) return;
+    const cap = Math.min(5, availableQty(product, s, c));
+    if (qty > cap) setQty(Math.max(1, cap));
+  }
   function pickSize(s: string) {
     setSize(s);
     setError("");
-    const cap = Math.min(5, availableQty(product, s));
-    if (qty > cap) setQty(Math.max(1, cap));
+    clampQty(s, color);
   }
+  function pickColor(c: string) {
+    setColor(c);
+    setError("");
+    clampQty(size, c);
+  }
+  const ready = Boolean(size && color);
+  const missing = !color && !size ? "Pick a color and a size first." : !color ? "Pick a color first." : "Pick a size first.";
 
   function handleAdd() {
-    if (!size) {
-      setError("Pick a size first.");
+    if (!ready) {
+      setError(missing);
       return;
     }
     setError("");
     add({
       slug: product.slug,
-      size,
+      size: size!,
+      color: color!,
       qty,
       name: product.name,
       priceCents: product.priceCents,
@@ -44,8 +57,8 @@ export default function AddToCart({ product }: { product: Product }) {
   }
 
   async function handleBuyNow() {
-    if (!size) {
-      setError("Pick a size first.");
+    if (!ready) {
+      setError(missing);
       return;
     }
     setError("");
@@ -53,7 +66,8 @@ export default function AddToCart({ product }: { product: Product }) {
       // No card checkout — put it in the cart and go straight to the order form
       add({
         slug: product.slug,
-        size,
+        size: size!,
+        color: color!,
         qty,
         name: product.name,
         priceCents: product.priceCents,
@@ -67,7 +81,7 @@ export default function AddToCart({ product }: { product: Product }) {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: [{ slug: product.slug, size, qty }] }),
+        body: JSON.stringify({ items: [{ slug: product.slug, size, color, qty }] }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.url) {
@@ -102,12 +116,40 @@ export default function AddToCart({ product }: { product: Product }) {
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between text-sm">
+        <span className="font-medium text-faded">Shirt color</span>
+        <span className="text-faded">{color ? COLORS.find((c) => c.key === color)?.name : "Pick one"}</span>
+      </div>
+      <div className="flex flex-wrap gap-2.5">
+        {COLORS.map((c) => {
+          const anyLeft = product.sizes.some((s) => availableQty(product, s, c.key) > 0);
+          return (
+            <button
+              key={c.key}
+              type="button"
+              aria-label={c.name}
+              title={anyLeft ? c.name : `${c.name} — sold out`}
+              disabled={!anyLeft}
+              onClick={() => pickColor(c.key)}
+              className={
+                "relative h-9 w-9 rounded-full border-2 transition disabled:cursor-not-allowed disabled:opacity-30 " +
+                (color === c.key ? "border-goldlight scale-110" : "border-bone/20 hover:border-bone/60")
+              }
+              style={{ background: c.hex }}
+            >
+              {color === c.key && (
+                <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white drop-shadow">✓</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mb-1.5 mt-6 flex items-center justify-between text-sm">
         <span className="font-medium text-faded">Size — unisex, true to size</span>
-        <span className="text-faded">Color: {COLOR}</span>
       </div>
       <div className="flex flex-wrap gap-2">
         {product.sizes.map((s) => {
-          const avail = availableQty(product, s);
+          const avail = color ? availableQty(product, s, color) : availableQty(product, s);
           const out = avail <= 0;
           return (
             <button

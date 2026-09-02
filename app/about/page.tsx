@@ -27,7 +27,7 @@ const FAQ = [
   },
   {
     q: "What shirts do you print on?",
-    a: "Heavyweight 100% cotton tees with a true to size unisex fit. If you're between sizes, most people size up.",
+    a: "Heavyweight 100% cotton tees with a true to size unisex fit, in six blank colors: cherry red, electric green, forest green, sky blue, safety pink, and safety orange. The bleach burns each color differently — reds go peach and gold, greens go tan, blues go pale — so the same design reads differently on every blank. If you're between sizes, most people size up.",
   },
   {
     q: "How do I pay?",

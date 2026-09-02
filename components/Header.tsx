@@ -11,7 +11,7 @@ export default function Header() {
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3.5">
         <Link href="/" className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/logo-mark.png" alt="" width={36} height={36} />
+          <img src="/images/logo-mark.png" alt="" width={40} height={40} className="rounded-full" />
           <span className="font-display text-lg font-semibold tracking-wide">
             Dyeing By Design
           </span>
