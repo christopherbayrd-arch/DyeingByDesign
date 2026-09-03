@@ -4,6 +4,7 @@ import Lineup from "@/components/Lineup";
 import { RECENT } from "@/lib/recent";
 import SignupForm from "@/components/SignupForm";
 import { getProducts } from "@/lib/catalog";
+import { asset } from "@/lib/assets";
 
 // Product grid refreshes from the database every 60 seconds
 export const revalidate = 60;
@@ -15,7 +16,7 @@ export default async function HomePage() {
       {/* ---------- HERO ---------- */}
       <section className="relative overflow-hidden">
         <Image
-          src="/images/hero-texture.jpg"
+          src={asset("/images/hero-texture.jpg")}
           alt=""
           fill
           priority
@@ -87,7 +88,7 @@ export default async function HomePage() {
               }
             >
               <Image
-                src={shot.src}
+                src={asset(shot.src)}
                 alt={shot.alt}
                 fill
                 sizes={shot.wide ? "(max-width: 640px) 100vw, 50vw" : "(max-width: 640px) 50vw, 25vw"}
@@ -112,7 +113,7 @@ export default async function HomePage() {
         <div className="card overflow-hidden md:grid md:grid-cols-2">
           <div className="relative aspect-[4/3] md:aspect-auto">
             <Image
-              src="/images/detail.jpg"
+              src={asset("/images/detail.jpg")}
               alt="Close up of a bleached sumac shirt"
               fill
               sizes="(max-width: 768px) 100vw, 50vw"
@@ -164,11 +165,12 @@ export default async function HomePage() {
         <div className="card relative overflow-hidden p-8 text-center sm:p-14">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/images/fern.svg"
+            src={asset("/images/fern-mark.svg")}
             alt=""
-            width={340}
-            height={340}
-            className="pointer-events-none absolute -right-16 -top-16 opacity-[0.1]"
+            width={500}
+            height={760}
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-8 -top-10 w-40 rotate-[24deg] opacity-[0.09] sm:-right-6 sm:-top-8 sm:w-64 sm:opacity-[0.11]"
           />
           <p className="kicker">1-of-1 custom orders</p>
           <h2 className="mx-auto mt-2 max-w-xl font-display text-3xl font-semibold sm:text-4xl">
@@ -191,7 +193,7 @@ export default async function HomePage() {
         <div className="card flex flex-col items-center gap-7 p-8 sm:flex-row sm:p-10">
           <div className="relative h-36 w-36 shrink-0 overflow-hidden rounded-full border-2 border-gold/50 sm:h-44 sm:w-44">
             <Image
-              src="/images/artist-square.jpg"
+              src={asset("/images/artist-square.jpg")}
               alt="The artist behind Dyeing By Design"
               fill
               sizes="176px"
@@ -225,7 +227,7 @@ export default async function HomePage() {
           new stencil cuts, new colorways. They don&apos;t last. Get on the list and you&apos;ll hear
           first.
         </p>
-        <div className="mx-auto mt-6 max-w-md">
+        <div className="@container mx-auto mt-6 max-w-md">
           <SignupForm />
         </div>
       </section>

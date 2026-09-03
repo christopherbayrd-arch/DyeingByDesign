@@ -6,6 +6,7 @@ import AddToCart from "@/components/AddToCart";
 import ProductCard from "@/components/ProductCard";
 import { getProduct, getProducts } from "@/lib/catalog";
 import { lineInfo } from "@/lib/products";
+import { asset } from "@/lib/assets";
 
 // Re-checked against the database every 60 seconds, so admin edits
 // (price, stock, new photos) go live within a minute.
@@ -51,15 +52,15 @@ export default async function DesignPage({
         </Link>
       </nav>
 
-      <div className="mt-6 grid gap-10 lg:grid-cols-2">
-        <div className="card relative aspect-[4/5] overflow-hidden lg:sticky lg:top-24">
+      <div className="mt-6 grid gap-8 md:grid-cols-2 md:gap-10">
+        <div className="card relative aspect-[4/5] overflow-hidden md:sticky md:top-24">
           {product.image ? (
             <Image
-              src={product.image}
+              src={asset(product.image)}
               alt={`${product.name} bleach design shirt`}
               fill
               priority
-              sizes="(max-width: 1024px) 100vw, 50vw"
+              sizes="(max-width: 768px) 100vw, 50vw"
               className="object-cover"
             />
           ) : (
@@ -124,7 +125,7 @@ export default async function DesignPage({
       {others.length > 0 && (
         <div className="mt-20">
           <h2 className="font-display text-2xl font-semibold">More from the lineup</h2>
-          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
+          <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5">
             {others.map((p) => (
               <ProductCard key={p.slug} product={p} />
             ))}

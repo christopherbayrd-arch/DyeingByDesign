@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { asset } from "@/lib/assets";
 import { CartProvider } from "@/components/CartContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -16,8 +17,17 @@ export const metadata: Metadata = {
     title: "Dyeing By Design",
     description:
       "Hand bleached botanical and stencil shirts made one at a time in Maine. One of a kind. By design.",
-    images: ["/images/design-sumac.jpg"],
+    images: [asset("/images/design-sumac.jpg")],
   },
+};
+
+// viewport-fit=cover lets the site paint edge to edge on iPhone; the safe-area
+// padding in globals.css keeps content clear of the notch and home bar.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#191408",
 };
 
 const FONTS_URL =

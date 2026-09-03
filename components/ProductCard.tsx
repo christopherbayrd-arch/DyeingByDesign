@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { fmtPrice, isSoldOut, type Product } from "@/lib/products";
+import { asset } from "@/lib/assets";
 
 export default function ProductCard({ product }: { product: Product }) {
   const soldOut = isSoldOut(product);
@@ -13,7 +14,7 @@ export default function ProductCard({ product }: { product: Product }) {
       <div className="relative aspect-square overflow-hidden">
         {product.card ? (
           <Image
-            src={product.card}
+            src={asset(product.card)}
             alt={`${product.name} hand-bleached shirt`}
             fill
             sizes="(max-width: 768px) 50vw, 25vw"
@@ -39,9 +40,9 @@ export default function ProductCard({ product }: { product: Product }) {
           )
         )}
       </div>
-      <div className="p-4">
-        <div className="flex items-baseline justify-between gap-2">
-          <h3 className="font-display text-xl font-semibold">{product.name}</h3>
+      <div className="p-3.5 sm:p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+          <h3 className="font-display text-lg font-semibold sm:text-xl">{product.name}</h3>
           <span className="font-semibold text-goldlight">{fmtPrice(product.priceCents)}</span>
         </div>
         {product.species && <p className="mt-0.5 text-xs italic text-faded">{product.species}</p>}

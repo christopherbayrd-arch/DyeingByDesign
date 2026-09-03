@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/hash-assets.mjs",
+    "hash-assets": "node scripts/hash-assets.mjs",
     "build": "next build",
     "start": "next start"
   },

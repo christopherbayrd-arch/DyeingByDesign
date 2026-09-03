@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { asset } from "@/lib/assets";
 
 export const metadata: Metadata = {
   title: "How it's made + care",
@@ -84,7 +85,7 @@ export default function AboutPage() {
 
       <div className="card relative mt-10 aspect-[16/9] overflow-hidden">
         <Image
-          src="/images/hero-texture.jpg"
+          src={asset("/images/hero-texture.jpg")}
           alt="Bleached sumac fronds on black cotton"
           fill
           sizes="(max-width: 896px) 100vw, 896px"

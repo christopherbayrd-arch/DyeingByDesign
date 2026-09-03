@@ -134,7 +134,7 @@ export default function CustomForm({ initialKind = "leaves" }: { initialKind?: R
                 title={c.name}
                 onClick={() => setColor(color === c.key ? "" : c.key)}
                 className={
-                  "relative h-9 w-9 rounded-full border-2 transition " +
+                  "relative h-10 w-10 rounded-full border-2 transition " +
                   (color === c.key ? "border-goldlight scale-110" : "border-bone/20 hover:border-bone/60")
                 }
                 style={{ background: c.hex }}

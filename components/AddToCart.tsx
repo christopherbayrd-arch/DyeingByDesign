@@ -133,7 +133,7 @@ export default function AddToCart({ product }: { product: Product }) {
               disabled={!anyLeft}
               onClick={() => pickColor(c.key)}
               className={
-                "relative h-9 w-9 rounded-full border-2 transition disabled:cursor-not-allowed disabled:opacity-30 " +
+                "relative h-10 w-10 rounded-full border-2 transition disabled:cursor-not-allowed disabled:opacity-30 " +
                 (color === c.key ? "border-goldlight scale-110" : "border-bone/20 hover:border-bone/60")
               }
               style={{ background: c.hex }}
@@ -195,10 +195,10 @@ export default function AddToCart({ product }: { product: Product }) {
             ))}
           </select>
         </label>
-        <button className="btn btn-gold" onClick={handleBuyNow} disabled={buying}>
+        <button className="btn btn-gold grow sm:grow-0" onClick={handleBuyNow} disabled={buying}>
           {buying ? "Heading to checkout…" : `${ORDER_MODE === "email" ? "Order this one" : "Buy now"} · ${fmtPrice(product.priceCents * qty)}`}
         </button>
-        <button className="btn btn-ghost" onClick={handleAdd} disabled={buying}>
+        <button className="btn btn-ghost grow sm:grow-0" onClick={handleAdd} disabled={buying}>
           {added ? "Added ✓" : "Add to cart"}
         </button>
       </div>

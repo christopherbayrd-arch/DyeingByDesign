@@ -200,6 +200,20 @@ sold out on their own.
 **Change flat shipping:** `SHIPPING_CENTS` in `lib/products.ts` (500 = $5.00),
 then push to GitHub.
 
+**Instagram link:** the header, footer, and artist page all read the URL from
+`lib/site.ts` (`INSTAGRAM_URL`). Change it there once.
+
+**Swapping a photo, the logo, or the favicon:** just replace the file in
+`public/images/` (or `app/icon.png` / `app/apple-icon.png` / `app/favicon.ico`)
+and push. Every build runs `scripts/hash-assets.mjs` first, which fingerprints
+the files in `public/` so their web addresses change whenever their contents
+do (`/images/logo.png?v=82fa4d99`) — that's what stops browsers and Vercel's
+image cache from showing the old picture after a deploy. Next.js does the same
+for the icons. You should never need to clear your cache; if a phone still
+shows an old favicon it's the phone's own icon cache — Safari keeps those
+until you close the tab, or delete the site from Settings → Safari →
+Advanced → Website Data.
+
 **Order alerts:** when a payment clears you get an email with what to
 make, the size, the shipping address, and the total — hit reply and it
 goes straight to the customer. Custom requests email you too, also

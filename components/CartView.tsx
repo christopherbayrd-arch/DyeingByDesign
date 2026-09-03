@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/components/CartContext";
 import { COLORS, ORDER_MODE, SHIPPING_CENTS, colorName, fmtPrice } from "@/lib/products";
+import { asset } from "@/lib/assets";
 
 type Done = { orderRef: string; mailto?: string; customerEmailed?: boolean; emailFailed?: boolean };
 
@@ -118,10 +119,10 @@ export default function CartView() {
     <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
       <ul className="space-y-4">
         {lines.map((line, i) => (
-          <li key={`${line.slug}-${line.size}-${line.color}`} className="card flex gap-4 p-4">
-            <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl">
+          <li key={`${line.slug}-${line.size}-${line.color}`} className="card flex gap-3 p-3 sm:gap-4 sm:p-4">
+            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl sm:h-24 sm:w-24">
               {line.card ? (
-                <Image src={line.card} alt={line.name} fill sizes="96px" className="object-cover" />
+                <Image src={asset(line.card)} alt={line.name} fill sizes="96px" className="object-cover" />
               ) : (
                 <div className="h-full w-full bg-black/30" />
               )}

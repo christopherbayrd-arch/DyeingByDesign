@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import InstagramLink from "@/components/InstagramLink";
+import { asset } from "@/lib/assets";
+import { INSTAGRAM_HANDLE } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Meet the artist",
@@ -16,16 +19,16 @@ export default function ArtistPage() {
         The hands behind every shirt.
       </h1>
 
-      <div className="mt-10 grid gap-10 lg:grid-cols-[420px_1fr]">
+      <div className="mt-10 grid gap-8 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:gap-10 lg:grid-cols-[420px_1fr]">
         {/* photo */}
         <div>
-          <div className="card relative aspect-[4/5] overflow-hidden lg:sticky lg:top-24">
+          <div className="card relative mx-auto aspect-[4/5] w-full max-w-md overflow-hidden md:sticky md:top-24 md:max-w-none">
             <Image
-              src="/images/artist.jpg"
+              src={asset("/images/artist.jpg")}
               alt="The artist behind Dyeing By Design, out on the water in Maine"
               fill
               priority
-              sizes="(max-width: 1024px) 100vw, 420px"
+              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 45vw, 420px"
               className="object-cover"
             />
             <span className="absolute bottom-3 left-3 rounded-full bg-inkdeep/80 px-3 py-1.5 text-[0.7rem] font-medium text-bone/90 backdrop-blur">
@@ -74,6 +77,9 @@ export default function ArtistPage() {
             <Link href="/custom" className="btn btn-ghost">
               Request a custom
             </Link>
+            <InstagramLink className="btn btn-ghost">
+              Follow {INSTAGRAM_HANDLE} <span aria-hidden="true">↗</span>
+            </InstagramLink>
           </div>
 
           <p className="mt-8 border-t border-bone/10 pt-6 text-sm leading-relaxed text-faded">
