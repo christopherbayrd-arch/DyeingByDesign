@@ -15,7 +15,7 @@ export default function ProductCard({ product }: { product: Product }) {
         {product.card ? (
           <Image
             src={asset(product.card)}
-            alt={`${product.name} hand-bleached shirt`}
+            alt={`${product.name} hand-bleached shirt by Dyeing By Design`}
             fill
             sizes="(max-width: 768px) 50vw, 25vw"
             className={

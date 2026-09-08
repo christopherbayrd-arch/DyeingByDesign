@@ -2,7 +2,7 @@ import Link from "next/link";
 import InstagramLink from "@/components/InstagramLink";
 import SignupForm from "@/components/SignupForm";
 import { asset } from "@/lib/assets";
-import { INSTAGRAM_HANDLE } from "@/lib/site";
+import { INSTAGRAM_HANDLE, SITE_NAME, SITE_SHORT, STATE_NAME, TOWN } from "@/lib/site";
 
 export default function Footer() {
   return (
@@ -12,21 +12,21 @@ export default function Footer() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={asset("/images/logo.png")}
-            alt="Dyeing By Design"
+            alt="Dyeing By Design (DBD) logo — crafted in Maine"
             width={150}
             height={150}
             className="rounded-full"
           />
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-faded">
             Real botanicals, hand-cut stencils, and a careful pass of bleach. Hand made in
-            Maine, one shirt at a time.
+            {TOWN}, {STATE_NAME}, one shirt at a time.
           </p>
           <InstagramLink className="mt-4 inline-flex items-baseline gap-2 text-sm font-medium text-bone transition hover:text-goldlight">
             <span>{INSTAGRAM_HANDLE}</span>
             <span className="text-xs text-faded">on Instagram ↗</span>
           </InstagramLink>
           <p className="mt-4 text-xs text-faded/70">
-            © {new Date().getFullYear()} Dyeing By Design
+            © {new Date().getFullYear()} {SITE_NAME} · {SITE_SHORT} · {TOWN}, {STATE_NAME}
           </p>
         </div>
 

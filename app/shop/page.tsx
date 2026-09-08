@@ -5,7 +5,8 @@ import { getProducts } from "@/lib/catalog";
 export const metadata: Metadata = {
   title: "The lineup",
   description:
-    "Hand bleached shirts made to order in Maine — real botanicals and hand-cut stencils on heavyweight cotton. $7 flat rate shipping.",
+    "Every DBD design — hand bleached shirts made to order in Brunswick, Maine. Real botanicals and hand-cut stencils on heavyweight cotton, nine blank colors, $7 flat rate shipping.",
+  alternates: { canonical: "/shop" },
 };
 
 // Fresh from the database every 60 seconds

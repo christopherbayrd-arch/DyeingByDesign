@@ -8,7 +8,8 @@ import { INSTAGRAM_HANDLE } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Meet the artist",
   description:
-    "Born and raised in Brunswick, Maine — the artist behind Dyeing By Design hand crafts every tie dye and bleach reverse piece with genuine heart and a bit of edge.",
+    "Born and raised in Brunswick, Maine — the artist behind Dyeing By Design (DBD) hand crafts every tie dye and bleach reverse piece with genuine heart and a bit of edge.",
+  alternates: { canonical: "/artist" },
 };
 
 export default function ArtistPage() {

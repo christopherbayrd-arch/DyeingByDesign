@@ -5,6 +5,7 @@ import { cardCheckout } from "@/lib/orderMode";
 
 export const metadata: Metadata = {
   title: "Your cart",
+  robots: { index: false, follow: true },
 };
 
 // Re-checked every minute so a design switched to "Track stock" in the

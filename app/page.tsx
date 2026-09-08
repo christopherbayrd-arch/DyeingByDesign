@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import Lineup from "@/components/Lineup";
@@ -6,6 +7,10 @@ import SignupForm from "@/components/SignupForm";
 import { getProducts } from "@/lib/catalog";
 import { asset } from "@/lib/assets";
 import { COLORS } from "@/lib/products";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 // Product grid refreshes from the database every 60 seconds
 export const revalidate = 60;
@@ -26,7 +31,7 @@ export default async function HomePage() {
         />
         <div className="absolute inset-0 bg-gradient-to-b from-inkdeep/80 via-ink/70 to-ink" />
         <div className="relative mx-auto max-w-6xl px-5 pb-24 pt-24 sm:pb-32 sm:pt-32">
-          <p className="kicker rise">Hand bleached reverse art · Made in Maine</p>
+          <p className="kicker rise">DBD · Hand bleached reverse art · Brunswick, Maine</p>
           <h1 className="rise rise-1 mt-4 max-w-2xl font-display text-5xl font-semibold leading-[1.05] sm:text-7xl">
             One of a kind.
             <br />

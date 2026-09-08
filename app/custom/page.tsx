@@ -5,7 +5,8 @@ import { isRequestKind } from "@/lib/requests";
 export const metadata: Metadata = {
   title: "Custom designs",
   description:
-    "Send us your leaves, logos, or design ideas for a 1-of-1 piece — a custom stencil of your business logo, a favorite graphic, or leaves from your own backyard, bleached by hand in Maine.",
+    "Send us your leaves, logos, or design ideas for a 1-of-1 piece — a custom stencil of your business logo, a favorite graphic, or leaves from your own backyard, bleached by hand by DBD in Brunswick, Maine.",
+  alternates: { canonical: "/custom" },
 };
 
 const IDEAS = [

@@ -79,9 +79,15 @@ insert into products (slug, name, species, blurb, story, image, card, price_cent
   'fern', 'Fern', 'Ostrich fern · Matteuccia struthiopteris',
   'Lacy, layered, almost too fine to believe it''s bleach.',
   'The same fern Mainers hunt for fiddleheads in May. Its fronds leave a shadow so detailed people assume it''s screen printed. It isn''t. It''s a leaf, a steady hand, and one pass of spray.',
-  '/images/design-fern.jpg', '/images/design-fern.jpg', 3999, true, null, 4
+  '/images/design-fern.jpg', '/images/design-fern.jpg', 3999, false, null, 4
 )
 on conflict (slug) do nothing;
+
+-- Housekeeping (safe to re-run): the fern photo is a real fern shirt now, and
+-- maple is retired. Hiding maple here keeps it out of the storefront even
+-- before it's deleted from the admin.
+update products set sample_photo = false where slug = 'fern';
+update products set active = false where slug = 'maple';
 
 -- ============ DROP ANNOUNCEMENTS ============
 -- Every subscriber gets a private unsubscribe token, and unsubscribes are

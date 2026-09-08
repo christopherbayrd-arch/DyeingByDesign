@@ -2,14 +2,21 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { asset } from "@/lib/assets";
+import { faqJsonLd } from "@/lib/seo";
+import JsonLd from "@/components/JsonLd";
 
 export const metadata: Metadata = {
   title: "How it's made + care",
   description:
-    "The reverse-bleach process behind Dyeing By Design — real leaves and hand-cut stencils — plus how to care for your one of a kind shirt.",
+    "The reverse-bleach process behind Dyeing By Design (DBD) — real leaves and hand-cut stencils — plus how to care for your one of a kind shirt.",
+  alternates: { canonical: "/about" },
 };
 
 const FAQ = [
+  {
+    q: "What's DBD?",
+    a: "Us. DBD is short for Dyeing By Design — it's the mark on the shirts and how most people around Brunswick, Maine say it. If you're searching, \"DBD shirts Maine\" or \"Dyeing By Design\" both land here: dyeingbydesign.com, or @dyeingbydesign on Instagram.",
+  },
   {
     q: "Will mine look exactly like the photo?",
     a: "No, and that's the point. Leaf placement, spray density, and how far the burn goes vary from shirt to shirt — even two shirts cut from the same stencil come out with their own contrast and tone. Yours is the only one like it.",
@@ -51,6 +58,7 @@ const FAQ = [
 export default function AboutPage() {
   return (
     <div className="mx-auto max-w-4xl px-5 pt-14">
+      <JsonLd data={faqJsonLd(FAQ)} />
       <p className="kicker">The process</p>
       <h1 className="mt-2 font-display text-4xl font-semibold sm:text-5xl">
         A leaf or a blade does the design. We hold the sprayer.

@@ -8,6 +8,8 @@ import { getProduct, getProducts } from "@/lib/catalog";
 import { lineInfo } from "@/lib/products";
 import { cardCheckout } from "@/lib/orderMode";
 import { asset } from "@/lib/assets";
+import { absoluteImage, productJsonLd } from "@/lib/seo";
+import JsonLd from "@/components/JsonLd";
 
 // Re-checked against the database every 60 seconds, so admin edits
 // (price, stock, new photos) go live within a minute.
@@ -21,10 +23,17 @@ export async function generateMetadata({
   const { slug } = await params;
   const product = await getProduct(slug);
   if (!product) return {};
+  const kind = product.line === "stencil" ? "stencil" : "leaf";
   return {
     title: `${product.name} shirt`,
-    description: product.blurb,
-    openGraph: { images: product.card ? [product.card] : [] },
+    description: `${product.blurb} Hand bleached ${kind} shirt from DBD, made to order in Brunswick, Maine.`,
+    alternates: { canonical: `/shop/${slug}` },
+    openGraph: {
+      type: "website",
+      title: `${product.name} bleach shirt · Dyeing By Design (DBD)`,
+      description: product.blurb,
+      images: product.card ? [absoluteImage(product.card)] : [],
+    },
   };
 }
 
@@ -47,6 +56,7 @@ export default async function DesignPage({
 
   return (
     <div className="mx-auto max-w-6xl px-5 pt-10">
+      <JsonLd data={productJsonLd(product)} />
       <nav className="text-xs text-faded">
         <Link href="/shop" className="transition hover:text-goldlight">
           ← The lineup
@@ -58,7 +68,7 @@ export default async function DesignPage({
           {product.image ? (
             <Image
               src={asset(product.image)}
-              alt={`${product.name} bleach design shirt`}
+              alt={`${product.name} ${isStencil ? "stencil" : "leaf"} bleach shirt by Dyeing By Design`}
               fill
               priority
               sizes="(max-width: 768px) 100vw, 50vw"
