@@ -162,3 +162,69 @@ alter table orders add column if not exists note           text;
 -- Fill in the new columns for orders that were already there (safe to re-run)
 update orders set paid_at = created_at where paid_at is null and status <> 'requested';
 update orders set channel = 'request' where channel = 'site' and stripe_session_id like 'email_%';
+
+-- ============================================================
+--  Shipping labels (v5). Bought through EasyPost from /admin; the
+--  label, tracking number, and what the postage cost live on the order.
+-- ============================================================
+alter table orders add column if not exists shipment_id     text;   -- EasyPost shipment id
+alter table orders add column if not exists tracking_number text;
+alter table orders add column if not exists tracking_url    text;
+alter table orders add column if not exists label_url       text;   -- PDF to print
+alter table orders add column if not exists carrier         text;   -- USPS
+alter table orders add column if not exists service         text;   -- GroundAdvantage, Priority…
+alter table orders add column if not exists label_bought_at timestamptz;
+alter table orders add column if not exists shipped_at      timestamptz;
+
+-- ============================================================
+--  Customer accounts (v5). Sign in with Google / Apple / Facebook or an
+--  emailed link. These four tables are the shape Auth.js expects — keep
+--  the quoted camelCase column names exactly as they are.
+-- ============================================================
+create table if not exists users (
+  id              serial primary key,
+  name            varchar(255),
+  email           varchar(255),
+  "emailVerified" timestamptz,
+  image           text
+);
+create table if not exists accounts (
+  id                  serial primary key,
+  "userId"            integer not null,
+  type                varchar(255) not null,
+  provider            varchar(255) not null,
+  "providerAccountId" varchar(255) not null,
+  refresh_token       text,
+  access_token        text,
+  expires_at          bigint,
+  id_token            text,
+  scope               text,
+  session_state       text,
+  token_type          text
+);
+create table if not exists sessions (
+  id             serial primary key,
+  "userId"       integer not null,
+  expires        timestamptz not null,
+  "sessionToken" varchar(255) not null
+);
+create table if not exists verification_token (
+  identifier text not null,
+  expires    timestamptz not null,
+  token      text not null,
+  primary key (identifier, token)
+);
+create index if not exists accounts_user_idx on accounts("userId");
+create index if not exists sessions_token_idx on sessions("sessionToken");
+create index if not exists users_email_idx on users(email);
+
+-- A signed-in customer's cart follows them between devices
+create table if not exists carts (
+  user_id     integer primary key,
+  data        jsonb not null default '[]',
+  updated_at  timestamptz not null default now()
+);
+
+-- Which account (if any) placed an order or request
+alter table orders add column if not exists user_id integer;
+alter table special_requests add column if not exists user_id integer;
