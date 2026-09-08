@@ -5,7 +5,8 @@ import { getProduct } from "@/lib/catalog";
 import { SHIPPING_CENTS, availableQty, colorName, fmtPrice, isColorKey } from "@/lib/products";
 import { emailConfig, sendEmail, orderRequestAlertHtml, customerOrderRequestHtml } from "@/lib/email";
 import { sendPush } from "@/lib/notify";
-import { siteUrl } from "@/lib/orderFormat";
+import { metaLine, siteUrl } from "@/lib/orderFormat";
+import { insertOrderLines } from "@/lib/costing";
 
 // ============================================================
 //  "Order by email" — the no-card ordering flow.
@@ -82,7 +83,9 @@ export async function POST(req: Request) {
     const subtotal = priced.reduce((n, l) => n + l.unit * l.qty, 0);
     const total = subtotal + SHIPPING_CENTS;
     const itemLines = priced.map((l) => `${l.qty} × ${l.name} — ${colorName(l.color)}, size ${l.size} (${fmtPrice(l.unit)} each)`);
-    const itemsMeta = priced.map((l) => `${l.slug}|${l.size}|${l.color}|x${l.qty}`).join("; ");
+    const itemsMeta = priced
+      .map((l) => metaLine({ slug: l.slug, size: l.size, color: l.color, qty: l.qty, priceCents: l.unit }))
+      .join("; ");
     const shipping = {
       name,
       address: { line1, line2: line2 || undefined, city, state, postal_code: postal, country: "US" },
@@ -94,10 +97,28 @@ export async function POST(req: Request) {
     const sql = getDb();
     if (sql) {
       try {
-        await sql`
-          insert into orders (stripe_session_id, email, name, amount_total, items, shipping, status)
-          values (${"email_" + orderRef}, ${email}, ${name}, ${total}, ${itemsMeta + (note ? ` | note: ${note.slice(0, 300)}` : "")}, ${JSON.stringify(shipping)}::jsonb, 'requested')
-        `;
+        const inserted = (await sql`
+          insert into orders (stripe_session_id, email, name, amount_total, items, shipping, status, channel, shipping_cents)
+          values (${"email_" + orderRef}, ${email}, ${name}, ${total}, ${itemsMeta + (note ? ` | note: ${note.slice(0, 300)}` : "")}, ${JSON.stringify(shipping)}::jsonb, 'requested', 'request', ${SHIPPING_CENTS})
+          returning id
+        `) as { id: number }[];
+        // One row per shirt for the sales history. Cost gets frozen later,
+        // when the request is flipped to Paid in the admin.
+        if (inserted[0]?.id) {
+          await insertOrderLines(
+            sql,
+            inserted[0].id,
+            priced.map((l) => ({
+              slug: l.slug,
+              name: l.name,
+              size: l.size,
+              color: l.color,
+              qty: l.qty,
+              unitPriceCents: l.unit,
+              priceSource: "order" as const,
+            }))
+          );
+        }
       } catch (err) {
         console.error("email-order db insert failed:", err);
       }

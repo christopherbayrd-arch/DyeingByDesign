@@ -7,6 +7,7 @@ import { emailConfig } from "@/lib/email";
 import { pushConfig } from "@/lib/notify";
 import { getDb } from "@/lib/db";
 import { colorName, fmtPrice } from "@/lib/products";
+import { orderNote, parseItemsMeta } from "@/lib/orderFormat";
 
 export const metadata: Metadata = {
   title: "Admin",
@@ -33,26 +34,15 @@ function fmtDate(value: unknown) {
   }
 }
 
-// "sumac|M|cherry-red|x2; fern|L|sky-blue|x1 | note: ..." → readable lines
+// "sumac|M|cherry-red|x2|3999; fern|L|sky-blue|x1|3999 | note: ..." → readable lines
 function itemsText(items: unknown) {
   const raw = String(items ?? "");
   if (!raw) return "—";
-  const [meta, ...rest] = raw.split(" | note: ");
-  const lines = meta
-    .split(";")
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map((p) => {
-      const bits = p.split("|");
-      if (bits.length < 3) return p;
-      const slug = bits[0];
-      const size = bits[1];
-      const color = bits.length >= 4 ? colorName(bits[2]) : "";
-      const qty = (bits[bits.length - 1] ?? "").replace("x", "");
-      const name = slug.charAt(0).toUpperCase() + slug.slice(1);
-      return `${qty} × ${name}${color ? ` · ${color}` : ""} · ${size}`;
-    });
-  const note = rest.join(" | note: ");
+  const lines = parseItemsMeta(raw).map((l) => {
+    const name = l.slug.charAt(0).toUpperCase() + l.slug.slice(1);
+    return `${l.qty} × ${name}${l.color ? ` · ${colorName(l.color)}` : ""} · ${l.size}`;
+  });
+  const note = orderNote(raw);
   return lines.join("\n") + (note ? `\nNote: ${note}` : "");
 }
 

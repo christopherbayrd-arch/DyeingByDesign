@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getProduct } from "@/lib/catalog";
 import { ORDER_MODE, SHIPPING_CENTS, availableQty, colorName, isColorKey } from "@/lib/products";
+import { metaLine } from "@/lib/orderFormat";
 
 // Creates a Stripe Checkout session from the cart.
 // Prices AND availability always come from the database on the server —
@@ -85,7 +86,9 @@ export async function POST(req: Request) {
           },
         },
       });
-      metaParts.push(`${product.slug}|${size}|${color}|x${qty}`);
+      // slug|size|color|xQTY|unit price — the price rides along so the
+      // sales history knows what was actually paid, even after a price change
+      metaParts.push(metaLine({ slug: product.slug, size, color, qty, priceCents: product.priceCents }));
     }
 
     if (line_items.length === 0) {

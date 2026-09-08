@@ -2,8 +2,9 @@ import Stripe from "stripe";
 import { getDb } from "@/lib/db";
 import { emailConfig, sendEmail, orderAlertHtml, customerOrderHtml } from "@/lib/email";
 import { sendPush } from "@/lib/notify";
-import { stockKey } from "@/lib/products";
-import { itemLinesFromMeta, shipToLine, money, siteUrl } from "@/lib/orderFormat";
+import { SHIPPING_CENTS, stockKey } from "@/lib/products";
+import { itemLinesFromMeta, parseItemsMeta, shipToLine, money, siteUrl } from "@/lib/orderFormat";
+import { costOrder, insertOrderLines, linesFromMeta } from "@/lib/costing";
 
 // Stripe calls this after a successful checkout. We save the order into Neon,
 // subtract sold stock, and send notification emails.
@@ -39,18 +40,39 @@ export async function POST(req: Request) {
     // still gets its notification email.
     let isNew = true;
 
+    // Card processing fee, straight from Stripe (best effort — the history
+    // page shows a blank fee if this lookup fails, nothing else breaks).
+    let feeCents: number | null = null;
+    try {
+      if (typeof session.payment_intent === "string") {
+        const pi = await stripe.paymentIntents.retrieve(session.payment_intent, {
+          expand: ["latest_charge.balance_transaction"],
+        });
+        const charge = pi.latest_charge as Stripe.Charge | null;
+        const bt = charge?.balance_transaction as Stripe.BalanceTransaction | null;
+        if (bt && typeof bt.fee === "number") feeCents = bt.fee;
+      }
+    } catch (err) {
+      console.error("stripe fee lookup failed:", err);
+    }
+    const shippingCents = session.total_details?.amount_shipping ?? SHIPPING_CENTS;
+
     const sql = getDb();
     if (sql) {
       try {
         const inserted = (await sql`
-          insert into orders (stripe_session_id, email, name, amount_total, items, shipping)
+          insert into orders (stripe_session_id, email, name, amount_total, items, shipping, channel, shipping_cents, fee_cents, paid_at)
           values (
             ${session.id},
             ${session.customer_details?.email ?? null},
             ${session.customer_details?.name ?? null},
             ${session.amount_total ?? null},
             ${itemsMeta},
-            ${JSON.stringify(shipping)}::jsonb
+            ${JSON.stringify(shipping)}::jsonb,
+            'site',
+            ${shippingCents},
+            ${feeCents},
+            now()
           )
           on conflict (stripe_session_id) do nothing
           returning id
@@ -58,16 +80,22 @@ export async function POST(req: Request) {
 
         isNew = inserted.length > 0;
 
+        // One row per shirt with the cost frozen right now, for the sales
+        // history. Never allowed to fail the order itself.
+        if (isNew && itemsMeta) {
+          try {
+            await insertOrderLines(sql, inserted[0].id, await linesFromMeta(itemsMeta));
+            await costOrder(sql, inserted[0].id);
+          } catch (err) {
+            console.error("order lines / costing failed:", err);
+          }
+        }
+
         // Subtract stock only when this order was newly recorded
         // (Stripe retries webhooks — this stops double-subtracting).
         if (isNew && itemsMeta) {
-          for (const part of itemsMeta.split(";")) {
-            const bits = part.trim().split("|");
-            // v3 meta: slug|size|color|xN   (older orders: slug|size|xN)
-            const slug = bits[0];
-            const size = bits[1];
-            const color = bits.length >= 4 ? bits[2] : "";
-            const qty = Number((bits[bits.length - 1] ?? "").replace("x", ""));
+          for (const l of parseItemsMeta(itemsMeta)) {
+            const { slug, size, color, qty } = l;
             if (!slug || !size || !color || !(qty >= 1)) continue;
             const key = stockKey(color, size);
             await sql`

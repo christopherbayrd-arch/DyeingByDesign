@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 
 // The COGS sheet is one JSON document (see lib/cogs.ts for the shape).
-// GET reads it, PUT replaces it. Owner only — middleware guards /api/admin.
+// GET reads it, PUT replaces it and files a dated copy in cogs_versions so
+// the sales history can cost old orders with old prices (?note=what changed).
+// Owner only — middleware guards /api/admin.
 
 const NO_DB = {
   error:
@@ -43,7 +45,17 @@ export async function PUT(req: Request) {
       insert into cogs (id, data, updated_at) values (1, ${json}::jsonb, now())
       on conflict (id) do update set data = excluded.data, updated_at = now()
     `;
-    return NextResponse.json({ ok: true });
+    // Keep a dated copy. Best effort: an older database without the
+    // versions table still saves the sheet itself.
+    let versioned = true;
+    try {
+      const note = new URL(req.url).searchParams.get("note") ?? "";
+      await sql`insert into cogs_versions (data, note) values (${json}::jsonb, ${note.slice(0, 200)})`;
+    } catch (err) {
+      versioned = false;
+      console.error("cogs version save failed (run the latest schema.sql):", err);
+    }
+    return NextResponse.json({ ok: true, versioned });
   } catch (err) {
     console.error("cogs save:", err);
     return NextResponse.json(

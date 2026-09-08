@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import CogsHistory from "@/components/CogsHistory";
 import { COLORS, SIZES, fmtPrice, lineInfo, stockKey, type Product } from "@/lib/products";
 import {
   blankStats,
@@ -26,6 +27,8 @@ export default function CogsManager() {
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
+  const [saveNote, setSaveNote] = useState("");
+  const [saveCount, setSaveCount] = useState(0); // bumps after each save so the history panel reloads
   const [fill, setFill] = useState<Record<string, string>>({});
   const [products, setProducts] = useState<Product[] | null>(null);
   const [productsNote, setProductsNote] = useState("");
@@ -77,7 +80,7 @@ export default function CogsManager() {
     setSaving(true);
     setSaveMsg("");
     try {
-      const res = await fetch("/api/admin/cogs", {
+      const res = await fetch("/api/admin/cogs?note=" + encodeURIComponent(saveNote.trim()), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(doc),
@@ -85,7 +88,13 @@ export default function CogsManager() {
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setDirty(false);
-        setSaveMsg("Saved ✓");
+        setSaveNote("");
+        setSaveCount((n) => n + 1);
+        setSaveMsg(
+          data.versioned === false
+            ? "Saved ✓ (no dated copy kept — run the latest schema.sql in Neon)"
+            : "Saved ✓ — dated copy kept for the sales history"
+        );
       } else {
         setSaveMsg(data.error ?? "Didn't save.");
       }
@@ -179,6 +188,17 @@ export default function CogsManager() {
 
   return (
     <div className="space-y-10 pb-24">
+      {/* ---------- HISTORY ---------- */}
+      <CogsHistory
+        current={doc}
+        refreshKey={saveCount}
+        onRestore={(old, from) => {
+          setDoc(old);
+          setDirty(true);
+          setSaveMsg(`Loaded the sheet from ${from} into the editor — hit Save to make it current again.`);
+        }}
+      />
+
       {/* ---------- 1. BLANKS ---------- */}
       <section className="card p-5 sm:p-6">
         <p className="kicker">1 · Blank tees</p>
@@ -549,13 +569,22 @@ export default function CogsManager() {
 
       {/* ---------- SAVE BAR ---------- */}
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-bone/10 bg-inkdeep/95 px-5 py-3 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-faded">
             {saveMsg || (dirty ? "Unsaved changes" : "Everything saved")}
           </p>
-          <button type="button" onClick={save} disabled={saving || !dirty} className={"btn " + (dirty ? "btn-gold" : "btn-ghost")}>
-            {saving ? "Saving…" : "Save"}
-          </button>
+          <div className="flex flex-1 items-center justify-end gap-2">
+            <input
+              value={saveNote}
+              onChange={(e) => setSaveNote(e.target.value)}
+              placeholder="What changed? (optional, e.g. blanks up $1)"
+              aria-label="Note for this version of the sheet"
+              className="input w-full max-w-xs py-1.5 text-xs"
+            />
+            <button type="button" onClick={save} disabled={saving || !dirty} className={"btn " + (dirty ? "btn-gold" : "btn-ghost")}>
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

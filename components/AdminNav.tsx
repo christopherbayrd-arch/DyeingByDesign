@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export default function AdminNav({ active }: { active: "orders" | "products" | "cogs" | "drop" }) {
+export default function AdminNav({ active }: { active: "orders" | "products" | "cogs" | "history" | "drop" }) {
   const tab = (href: string, label: string, key: string) => (
     <Link
       href={href}
@@ -20,6 +20,7 @@ export default function AdminNav({ active }: { active: "orders" | "products" | "
       {tab("/admin", "Orders & requests", "orders")}
       {tab("/admin/products", "Products & stock", "products")}
       {tab("/admin/cogs", "COGS", "cogs")}
+      {tab("/admin/history", "Sales history", "history")}
       {tab("/admin/drop", "Announce a drop", "drop")}
       <span className="flex-1" />
       <Link href="/" className="text-sm text-faded transition hover:text-goldlight">

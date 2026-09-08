@@ -120,3 +120,45 @@ create table if not exists cogs (
   data        jsonb not null default '{}',
   updated_at  timestamptz not null default now()
 );
+
+-- ============================================================
+--  Sales history (v4). Every shirt sold gets its own row, with the
+--  cost frozen at the moment it was paid for, so changing prices on
+--  the COGS page later never rewrites old margins.
+-- ============================================================
+create table if not exists order_lines (
+  id               serial primary key,
+  order_id         integer not null references orders(id) on delete cascade,
+  slug             text not null,
+  name             text not null default '',
+  size             text not null default '',
+  color            text not null default '',
+  qty              integer not null default 1,
+  unit_price_cents integer not null default 0,  -- what the customer paid per shirt
+  unit_cogs_cents  integer,                      -- cost per shirt when paid (null = not costed yet)
+  cogs_breakdown   jsonb,                        -- blank + materials + whether it was estimated
+  costed_at        timestamptz,
+  created_at       timestamptz not null default now()
+);
+create index if not exists order_lines_order_idx on order_lines(order_id);
+
+-- Every saved version of the COGS sheet, so an old sale can be costed
+-- with the prices that were true at the time.
+create table if not exists cogs_versions (
+  id          serial primary key,
+  data        jsonb not null,
+  note        text not null default '',
+  created_at  timestamptz not null default now()
+);
+
+alter table orders add column if not exists channel        text not null default 'site';  -- site | request | market | instagram | other
+alter table orders add column if not exists shipping_cents integer;      -- what the customer paid for shipping
+alter table orders add column if not exists fee_cents      integer;      -- card processing fee (Stripe)
+alter table orders add column if not exists postage_cents  integer;      -- what you actually paid to ship it
+alter table orders add column if not exists paid_at        timestamptz;
+alter table orders add column if not exists sold_at        timestamptz;  -- date of sale for hand-entered sales
+alter table orders add column if not exists note           text;
+
+-- Fill in the new columns for orders that were already there (safe to re-run)
+update orders set paid_at = created_at where paid_at is null and status <> 'requested';
+update orders set channel = 'request' where channel = 'site' and stripe_session_id like 'email_%';
