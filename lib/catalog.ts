@@ -1,7 +1,15 @@
 // Server-side product catalog. Reads from Neon when connected;
 // falls back to the built-in four designs so the site always renders.
 import { getDb } from "@/lib/db";
-import { DEFAULT_PRODUCTS, SIZES, type Product, type ProductLine } from "@/lib/products";
+import {
+  DEFAULT_PRODUCTS,
+  RETIRED_SLUGS,
+  SIZES,
+  type Product,
+  type ProductLine,
+} from "@/lib/products";
+
+const notRetired = (p: Product) => !RETIRED_SLUGS.includes(p.slug);
 
 type Row = Record<string, unknown>;
 
@@ -30,23 +38,24 @@ export function rowToProduct(r: Row): Product {
   };
 }
 
-// Live products for the storefront (active only)
+// Live products for the storefront (active only, retired designs skipped)
 export async function getProducts(): Promise<Product[]> {
   const sql = getDb();
-  if (!sql) return DEFAULT_PRODUCTS;
+  if (!sql) return DEFAULT_PRODUCTS.filter(notRetired);
   try {
     const rows = (await sql`
       select * from products where active order by sort, id
     `) as Row[];
     if (rows.length === 0) return [];
-    return rows.map(rowToProduct);
+    return rows.map(rowToProduct).filter(notRetired);
   } catch {
     // table probably doesn't exist yet — run schema.sql in Neon
-    return DEFAULT_PRODUCTS;
+    return DEFAULT_PRODUCTS.filter(notRetired);
   }
 }
 
 export async function getProduct(slug: string): Promise<Product | null> {
+  if (!notRetired({ slug } as Product)) return null;
   const sql = getDb();
   if (!sql) return DEFAULT_PRODUCTS.find((p) => p.slug === slug) ?? null;
   try {

@@ -77,6 +77,11 @@ export const SHIPPING_CENTS = 700;
 
 export const SIZES = ["S", "M", "L", "XL", "2XL"];
 
+// Designs we no longer make. The storefront and sitemap skip these even if
+// a row for them still exists in the database, so retiring a design is a
+// code change plus (when you get to it) hiding or deleting it in /admin.
+export const RETIRED_SLUGS = ["maple"];
+
 // Blank colors. Every design comes in every color. `key` is what gets
 // stored (cart, orders, stock); `name` is what people see; `hex` is the
 // swatch. To add a color, add a line — that's it.
@@ -174,7 +179,6 @@ export const DEFAULT_PRODUCTS: Product[] = [
       "The same fern Mainers hunt for fiddleheads in May. Its fronds leave a shadow so detailed people assume it's screen printed. It isn't. It's a leaf, a steady hand, and one pass of spray.",
     image: "/images/design-fern.jpg",
     card: "/images/design-fern.jpg",
-    samplePhoto: true,
     sort: 4,
   },
 ];

@@ -4,8 +4,7 @@
 export const ASSET_HASHES: Record<string, string> = {
   "/images/artist-square.jpg": "240cfd7d",
   "/images/artist.jpg": "aec066c0",
-  "/images/design-fern.jpg": "74b75612",
-  "/images/design-maple.jpg": "008f411e",
+  "/images/design-fern.jpg": "9b874132",
   "/images/design-oak.jpg": "b0116189",
   "/images/design-sumac.jpg": "cc190962",
   "/images/detail.jpg": "98e505b0",
@@ -16,7 +15,6 @@ export const ASSET_HASHES: Record<string, string> = {
   "/images/logo-mark.png": "0b4547e4",
   "/images/logo.png": "82fa4d99",
   "/images/maple-shirt.jpg": "a35624b4",
-  "/images/recent/IMG_2742.heic": "7dd1a6a5",
   "/images/recent/broadleaf-flat.jpg": "14a0688d",
   "/images/recent/fern-flat.jpg": "63af2782",
   "/images/recent/fern-worn.jpg": "66367307",

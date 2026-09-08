@@ -209,9 +209,14 @@ webhook URL to the new domain.
 
 **Add or change a product:** log in → Products & stock. Photos: use a
 square-ish photo for the grid, any tall/portrait photo for the design page.
-The oak and fern designs are still seeded with crops of the sumac shirt as
-technique samples — replace them with real photos from the admin when you've
-made those shirts, and untick "technique sample."
+The oak design is still seeded with a crop of the sumac shirt as a
+technique sample — replace it with a real photo from the admin when you've
+made that shirt, and untick "technique sample." (Fern has a real photo now;
+if the fern page still shows the "Photo shows the technique" badge, untick
+"technique sample" on Fern in the admin, or re-run `schema.sql` in Neon, which
+clears it.) Retired designs are listed in `RETIRED_SLUGS` in
+`lib/products.ts` — the storefront skips them even if they're still in the
+database.
 
 **Run a limited drop:** create the design (or edit an existing one), switch
 it to "Track stock by size," enter the counts, flip it to Shown, and email
@@ -223,6 +228,19 @@ then push to GitHub. Every price shown on the site and in the emails reads from 
 
 **Instagram link:** the header, footer, and artist page all read the URL from
 `lib/site.ts` (`INSTAGRAM_URL`). Change it there once.
+
+**Search engines (SEO):** the site publishes `/sitemap.xml` (every public
+page plus every shown design, read from the database) and `/robots.txt`
+(keeps Google out of `/admin`, `/api`, the cart, and the order-received
+page). Every page also carries invisible schema.org data — `lib/seo.ts`
+builds it: who the business is (name, **DBD** as the short name, Brunswick,
+Maine, the Instagram profile), each shirt's price and shipping, and the
+about page FAQ. The town, state, short name, and Instagram profile all live
+in `lib/site.ts`. "DBD" is deliberately in the page titles, the home page
+kicker, the footer, and the about page FAQ — search engines only learn a
+nickname if the site actually uses it. After a deploy, submit
+`https://www.dyeingbydesign.com/sitemap.xml` in Google Search Console once;
+after that Google re-reads it on its own.
 
 **Swapping a photo, the logo, or the favicon:** just replace the file in
 `public/images/` (or `app/icon.png` / `app/apple-icon.png` / `app/favicon.ico`)
