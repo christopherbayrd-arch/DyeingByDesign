@@ -21,6 +21,11 @@ export const ASSET_HASHES: Record<string, string> = {
   "/images/recent/fern-flat.jpg": "63af2782",
   "/images/recent/fern-worn.jpg": "66367307",
   "/images/recent/gathering-sumac.jpg": "b6ed197b",
+  "/images/recent/sumac-cherry.jpg": "398dc6ca",
+  "/images/recent/sumac-daisy.jpg": "8d56fb34",
+  "/images/recent/sumac-electric.jpg": "2cdfa378",
   "/images/recent/sumac-flat.jpg": "5d93e435",
+  "/images/recent/sumac-forest.jpg": "5b91926e",
+  "/images/recent/sumac-sky.jpg": "658ed507",
   "/images/sumac-shirt.jpg": "dbd118e0",
 };

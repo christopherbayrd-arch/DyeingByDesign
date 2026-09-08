@@ -5,7 +5,7 @@
 //  photos, new designs) is managed in the DATABASE from the
 //  /admin/products page — not in this file.
 //
-//  The four designs below are only used as:
+//  The designs below are only used as:
 //    1. the seed data in schema.sql, and
 //    2. a fallback so the site still renders before the
 //       database is connected.
@@ -18,7 +18,7 @@ export const LINES: { key: ProductLine; name: string; tagline: string; short: st
     key: "botanical",
     name: "The Botanical Line",
     short: "Botanical",
-    tagline: "Real leaves laid by hand — sumac, maple, oak, fern, and whatever the season drops.",
+    tagline: "Real leaves laid by hand — sumac, fern, and whatever the season drops.",
   },
   {
     key: "stencil",
@@ -53,28 +53,45 @@ export type Product = {
 };
 
 // How people order.
-//   "email"  → no card on the site: the cart sends the order to the shop
-//              by email and Corey replies with payment details.
-//   "stripe" → Stripe Checkout (cards / Apple Pay). Needs the Stripe env
-//              vars from the README. Flip this one line to switch.
-export const ORDER_MODE: "email" | "stripe" = "email";
+//   "split"  → per shirt: designs with "Track stock" on (counted, ready to
+//              ship) get a Buy now button that goes to Stripe Checkout;
+//              made to order designs get "Order this one", which sends the
+//              order to the shop by email and Corey replies with a payment
+//              link. If the Stripe keys aren't set yet, everything falls back
+//              to the email route automatically.
+//   "email"  → no card on the site at all, every order goes by email.
+//   "stripe" → everything goes to Stripe Checkout, made to order included.
+export const ORDER_MODE: "split" | "email" | "stripe" = "split";
 
-// Flat shipping for the whole order, in cents ($5.00)
-export const SHIPPING_CENTS = 500;
+// Does this design check out by card? (stripeReady = STRIPE_SECRET_KEY is set,
+// which only the server knows — see lib/orderMode.ts)
+export function paysByCard(p: { trackStock: boolean }, stripeReady: boolean): boolean {
+  if (!stripeReady) return false;
+  if (ORDER_MODE === "email") return false;
+  if (ORDER_MODE === "stripe") return true;
+  return p.trackStock;
+}
+
+// Flat rate shipping for the whole order, in cents ($7.00)
+export const SHIPPING_CENTS = 700;
 
 export const SIZES = ["S", "M", "L", "XL", "2XL"];
 
 // Blank colors. Every design comes in every color. `key` is what gets
 // stored (cart, orders, stock); `name` is what people see; `hex` is the
 // swatch. To add a color, add a line — that's it.
+// (Names follow the blank maker's color names; the `cherry-red` key is kept
+// from the old list so any stock counts already entered for it carry over.)
 export const COLORS: { key: string; name: string; hex: string }[] = [
   { key: "black", name: "Black", hex: "#141414" },
-  { key: "cherry-red", name: "Cherry red", hex: "#b3222e" },
+  { key: "cherry-red", name: "Antique cherry red", hex: "#9a1c2e" },
+  { key: "azalea", name: "Azalea", hex: "#f28cb1" },
+  { key: "daisy", name: "Daisy", hex: "#f6c945" },
   { key: "electric-green", name: "Electric green", hex: "#3ddc3a" },
   { key: "forest-green", name: "Forest green", hex: "#1f4d2e" },
   { key: "sky-blue", name: "Sky blue", hex: "#7fb8e6" },
-  { key: "safety-pink", name: "Safety pink", hex: "#ff5fa2" },
-  { key: "safety-orange", name: "Safety orange", hex: "#ff6a13" },
+  { key: "royal-blue", name: "Royal blue", hex: "#1f4fa3" },
+  { key: "purple", name: "Purple", hex: "#4a2d7e" },
 ];
 
 export function colorName(key: string): string {
@@ -126,25 +143,13 @@ export const DEFAULT_PRODUCTS: Product[] = [
     slug: "sumac",
     name: "Sumac",
     species: "Staghorn sumac · Rhus typhina",
-    blurb: "Feathered fronds, deep amber burn. The original.",
+    blurb: "Feathered fronds, deep burn. The original.",
     story:
-      "The one that started it all. Staghorn sumac grows wild along every back road in Maine, and its feathered fronds leave the cleanest shadow we print. We lay fronds across the chest and shoulders, mist the bleach by hand, and let the fabric turn that deep amber gold before the leaf ever moves.",
+      "The one that started it all. Staghorn sumac grows wild along every back road in Maine, and its feathered fronds leave the cleanest shadow we print. We lay fronds across the chest and shoulders, mist the bleach by hand, and let the fabric burn to its lighter tone before the leaf ever moves.",
     image: "/images/sumac-shirt.jpg",
     card: "/images/design-sumac.jpg",
     badge: "The original",
     sort: 1,
-  },
-  {
-    ...base,
-    slug: "maple",
-    name: "Maple",
-    species: "Sugar maple · Acer saccharum",
-    blurb: "Leaves scattered like they just fell there. Deep gold burn.",
-    story:
-      "Maple leaves laid out across the whole shirt, front and back, the way they land on the ground in October. We pick them the day they drop, while they still lie flat and full, then spray until the cotton burns to gold and the leaves keep their dark. Every shirt catches the spray differently, so no two ever land the same.",
-    image: "/images/maple-shirt.jpg",
-    card: "/images/design-maple.jpg",
-    sort: 2,
   },
   {
     ...base,

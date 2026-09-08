@@ -15,6 +15,7 @@
 //                      send shop alerts from Resend's test address.
 // ============================================================
 import { Resend } from "resend";
+import { SHIPPING_CENTS, fmtPrice } from "@/lib/products";
 
 const TEST_FROM = "Dyeing By Design <onboarding@resend.dev>";
 
@@ -177,10 +178,10 @@ export function customerOrderRequestHtml(o: {
     <div style="background:rgba(0,0,0,.25);border-radius:12px;padding:16px 18px;margin-bottom:18px;">
       <p style="margin:0 0 8px;font:600 12px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#cf9440;">Order ${escapeHtml(o.orderRef)}</p>
       <ul style="margin:0;padding-left:18px;font:400 15px/1.6 Helvetica,Arial,sans-serif;color:#f0e7d1;">${items}</ul>
-      <p style="margin:12px 0 0;color:#e3b96e;font-weight:700;">Total ${escapeHtml(o.total)} (includes $5 shipping)</p>
+      <p style="margin:12px 0 0;color:#e3b96e;font-weight:700;">Total ${escapeHtml(o.total)} (includes ${fmtPrice(SHIPPING_CENTS)} flat rate shipping)</p>
       <p style="margin:8px 0 0;color:#f0e7d1;font-size:14px;">Ship to: ${escapeHtml(o.shipTo)}</p>
     </div>
-    <p style="margin:0 0 8px;">Once it's paid, allow about 5 to 7 days of making time. Every piece is bleached by hand, one at a time.</p>
+    <p style="margin:0 0 8px;">Once it's paid, allow 1 to 2 weeks of making time depending on how many orders are ahead of yours. Every piece is bleached by hand, one at a time.</p>
     <p style="margin:0;">Need to change anything? Just reply to this email.</p>`;
   return shell("We got your order request", body, "Reply to this email and it reaches the person who makes your shirt.");
 }
@@ -236,7 +237,7 @@ export function customerOrderHtml(o: {
       <ul style="margin:0;padding-left:18px;font:400 15px/1.6 Helvetica,Arial,sans-serif;color:#f0e7d1;">${items}</ul>
       <p style="margin:12px 0 0;color:#e3b96e;font-weight:700;">Total ${escapeHtml(o.total)}</p>
     </div>
-    <p style="margin:0 0 8px;">Allow about 5 to 7 days of making time. We'll email tracking the moment it ships.</p>
+    <p style="margin:0 0 8px;">Allow 1 to 2 weeks of making time depending on how many orders are ahead of yours. We'll email tracking the moment it ships.</p>
     <p style="margin:0;">Wash it cold and inside out, hang dry or tumble low, and it'll keep that burn for years.</p>
     <p style="margin:22px 0 0;">
       <a href="${o.siteUrl}" style="display:inline-block;border:1px solid rgba(240,231,209,.3);color:#f0e7d1;text-decoration:none;font:600 14px/1 Helvetica,Arial,sans-serif;padding:13px 22px;border-radius:999px;">Back to the shop</a>

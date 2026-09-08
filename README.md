@@ -16,17 +16,27 @@ playbook.
 - **Log in:** go to `yoursite.com/admin/login` and enter the password
   (that's the `ADMIN_PASSWORD` environment variable in Vercel). Sessions last
   30 days; changing the password in Vercel signs everyone out.
-- **Orders & requests** (`/admin`): paid orders appear automatically with the
-  shipping address, plus custom requests and the drop email list.
+- **Orders & requests** (`/admin`): orders appear automatically with the
+  shipping address (card orders as **Paid**, order requests as **Awaiting
+  payment** — change the status there once the customer has paid your
+  Stripe link or invoice), plus custom requests and the drop email list.
 - **Products & stock** (`/admin/products`): add designs, edit names, prices,
   stories, upload photos from your phone or computer, and control
   availability:
-  - **Always available** = made to order, no limits.
-  - **Track stock by size** = you set a count per size (S–2XL). A size at 0
+  - **Always available** = made to order, no limits. These order by request
+    (you reply with a payment link).
+  - **Track stock by size** = you set a count per color and size. A size at 0
     shows as sold out, checkout refuses quantities you don't have, and every
-    paid order subtracts automatically.
+    paid order subtracts automatically. These are the shirts that get the
+    **Buy now** card checkout once Stripe is connected.
   - **Shown / Hidden** toggles whether a design appears on the site at all.
     New designs start hidden until you're ready.
+- **COGS** (`/admin/cogs`): what each kind of shirt costs you to make. Enter
+  what you pay for blanks (per color and size), list your materials with the
+  bulk price and how many shirts a unit covers, and build product types
+  (bleach shirt, tie dye shirt…) from them. It shows cost per shirt and
+  profit at your sale price. Hit **Save** when you're done — it's stored in
+  the database.
 - **Announce a drop** (`/admin/drop`): write one email and send it to
   everyone on the drop list. Send yourself a test first — it's the exact
   email subscribers get. Everyone receives their own copy (nobody sees
@@ -74,8 +84,8 @@ Deploy. Every push/upload to GitHub redeploys automatically.
    (Re-run it any time the file changes — v3 added the product **line** column
    for the Botanical / Graphic & Stencil split, and **kind** + **artwork_url**
    on custom requests for logo uploads. Existing rows default to Botanical.)
-   That creates orders, custom requests, the drop list, **and the products
-   table pre-loaded with the four launch designs**. Safe to re-run any time —
+   That creates orders, custom requests, the drop list, the COGS table, **and
+   the products table pre-loaded with the launch designs**. Safe to re-run any time —
    it never wipes data. **Run it again any time this file changes** — it
    adds new tables and columns (products, drop unsubscribes) without
    touching what's already there.
@@ -83,16 +93,27 @@ Deploy. Every push/upload to GitHub redeploys automatically.
 
 ### Step 4 — Stripe (payments) — **optional for now**
 
-> **Ordering is currently set to email mode** (`ORDER_MODE = "email"` at the
-> top of `lib/products.ts`). Customers add shirts to the cart, fill in their
-> name, email, and shipping address, and hit *Send the order*. You get an
-> email (reply-to is the customer, so just hit Reply with payment details) and
-> a phone push, the order lands on `/admin` as **Awaiting payment**, and the
-> customer gets a copy once your sending domain is verified. Nothing is
-> charged on the site. If email isn't connected yet, the cart hands the
-> customer a pre-written email to send from their own mail app instead.
-> When you're ready for card checkout, do this step and flip that one line
-> to `"stripe"`.
+> **Ordering is set to split mode** (`ORDER_MODE = "split"` at the top of
+> `lib/products.ts`), which works like this:
+>
+> - A design with **Track stock** switched on in the admin (counted shirts,
+>   ready to ship — drops, for example) gets a **Buy now** button and a card
+>   checkout through Stripe. Stock is subtracted automatically when the
+>   payment clears.
+> - A design that is **always available** (made to order) gets **Order this
+>   one**. The customer fills in name, email, and shipping address and hits
+>   *Send the order*. You get an email (reply-to is the customer, so just hit
+>   Reply with a Stripe payment link or invoice) and a phone push, the order
+>   lands on `/admin` as **Awaiting payment**, and the customer gets a copy
+>   once your sending domain is verified. When they've paid, change the
+>   status on `/admin` to **Paid**.
+> - A cart that mixes both kinds goes in as one order request, so the
+>   customer pays once.
+> - **Until the Stripe keys below are in place, everything takes the order
+>   request route** — the site notices on its own, nothing to flip.
+>
+> The other two settings: `"email"` = no card checkout anywhere, `"stripe"` =
+> everything checks out by card, made to order included.
 
 
 1. stripe.com → create and activate an account.
@@ -197,8 +218,8 @@ it to "Track stock by size," enter the counts, flip it to Shown, and email
 the drop list (the emails are in `/admin`). Sizes sell down to 0 and show
 sold out on their own.
 
-**Change flat shipping:** `SHIPPING_CENTS` in `lib/products.ts` (500 = $5.00),
-then push to GitHub.
+**Change flat rate shipping:** `SHIPPING_CENTS` in `lib/products.ts` (700 = $7.00),
+then push to GitHub. Every price shown on the site and in the emails reads from it.
 
 **Instagram link:** the header, footer, and artist page all read the URL from
 `lib/site.ts` (`INSTAGRAM_URL`). Change it there once.
