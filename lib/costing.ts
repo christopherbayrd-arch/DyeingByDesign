@@ -218,6 +218,11 @@ export async function costOrder(
       skipped++;
       continue;
     }
+    // A cost typed in by hand (custom pieces, odd blanks) is never overwritten by the sheet
+    if (l.cogs_breakdown && (l.cogs_breakdown as { manual?: boolean }).manual) {
+      skipped++;
+      continue;
+    }
     let { cents, breakdown } = unitCostFromDoc(dated.doc, l.slug, l.color, l.size, dated.sheet);
     if (cents === null && dated.sheet.id !== null) {
       // the sheet from back then couldn't cost it — try today's
@@ -274,6 +279,35 @@ export async function backfillOrders(sql: Sql): Promise<{ orders: number; lines:
     await costOrder(sql, o.id, { afterTheFact: true });
   }
   return { orders: rows.length, lines };
+}
+
+// Type a cost in by hand for one line — custom pieces, a blank bought at
+// a different price, anything the sheet can't know. Sticks until you
+// type over it; recost leaves it alone.
+export async function setLineCost(sql: Sql, lineId: number, cents: number | null, note = ""): Promise<boolean> {
+  const rows = (await sql`select id, cogs_breakdown from order_lines where id = ${lineId}`) as { id: number; cogs_breakdown: Record<string, unknown> | null }[];
+  if (rows.length === 0) return false;
+  const prev = rows[0].cogs_breakdown ?? {};
+  const breakdown = cents === null
+    ? { ...prev, manual: false, estimated: true, reason: "Cost cleared — recost it or type one in." }
+    : {
+        ...prev,
+        typeName: (prev.typeName as string) || "Entered by hand",
+        blank: cents,
+        blankSource: "manual",
+        materials: [],
+        materialsTotal: 0,
+        manual: true,
+        estimated: false,
+        reason: note ? `Entered by hand: ${note}` : "Entered by hand.",
+        sheetVersion: null,
+      };
+  await sql`
+    update order_lines
+    set unit_cogs_cents = ${cents}, cogs_breakdown = ${JSON.stringify(breakdown)}::jsonb, costed_at = now()
+    where id = ${lineId}
+  `;
+  return true;
 }
 
 export type { MetaLine };

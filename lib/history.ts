@@ -59,6 +59,7 @@ export async function loadHistory(sql: Sql): Promise<HistoryData> {
         unitPriceCents: Number(r.unit_price_cents) || 0,
         unitCogsCents: intOrNull(r.unit_cogs_cents),
         estimated: Boolean(b.estimated) || intOrNull(r.unit_cogs_cents) === null,
+        manual: Boolean(b.manual),
         reason: str(b.reason),
         typeName: str(b.typeName),
         blankCents: intOrNull(b.blank),
@@ -79,12 +80,14 @@ export async function loadHistory(sql: Sql): Promise<HistoryData> {
         ? sid.replace("email_", "")
         : sid.startsWith("manual_")
           ? "hand entered"
-          : "card";
+          : sid.startsWith("custom_")
+            ? "custom piece"
+            : "card";
       return {
         id,
         at: iso(r.sold_at || r.paid_at || r.created_at),
         status: str(r.status) || "paid",
-        channel: str(r.channel) || (sid.startsWith("email_") ? "request" : "site"),
+        channel: str(r.channel) || (sid.startsWith("email_") ? "request" : sid.startsWith("custom_") ? "custom" : "site"),
         customer: str(r.name) || str(r.email) || "",
         ref,
         amountTotal: intOrNull(r.amount_total),

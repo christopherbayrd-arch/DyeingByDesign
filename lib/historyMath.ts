@@ -14,6 +14,7 @@ export type HistoryLine = {
   unitPriceCents: number;
   unitCogsCents: number | null;   // null = not costed yet
   estimated: boolean;              // cost is an estimate (see reason)
+  manual: boolean;                 // cost was typed in by hand (recost leaves it alone)
   reason: string;                  // why it's an estimate, or ""
   typeName: string;
   blankCents: number | null;
@@ -39,6 +40,7 @@ export type HistoryOrder = {
 export const CHANNEL_LABELS: Record<string, string> = {
   site: "Site · card",
   request: "Site · request",
+  custom: "Custom piece",
   market: "Market",
   instagram: "Instagram / DM",
   other: "Other",

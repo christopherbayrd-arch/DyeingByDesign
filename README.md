@@ -341,6 +341,17 @@ goes straight to the customer. Custom requests email you too, also
 reply-ready. Nothing about email can break a sale: if Resend is down or a
 key is wrong, the order still saves and still shows in `/admin`.
 
+**Custom requests:** each one on `/admin` has a status (New → Quoted →
+Accepted → Done), a note box only you see, and **Archive** to get it off
+the desk (Show archived brings them back). Quote by replying to the email;
+when the customer says yes, **Turn into order** makes a real order for it
+with the price you quoted, an optional cost, and their address, so it gets
+the same statuses, the Buy label button, and a row in Sales history as any
+lineup shirt. Orders have an **archive** link under their status too.
+In Sales history, click any shirt's cost to type your own in (it shows
+*by hand* and recost never overwrites it) — that's how custom pieces get
+costed when the COGS sheet can't know them.
+
 **Announce a drop:** log in → **Announce a drop**. Write a subject,
 headline, and message, optionally feature one of your designs (it pulls
 in the photo, name, and price), then send yourself a test. When it looks
