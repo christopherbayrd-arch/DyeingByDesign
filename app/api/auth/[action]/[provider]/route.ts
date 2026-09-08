@@ -1,0 +1,3 @@
+// /api/auth/signin/google, /api/auth/callback/google, /api/auth/callback/resend …
+export { GET, POST } from "../../_handlers";
+export const dynamic = "force-dynamic";

@@ -4,7 +4,7 @@ import { asset } from "@/lib/assets";
 import { siteJsonLd } from "@/lib/seo";
 import { SITE_URL } from "@/lib/site";
 import JsonLd from "@/components/JsonLd";
-import { CartProvider } from "@/components/CartContext";
+import Providers from "@/components/Providers";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
@@ -67,11 +67,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* React hoists this into <head>; system serif stands in if fonts are unreachable */}
         <link rel="stylesheet" precedence="default" href={FONTS_URL} />
         <JsonLd data={siteJsonLd()} />
-        <CartProvider>
+        <Providers>
           <Header />
           <main className="min-h-[70vh]">{children}</main>
           <Footer />
-        </CartProvider>
+        </Providers>
       </body>
     </html>
   );

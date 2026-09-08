@@ -7,6 +7,7 @@ import { emailConfig, sendEmail, orderRequestAlertHtml, customerOrderRequestHtml
 import { sendPush } from "@/lib/notify";
 import { metaLine, siteUrl } from "@/lib/orderFormat";
 import { insertOrderLines } from "@/lib/costing";
+import { currentUser } from "@/lib/auth";
 
 // ============================================================
 //  "Order by email" — the no-card ordering flow.
@@ -97,9 +98,10 @@ export async function POST(req: Request) {
     const sql = getDb();
     if (sql) {
       try {
+        const me = await currentUser();
         const inserted = (await sql`
-          insert into orders (stripe_session_id, email, name, amount_total, items, shipping, status, channel, shipping_cents)
-          values (${"email_" + orderRef}, ${email}, ${name}, ${total}, ${itemsMeta + (note ? ` | note: ${note.slice(0, 300)}` : "")}, ${JSON.stringify(shipping)}::jsonb, 'requested', 'request', ${SHIPPING_CENTS})
+          insert into orders (stripe_session_id, email, name, amount_total, items, shipping, status, channel, shipping_cents, user_id)
+          values (${"email_" + orderRef}, ${email}, ${name}, ${total}, ${itemsMeta + (note ? ` | note: ${note.slice(0, 300)}` : "")}, ${JSON.stringify(shipping)}::jsonb, 'requested', 'request', ${SHIPPING_CENTS}, ${me ? Number(me.id) || null : null})
           returning id
         `) as { id: number }[];
         // One row per shirt for the sales history. Cost gets frozen later,

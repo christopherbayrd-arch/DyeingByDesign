@@ -3,6 +3,8 @@ import { kindLabel } from "@/lib/requests";
 import AdminNav from "@/components/AdminNav";
 import EmailStatus from "@/components/EmailStatus";
 import OrderStatus from "@/components/OrderStatus";
+import ShipLabel from "@/components/ShipLabel";
+import { shippingConfig } from "@/lib/shipping";
 import { emailConfig } from "@/lib/email";
 import { pushConfig } from "@/lib/notify";
 import { getDb } from "@/lib/db";
@@ -58,6 +60,7 @@ function shipTo(shipping: unknown) {
 export default async function AdminPage() {
   const sql = getDb();
   const mail = emailConfig();
+  const ship = shippingConfig();
 
   if (!sql) {
     return (
@@ -112,9 +115,12 @@ export default async function AdminPage() {
           Order requests wait here as <em>Awaiting payment</em>. Reply to the customer with a
           Stripe payment link or invoice, and once it&apos;s paid switch the status to
           <em> Paid</em> (then Made, then Shipped, if you want to track it).
+          {ship.enabled
+            ? " Buy label prices USPS for the shirts in the order, prints the label, marks it Shipped, and emails the customer the tracking number."
+            : " Shipping labels switch on once EasyPost and your ship from address are in Vercel (README step 9)."}
         </p>
         <div className="card mt-4 overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="w-full min-w-[900px] text-left text-sm">
             <thead>
               <tr className="border-b border-bone/10 text-xs uppercase tracking-wider text-faded">
                 <th className="p-3">When</th>
@@ -122,12 +128,13 @@ export default async function AdminPage() {
                 <th className="p-3">Customer</th>
                 <th className="p-3">Items</th>
                 <th className="p-3">Ship to</th>
+                <th className="p-3">Ship</th>
                 <th className="p-3 text-right">Total</th>
               </tr>
             </thead>
             <tbody>
               {orders.length === 0 && (
-                <tr><td colSpan={6} className="p-4 text-faded">No orders yet — they&apos;ll appear here automatically when someone sends one.</td></tr>
+                <tr><td colSpan={7} className="p-4 text-faded">No orders yet — they&apos;ll appear here automatically when someone sends one.</td></tr>
               )}
               {orders.map((o) => (
                 <tr key={String(o.id)} className="border-b border-bone/5 align-top">
@@ -146,6 +153,20 @@ export default async function AdminPage() {
                   </td>
                   <td className="p-3 whitespace-pre-line">{itemsText(o.items)}</td>
                   <td className="p-3 text-faded">{shipTo(o.shipping)}</td>
+                  <td className="p-3">
+                    <ShipLabel
+                      orderId={Number(o.id)}
+                      status={String(o.status ?? "paid")}
+                      hasAddress={shipTo(o.shipping) !== "—"}
+                      labelUrl={o.label_url ? String(o.label_url) : null}
+                      tracking={o.tracking_number ? String(o.tracking_number) : null}
+                      trackingUrl={o.tracking_url ? String(o.tracking_url) : null}
+                      service={o.service ? String(o.service) : null}
+                      postageCents={typeof o.postage_cents === "number" ? o.postage_cents : null}
+                      enabled={ship.enabled}
+                      missing={ship.missing}
+                    />
+                  </td>
                   <td className="p-3 text-right font-semibold text-goldlight">
                     {typeof o.amount_total === "number" ? fmtPrice(o.amount_total) : "—"}
                   </td>

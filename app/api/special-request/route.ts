@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { getDb } from "@/lib/db";
+import { currentUser } from "@/lib/auth";
 import { emailConfig, sendEmail, requestAlertHtml } from "@/lib/email";
 import { siteUrl } from "@/lib/orderFormat";
 import { sendPush } from "@/lib/notify";
@@ -104,9 +105,10 @@ export async function POST(req: Request) {
       }
     }
 
+    const me = await currentUser();
     await sql`
-      insert into special_requests (name, email, size, idea, kind, artwork_url, color)
-      values (${name}, ${email}, ${size || null}, ${idea}, ${kind}, ${artworkUrl}, ${color || null})
+      insert into special_requests (name, email, size, idea, kind, artwork_url, color, user_id)
+      values (${name}, ${email}, ${size || null}, ${idea}, ${kind}, ${artworkUrl}, ${color || null}, ${me ? Number(me.id) || null : null})
     `;
 
     // Tell the shop about it — never let email trouble fail the request

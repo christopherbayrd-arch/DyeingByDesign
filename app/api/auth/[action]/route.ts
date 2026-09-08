@@ -1,0 +1,3 @@
+// /api/auth/session, /api/auth/csrf, /api/auth/providers, /api/auth/signout …
+export { GET, POST } from "../_handlers";
+export const dynamic = "force-dynamic";
