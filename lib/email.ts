@@ -245,6 +245,46 @@ export function customerOrderHtml(o: {
   return shell("We got your order", body, "Questions? Just reply to this email — it reaches the person who makes your shirt.");
 }
 
+// ---------- 3b. SHIPPED (customer) ----------
+export function customerShippedHtml(o: {
+  firstName: string;
+  itemLines: string[];
+  service: string;
+  tracking: string;
+  trackingUrl: string;
+  siteUrl: string;
+}) {
+  const items = o.itemLines.map((l) => `<li style="margin:0 0 6px;">${escapeHtml(l)}</li>`).join("");
+  const hi = o.firstName ? `${escapeHtml(o.firstName)}, it's on its way.` : "It's on its way.";
+  const body = `
+    <p style="margin:0 0 18px;color:#f0e7d1;">${hi} Your shirt shipped today by ${escapeHtml(o.service)}.</p>
+    <div style="background:rgba(0,0,0,.25);border-radius:12px;padding:16px 18px;margin-bottom:18px;">
+      <p style="margin:0 0 8px;font:600 12px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#cf9440;">Tracking</p>
+      <p style="margin:0;font:600 17px/1.4 Helvetica,Arial,sans-serif;color:#f0e7d1;letter-spacing:.02em;">${escapeHtml(o.tracking)}</p>
+      ${o.trackingUrl ? `<p style="margin:10px 0 0;"><a href="${o.trackingUrl}" style="color:#e3b96e;">Follow the package</a></p>` : ""}
+    </div>
+    <div style="background:rgba(0,0,0,.25);border-radius:12px;padding:16px 18px;margin-bottom:18px;">
+      <p style="margin:0 0 8px;font:600 12px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#cf9440;">In the package</p>
+      <ul style="margin:0;padding-left:18px;font:400 15px/1.6 Helvetica,Arial,sans-serif;color:#f0e7d1;">${items}</ul>
+    </div>
+    <p style="margin:0;">Wash it cold and inside out, hang dry or tumble low. Thank you for wearing something made by hand.</p>
+    <p style="margin:22px 0 0;">
+      <a href="${o.siteUrl}" style="display:inline-block;border:1px solid rgba(240,231,209,.3);color:#f0e7d1;text-decoration:none;font:600 14px/1 Helvetica,Arial,sans-serif;padding:13px 22px;border-radius:999px;">Back to the shop</a>
+    </p>`;
+  return shell("Your shirt shipped", body, "Questions? Just reply to this email — it reaches the person who made your shirt.");
+}
+
+// ---------- 3c. SIGN IN LINK ----------
+export function signInLinkHtml(o: { url: string; siteUrl: string }) {
+  const body = `
+    <p style="margin:0 0 18px;color:#f0e7d1;">Tap the button to sign in to Dyeing By Design. The link works for an hour and only once.</p>
+    <p style="margin:0 0 22px;">
+      <a href="${o.url}" style="display:inline-block;background:#cf9440;color:#191408;text-decoration:none;font:700 15px/1 Helvetica,Arial,sans-serif;padding:14px 26px;border-radius:999px;">Sign in</a>
+    </p>
+    <p style="margin:0;font-size:13px;color:#bdb19a;">Didn't ask for this? Ignore it and nothing happens. Nobody can get in without this email.</p>`;
+  return shell("Your sign in link", body, `Sent because someone entered this address at ${o.siteUrl.replace(/^https?:\/\//, "")}.`);
+}
+
 // ---------- 4. TEST ----------
 export function testHtml(siteUrl: string) {
   const body = `

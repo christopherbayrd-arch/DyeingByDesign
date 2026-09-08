@@ -217,6 +217,8 @@ Vercel → project → Settings → Environment Variables (all explained in
 | `PUSHOVER_USER_KEY` | phone alerts (optional) — your user key from pushover.net |
 | `PUSHOVER_APP_TOKEN` | phone alerts (optional) — the app token from pushover.net/apps/build |
 | `EMAIL_FROM` | only after verifying your domain in Resend (step 6) |
+| `EASYPOST_API_KEY` + `SHIP_FROM_*` | shipping labels (step 9) |
+| `AUTH_SECRET` + `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | customer sign in (step 10) |
 
 Then **redeploy** (Deployments → ⋯ → Redeploy) so they take effect.
 
@@ -225,6 +227,63 @@ Then **redeploy** (Deployments → ⋯ → Redeploy) so they take effect.
 Vercel → Settings → Domains → Add → follow the DNS records it shows you at
 your registrar. Afterwards update `NEXT_PUBLIC_SITE_URL` and the Stripe
 webhook URL to the new domain.
+
+### Step 9 — Shipping labels (EasyPost, free)
+
+Buys USPS labels from the admin with the customer's address already filled
+in. Free up to thousands of labels a month; you only pay the postage.
+
+1. Make an account at easypost.com (no card needed to start). In the
+   dashboard find **API Keys**: there's a **Test** key (starts `EZTK`, makes
+   fake labels, charges nothing) and a **Production** key (starts `EZAK`).
+2. Start with the test key. Add these to Vercel and redeploy:
+
+   | Name | Value |
+   |---|---|
+   | `EASYPOST_API_KEY` | the key |
+   | `SHIP_FROM_NAME` | the name on the return address (Corey's, or Dyeing By Design) |
+   | `SHIP_FROM_STREET1` / `SHIP_FROM_STREET2` | your street address (STREET2 optional) |
+   | `SHIP_FROM_CITY` / `SHIP_FROM_STATE` / `SHIP_FROM_ZIP` | Brunswick / ME / your ZIP |
+   | `SHIP_FROM_PHONE` | optional, some carriers want one |
+
+3. In `/admin` every order now has a **Buy label** button: it checks the
+   address with USPS, picks a package from how many shirts are in the order
+   (the weights per size are in `lib/shipping.ts`, tune them after weighing
+   a few real packages), shows the rates, and buys the one you pick. The
+   label opens in a new tab (print on paper and tape it, or a 4×6 thermal
+   printer), the order goes to **Shipped**, the postage lands in Sales
+   history, and the customer gets a tracking email. **void label** asks for
+   the postage back on one you didn't use.
+4. When test labels look right, swap in the production key. To pay for real
+   postage, add a card or bank in EasyPost → Billing.
+
+### Step 10 — Customer sign in (optional)
+
+Lets customers sign in with Google (or Apple / Facebook, or an emailed
+link) so their cart follows them between devices, the order form fills in
+their name and email, and `/account` shows their orders with tracking.
+Ordering never requires it.
+
+1. `AUTH_SECRET`: run `openssl rand -base64 32` (or use any long random
+   string) and add it to Vercel.
+2. Google: console.cloud.google.com → create a project → **APIs & Services
+   → OAuth consent screen** (External, app name Dyeing By Design, your
+   email) → **Credentials → Create credentials → OAuth client ID → Web
+   application**. Authorized redirect URI:
+   `https://www.dyeingbydesign.com/api/auth/callback/google`. Copy the
+   client ID and secret into Vercel as `AUTH_GOOGLE_ID` and
+   `AUTH_GOOGLE_SECRET`.
+3. Emailed sign in link: works as soon as `RESEND_API_KEY` and `EMAIL_FROM`
+   (verified domain, step 6) are set — nothing else to do.
+4. Apple (`AUTH_APPLE_ID` / `AUTH_APPLE_SECRET`, needs a paid Apple
+   Developer account) and Facebook (`AUTH_FACEBOOK_ID` /
+   `AUTH_FACEBOOK_SECRET`, needs a Meta developer app) are already wired:
+   the button appears the moment its keys exist. Redirect URIs are
+   `/api/auth/callback/apple` and `/api/auth/callback/facebook` on your
+   domain.
+5. Redeploy. The header shows **Sign in**; `/account/signin` only offers
+   the ways that are switched on. Re-run `schema.sql` in Neon first — it
+   adds the account tables.
 
 ---
 

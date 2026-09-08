@@ -1,11 +1,14 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import { COLORS, SIZES } from "@/lib/products";
 import ShirtPreview from "@/components/ShirtPreview";
 import { ARTWORK_ACCEPT, ARTWORK_MAX_BYTES, REQUEST_KINDS, type RequestKind } from "@/lib/requests";
 
 export default function CustomForm({ initialKind = "leaves" }: { initialKind?: RequestKind }) {
+  const { data: session } = useSession();
+  const me = session?.user;
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
   const [message, setMessage] = useState("");
   const [note, setNote] = useState("");
@@ -103,17 +106,19 @@ export default function CustomForm({ initialKind = "leaves" }: { initialKind?: R
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="block text-sm">
           <span className="mb-1.5 block font-medium">Your name</span>
-          <input name="name" required maxLength={120} className="input" placeholder="Jane Doe" />
+          <input key={`n-${me?.name ?? ""}`} name="name" required maxLength={120} className="input" placeholder="Jane Doe" defaultValue={me?.name ?? ""} />
         </label>
         <label className="block text-sm">
           <span className="mb-1.5 block font-medium">Email</span>
           <input
+            key={`e-${me?.email ?? ""}`}
             name="email"
             type="email"
             required
             maxLength={200}
             className="input"
             placeholder="you@email.com"
+            defaultValue={me?.email ?? ""}
           />
         </label>
       </div>

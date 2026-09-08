@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/components/CartContext";
+import { useSession } from "next-auth/react";
 import { COLORS, SHIPPING_CENTS, colorName, fmtPrice } from "@/lib/products";
 import { asset } from "@/lib/assets";
 
@@ -15,6 +16,9 @@ type Done = { orderRef: string; mailto?: string; customerEmailed?: boolean; emai
 // order request and Corey replies with one payment link for the lot.
 export default function CartView({ cardSlugs = [] }: { cardSlugs?: string[] }) {
   const { lines, ready, remove, setQty, subtotalCents, clear } = useCart();
+  // Signed in customers get their name and email filled in (still editable)
+  const { data: session } = useSession();
+  const me = session?.user;
   const allCard = lines.length > 0 && lines.every((l) => cardSlugs.includes(l.slug));
   const someCard = !allCard && lines.some((l) => cardSlugs.includes(l.slug));
   const [busy, setBusy] = useState(false);
@@ -198,8 +202,8 @@ export default function CartView({ cardSlugs = [] }: { cardSlugs?: string[] }) {
               Send us the order and we reply within a day with a secure payment link and a
               ship date.
             </p>
-            <input name="name" required maxLength={120} className="input" placeholder="Your name" autoComplete="name" />
-            <input name="email" type="email" required maxLength={200} className="input" placeholder="Email" autoComplete="email" />
+            <input key={`n-${me?.name ?? ""}`} name="name" required maxLength={120} className="input" placeholder="Your name" autoComplete="name" defaultValue={me?.name ?? ""} />
+            <input key={`e-${me?.email ?? ""}`} name="email" type="email" required maxLength={200} className="input" placeholder="Email" autoComplete="email" defaultValue={me?.email ?? ""} />
             <input name="line1" required maxLength={200} className="input" placeholder="Street address" autoComplete="address-line1" />
             <input name="line2" maxLength={200} className="input" placeholder="Apt, unit (optional)" autoComplete="address-line2" />
             <div className="grid grid-cols-[1fr_64px_84px] gap-2">

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCart } from "@/components/CartContext";
 import InstagramLink from "@/components/InstagramLink";
+import AccountLink from "@/components/AccountLink";
 import { asset } from "@/lib/assets";
 import { INSTAGRAM_HANDLE } from "@/lib/site";
 
@@ -64,6 +65,7 @@ export default function Header() {
             </Link>
           ))}
           <InstagramLink className="transition hover:text-goldlight" />
+          <AccountLink className="transition hover:text-goldlight" />
           {cart}
         </nav>
 
@@ -109,12 +111,16 @@ export default function Header() {
             </Link>
           ))}
           <InstagramLink
-            className="flex items-baseline gap-2 py-3.5 text-base font-medium text-bone transition hover:text-goldlight"
+            className="flex items-baseline gap-2 border-b border-bone/10 py-3.5 text-base font-medium text-bone transition hover:text-goldlight"
             onClick={() => setOpen(false)}
           >
             Instagram
             <span className="text-sm text-faded">{INSTAGRAM_HANDLE}</span>
           </InstagramLink>
+          <AccountLink
+            className="py-3.5 text-base font-medium text-bone transition hover:text-goldlight"
+            onClick={() => setOpen(false)}
+          />
         </nav>
       </div>
     </header>
