@@ -5,8 +5,9 @@ import { costOrder } from "@/lib/costing";
 // Order edits from the admin. Owner only — middleware guards /api/admin.
 //   POST  { id, status }                      change status; flipping a request to
 //                                             Paid stamps paid_at and freezes the cost
-//   PATCH { id, postage?, fee?, note? }       money you actually spent on the order
-//                                             (dollars as typed, "" clears)
+//   PATCH { id, postage?, fee?, note?, archived? }  money you actually spent on the
+//                                             order (dollars as typed, "" clears),
+//                                             or archive it off the desk
 const ORDER_STATUSES = ["requested", "paid", "made", "shipped"] as const;
 
 export async function POST(req: Request) {
@@ -67,7 +68,10 @@ export async function PATCH(req: Request) {
     const postage = centsOrNull(body?.postage);
     const fee = centsOrNull(body?.fee);
     const note = body?.note === undefined ? undefined : String(body.note).slice(0, 500);
+    const archived = body?.archived === undefined ? undefined : Boolean(body.archived);
 
+    if (archived === true) await sql`update orders set archived_at = now() where id = ${id}`;
+    if (archived === false) await sql`update orders set archived_at = null where id = ${id}`;
     if (postage !== undefined) await sql`update orders set postage_cents = ${postage} where id = ${id}`;
     if (fee !== undefined) await sql`update orders set fee_cents = ${fee} where id = ${id}`;
     if (note !== undefined) await sql`update orders set note = ${note || null} where id = ${id}`;

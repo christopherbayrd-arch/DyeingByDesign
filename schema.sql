@@ -228,3 +228,17 @@ create table if not exists carts (
 -- Which account (if any) placed an order or request
 alter table orders add column if not exists user_id integer;
 alter table special_requests add column if not exists user_id integer;
+
+-- ============================================================
+--  Custom requests, first class (v6). A request can be turned into a
+--  real order (same statuses, labels, and sales history as everything
+--  else), carry an owner note, and be archived out of the way.
+-- ============================================================
+alter table special_requests add column if not exists order_id    integer;      -- the order it became
+alter table special_requests add column if not exists note        text;         -- your own note, never shown to the customer
+alter table special_requests add column if not exists quote_cents integer;      -- what you quoted
+alter table special_requests add column if not exists archived_at timestamptz;  -- hidden from the desk when set
+alter table special_requests add column if not exists updated_at  timestamptz not null default now();
+create index if not exists special_requests_order_idx on special_requests(order_id);
+-- Orders can be archived too (shipped and done, out of the list)
+alter table orders add column if not exists archived_at timestamptz;

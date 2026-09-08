@@ -157,6 +157,21 @@ export default function SalesHistory({ orders, withoutLines, hasSheet, products 
     setBusy("");
   }
 
+  // Type a shirt's cost in by hand (custom pieces, odd blanks). Sticks until
+  // you type over it; recost leaves it alone.
+  const [costEdit, setCostEdit] = useState<Record<number, boolean>>({});
+  async function saveLineCost(lineId: number, value: string, current: number | null) {
+    setCostEdit((e) => ({ ...e, [lineId]: false }));
+    const cleaned = value.trim();
+    if ((cleaned === "" && current === null) || (cleaned !== "" && Math.round(parseFloat(cleaned) * 100) === current)) return;
+    try {
+      await post("/api/admin/history/line", { lineId, cost: cleaned });
+      router.refresh();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Couldn't save that cost.");
+    }
+  }
+
   async function saveOrderMoney(id: number, field: "postage" | "fee", value: string) {
     try {
       const res = await fetch("/api/admin/orders", {
@@ -533,7 +548,8 @@ export default function SalesHistory({ orders, withoutLines, hasSheet, products 
         <h2 className="font-display text-2xl font-semibold">Every sale</h2>
         <p className="mt-1 text-sm text-faded">
           Cost is per shirt, frozen the day it was paid. <em>est.</em> means something was missing when it was
-          costed (hover for why). Type a postage or card fee and click away to save it.
+          costed (hover for why); click a cost to type your own in (custom pieces, a blank bought at an odd price)
+          and it says <em>by hand</em>. Type a postage or card fee and click away to save it.
         </p>
         <div className="card mt-3 overflow-x-auto">
           <table className="w-full min-w-[980px] text-left text-sm tabular-nums">
@@ -592,13 +608,32 @@ export default function SalesHistory({ orders, withoutLines, hasSheet, products 
                           <td className="p-3 text-right">{l.qty}</td>
                           <td className="p-3 text-right">{fmtMoney(l.unitPriceCents)}</td>
                           <td className="p-3 text-right">
-                            {l.unitCogsCents === null ? (
-                              <span className="text-rust" title={l.reason || "No cost yet"}>not costed</span>
+                            {costEdit[l.id] || (l.unitCogsCents === null && l.slug === "custom") ? (
+                              <input
+                                key={`cost-${l.id}-${l.unitCogsCents ?? "n"}`}
+                                autoFocus={Boolean(costEdit[l.id])}
+                                defaultValue={l.unitCogsCents === null ? "" : (l.unitCogsCents / 100).toFixed(2)}
+                                onBlur={(e) => saveLineCost(l.id, e.target.value, l.unitCogsCents)}
+                                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setCostEdit((s) => ({ ...s, [l.id]: false })); }}
+                                inputMode="decimal"
+                                placeholder="cost"
+                                aria-label="Cost per shirt"
+                                className="input w-20 py-1 text-right text-xs"
+                              />
+                            ) : l.unitCogsCents === null ? (
+                              <button type="button" onClick={() => setCostEdit((s) => ({ ...s, [l.id]: true }))} className="text-rust underline underline-offset-2" title={l.reason || "No cost yet — click to type one in"}>
+                                not costed
+                              </button>
                             ) : (
-                              <span title={[l.typeName, l.blankCents !== null ? `blank ${fmtMoney(l.blankCents)}` : "", l.materialsCents !== null ? `materials ${fmtMoney(l.materialsCents)}` : "", l.reason].filter(Boolean).join(" · ")}>
+                              <button
+                                type="button"
+                                onClick={() => setCostEdit((s) => ({ ...s, [l.id]: true }))}
+                                className="underline decoration-dotted underline-offset-2 hover:text-goldlight"
+                                title={[l.typeName, l.blankCents !== null && !l.manual ? `blank ${fmtMoney(l.blankCents)}` : "", l.materialsCents !== null && !l.manual ? `materials ${fmtMoney(l.materialsCents)}` : "", l.reason, "Click to change"].filter(Boolean).join(" · ")}
+                              >
                                 {fmtMoney(l.unitCogsCents)}
-                                {l.estimated && <span className="ml-1 text-[0.65rem] text-faded">est.</span>}
-                              </span>
+                                {l.manual ? <span className="ml-1 text-[0.65rem] text-faded">by hand</span> : l.estimated ? <span className="ml-1 text-[0.65rem] text-faded">est.</span> : null}
+                              </button>
                             )}
                           </td>
                           <td className={"p-3 text-right font-semibold " + (m !== null && m < 50 ? "text-rust" : "text-goldlight")}>{fmtPct(m)}</td>

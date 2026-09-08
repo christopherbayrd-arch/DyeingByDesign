@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { kindLabel } from "@/lib/requests";
 import AdminNav from "@/components/AdminNav";
 import EmailStatus from "@/components/EmailStatus";
 import OrderStatus from "@/components/OrderStatus";
 import ShipLabel from "@/components/ShipLabel";
+import ArchiveOrder from "@/components/ArchiveOrder";
+import RequestManager, { type RequestRow } from "@/components/RequestManager";
 import { shippingConfig } from "@/lib/shipping";
 import { emailConfig } from "@/lib/email";
 import { pushConfig } from "@/lib/notify";
@@ -57,7 +58,13 @@ function shipTo(shipping: unknown) {
     .join(", ");
 }
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ archived?: string }>;
+}) {
+  const { archived } = await searchParams;
+  const showArchived = archived === "1";
   const sql = getDb();
   const mail = emailConfig();
   const ship = shippingConfig();
@@ -83,15 +90,44 @@ export default async function AdminPage() {
   let orders: Row[] = [];
   let requests: Row[] = [];
   let signups: Row[] = [];
+  let archivedOrders = 0;
+  let archivedRequests = 0;
   let dbError = "";
 
   try {
-    orders = (await sql`select * from orders order by created_at desc limit 200`) as Row[];
-    requests = (await sql`select * from special_requests order by created_at desc limit 200`) as Row[];
+    orders = (showArchived
+      ? await sql`select * from orders where archived_at is not null order by created_at desc limit 200`
+      : await sql`select * from orders where archived_at is null order by created_at desc limit 200`) as Row[];
+    requests = (showArchived
+      ? await sql`select * from special_requests where archived_at is not null order by created_at desc limit 200`
+      : await sql`select * from special_requests where archived_at is null order by created_at desc limit 200`) as Row[];
+    const counts = (await sql`
+      select (select count(*) from orders where archived_at is not null) as o,
+             (select count(*) from special_requests where archived_at is not null) as r
+    `) as { o: number | string; r: number | string }[];
+    archivedOrders = Number(counts[0]?.o ?? 0);
+    archivedRequests = Number(counts[0]?.r ?? 0);
     signups = (await sql`select * from drop_signups order by created_at desc limit 500`) as Row[];
   } catch (err) {
     dbError = `Could not read the database — have you run schema.sql in Neon yet? (${String(err).slice(0, 160)})`;
   }
+
+  const requestRows: RequestRow[] = requests.map((r) => ({
+    id: Number(r.id),
+    createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at ?? ""),
+    name: String(r.name ?? ""),
+    email: String(r.email ?? ""),
+    kind: String(r.kind ?? ""),
+    size: String(r.size ?? ""),
+    color: String(r.color ?? ""),
+    idea: String(r.idea ?? ""),
+    artworkUrl: String(r.artwork_url ?? ""),
+    status: String(r.status ?? "new"),
+    note: String(r.note ?? ""),
+    orderId: r.order_id ? Number(r.order_id) : null,
+    quoteCents: typeof r.quote_cents === "number" ? r.quote_cents : null,
+    archived: Boolean(r.archived_at),
+  }));
 
   return (
     <div className="mx-auto max-w-6xl px-5 pt-14">
@@ -108,9 +144,16 @@ export default async function AdminPage() {
       {dbError && <p className="mt-6 rounded-xl border border-rust/50 bg-rust/10 p-4 text-sm">{dbError}</p>}
 
       <section className="mt-10">
-        <h2 className="font-display text-2xl font-semibold">
-          Orders <span className="text-base text-faded">({orders.length})</span>
-        </h2>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-display text-2xl font-semibold">
+            {showArchived ? "Archived orders" : "Orders"} <span className="text-base text-faded">({orders.length})</span>
+          </h2>
+          {(archivedOrders > 0 || showArchived) && (
+            <a href={showArchived ? "/admin" : "/admin?archived=1"} className="text-sm text-faded underline underline-offset-2 transition hover:text-goldlight">
+              {showArchived ? "Back to the desk" : `Show archived (${archivedOrders})`}
+            </a>
+          )}
+        </div>
         <p className="mt-2 text-sm text-faded">
           Order requests wait here as <em>Awaiting payment</em>. Reply to the customer with a
           Stripe payment link or invoice, and once it&apos;s paid switch the status to
@@ -137,8 +180,11 @@ export default async function AdminPage() {
                 <tr><td colSpan={7} className="p-4 text-faded">No orders yet — they&apos;ll appear here automatically when someone sends one.</td></tr>
               )}
               {orders.map((o) => (
-                <tr key={String(o.id)} className="border-b border-bone/5 align-top">
-                  <td className="p-3 whitespace-nowrap text-faded">{fmtDate(o.created_at)}</td>
+                <tr key={String(o.id)} id={`order-${String(o.id)}`} className="border-b border-bone/5 align-top">
+                  <td className="p-3 whitespace-nowrap text-faded">
+                    {fmtDate(o.created_at)}
+                    <div className="text-[0.65rem]">#{String(o.id)}</div>
+                  </td>
                   <td className="p-3 whitespace-nowrap">
                     <OrderStatus id={Number(o.id)} status={String(o.status ?? "paid")} />
                     {String(o.stripe_session_id ?? "").startsWith("email_") && (
@@ -146,6 +192,13 @@ export default async function AdminPage() {
                         {String(o.stripe_session_id).replace("email_", "")}
                       </div>
                     )}
+                    {String(o.stripe_session_id ?? "").startsWith("custom_") && (
+                      <div className="mt-1 text-[0.65rem] font-bold uppercase tracking-wider text-goldlight">custom piece</div>
+                    )}
+                    {String(o.stripe_session_id ?? "").startsWith("manual_") && (
+                      <div className="mt-1 text-[0.65rem] text-faded">hand entered</div>
+                    )}
+                    <ArchiveOrder id={Number(o.id)} archived={Boolean(o.archived_at)} />
                   </td>
                   <td className="p-3">
                     <div className="font-medium">{String(o.name ?? "—")}</div>
@@ -179,40 +232,9 @@ export default async function AdminPage() {
 
       <section className="mt-12">
         <h2 className="font-display text-2xl font-semibold">
-          Custom requests <span className="text-base text-faded">({requests.length})</span>
+          {showArchived ? "Archived custom requests" : "Custom requests"} <span className="text-base text-faded">({requests.length})</span>
         </h2>
-        <div className="mt-4 space-y-3">
-          {requests.length === 0 && (
-            <p className="card p-4 text-sm text-faded">No custom requests yet.</p>
-          )}
-          {requests.map((r) => (
-            <div key={String(r.id)} className="card p-4 text-sm">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p className="font-semibold">
-                  {String(r.name)}{" "}
-                  <span className="font-normal text-faded">
-                    · {String(r.email)}
-                    {r.kind ? ` · ${kindLabel(String(r.kind))}` : ""}
-                    {r.size ? ` · size ${String(r.size)}` : ""}
-                    {r.color ? ` · ${colorName(String(r.color))}` : ""}
-                  </span>
-                </p>
-                <p className="text-xs text-faded">{fmtDate(r.created_at)}</p>
-              </div>
-              <p className="mt-2 whitespace-pre-wrap leading-relaxed text-faded">{String(r.idea)}</p>
-              {r.artwork_url ? (
-                <a
-                  href={String(r.artwork_url)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-2 inline-block text-xs text-goldlight underline underline-offset-2"
-                >
-                  Open attached artwork ↗
-                </a>
-              ) : null}
-            </div>
-          ))}
-        </div>
+        <RequestManager requests={requestRows} showingArchived={showArchived} archivedCount={archivedRequests} />
       </section>
 
       <section className="mt-12">
