@@ -5,7 +5,7 @@ import { getProducts } from "@/lib/catalog";
 export const metadata: Metadata = {
   title: "The lineup",
   description:
-    "Hand bleached shirts made to order in Maine — real botanicals and hand-cut stencils on heavyweight cotton. $5 flat shipping.",
+    "Hand bleached shirts made to order in Maine — real botanicals and hand-cut stencils on heavyweight cotton. $7 flat rate shipping.",
 };
 
 // Fresh from the database every 60 seconds
@@ -23,7 +23,7 @@ export default async function ShopPage() {
       <p className="mt-4 max-w-xl text-sm leading-relaxed text-faded sm:text-base">
         Every shirt is bleached by hand, one at a time — a real leaf or a hand-cut
         stencil laid on heavyweight cotton. Yours will not look exactly like the photo,
-        and that&apos;s the point. Flat $5 shipping in the US.
+        and that&apos;s the point. $7 flat rate shipping in the US.
       </p>
       {products.length === 0 ? (
         <p className="card mt-10 p-8 text-faded">

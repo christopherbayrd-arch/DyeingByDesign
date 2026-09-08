@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { isColorKey } from "@/lib/products";
 
 // Each cart line carries a snapshot of what the buyer saw (name, price, photo)
 // so the cart renders instantly. The server always re-checks real prices and
@@ -46,7 +47,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) setLines(parsed.filter((l) => l && l.slug && l.size && l.color));
+        // (a color that's been retired from COLORS drops out of the cart quietly)
+        if (Array.isArray(parsed)) setLines(parsed.filter((l) => l && l.slug && l.size && l.color && isColorKey(l.color)));
       }
     } catch {
       // corrupted cart? start fresh

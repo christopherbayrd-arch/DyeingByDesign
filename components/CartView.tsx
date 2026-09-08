@@ -4,13 +4,19 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/components/CartContext";
-import { COLORS, ORDER_MODE, SHIPPING_CENTS, colorName, fmtPrice } from "@/lib/products";
+import { COLORS, SHIPPING_CENTS, colorName, fmtPrice } from "@/lib/products";
 import { asset } from "@/lib/assets";
 
 type Done = { orderRef: string; mailto?: string; customerEmailed?: boolean; emailFailed?: boolean };
 
-export default function CartView() {
+// `cardSlugs` = designs that check out by card right now (counted stock with
+// Stripe connected — worked out server side in app/cart/page.tsx). A cart
+// made only of those goes to Stripe Checkout; anything else goes in as an
+// order request and Corey replies with one payment link for the lot.
+export default function CartView({ cardSlugs = [] }: { cardSlugs?: string[] }) {
   const { lines, ready, remove, setQty, subtotalCents, clear } = useCart();
+  const allCard = lines.length > 0 && lines.every((l) => cardSlugs.includes(l.slug));
+  const someCard = !allCard && lines.some((l) => cardSlugs.includes(l.slug));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState<Done | null>(null);
@@ -174,7 +180,7 @@ export default function CartView() {
             <dd>{fmtPrice(subtotalCents)}</dd>
           </div>
           <div className="flex justify-between text-faded">
-            <dt>Shipping (flat, US)</dt>
+            <dt>Shipping (flat rate, US)</dt>
             <dd>{fmtPrice(SHIPPING_CENTS)}</dd>
           </div>
           <div className="flex justify-between border-t border-bone/15 pt-3 text-base font-semibold text-bone">
@@ -183,11 +189,14 @@ export default function CartView() {
           </div>
         </dl>
 
-        {ORDER_MODE === "email" ? (
+        {!allCard ? (
           <form onSubmit={sendOrder} className="mt-6 space-y-3">
             <p className="text-xs leading-relaxed text-faded">
-              No card needed here. Send us the order and we reply within a day with
-              payment details and a ship date.
+              {someCard
+                ? "Something in your cart is made to order, so the whole order goes in as a request — one payment link for everything. "
+                : "No card needed here. "}
+              Send us the order and we reply within a day with a secure payment link and a
+              ship date.
             </p>
             <input name="name" required maxLength={120} className="input" placeholder="Your name" autoComplete="name" />
             <input name="email" type="email" required maxLength={200} className="input" placeholder="Email" autoComplete="email" />

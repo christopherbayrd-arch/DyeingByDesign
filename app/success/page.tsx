@@ -50,7 +50,7 @@ export default async function SuccessPage({
             A receipt is on its way to <strong className="text-bone">{email}</strong>.
           </>
         )}{" "}
-        We&apos;ll make it by hand over the next 5 to 7 days and email tracking the
+        We&apos;ll make it by hand over the next 1 to 2 weeks and email tracking the
         moment it ships.
       </p>
       <div className="mt-9 flex justify-center gap-3">

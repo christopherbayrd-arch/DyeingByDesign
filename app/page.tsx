@@ -5,6 +5,7 @@ import { RECENT } from "@/lib/recent";
 import SignupForm from "@/components/SignupForm";
 import { getProducts } from "@/lib/catalog";
 import { asset } from "@/lib/assets";
+import { COLORS } from "@/lib/products";
 
 // Product grid refreshes from the database every 60 seconds
 export const revalidate = 60;
@@ -56,8 +57,9 @@ export default async function HomePage() {
             </h2>
           </div>
           <p className="max-w-sm text-sm leading-relaxed text-faded">
-            Six blank colors, every design. Flat $5 shipping anywhere in the US. Made to
-            order, one shirt at a time.
+            Nine blank colors, every design. $7 flat rate shipping anywhere in the US.
+            Made to order, one shirt at a time — can take 1 to 2 weeks depending on how
+            many orders are ahead of you.
           </p>
         </div>
         <div className="mt-10">
@@ -78,7 +80,23 @@ export default async function HomePage() {
             Real shirts, real light, no studio. What came out of the shop lately.
           </p>
         </div>
-        <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        {/* The blanks, so people can see the whole color range at a glance */}
+        <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <span className="basis-full text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-gold sm:mr-1 sm:basis-auto">
+            Now in nine blanks
+          </span>
+          {COLORS.map((c) => (
+            <span key={c.key} className="flex items-center gap-1.5 text-xs text-faded">
+              <span
+                className="inline-block h-4 w-4 rounded-full border border-bone/30"
+                style={{ background: c.hex }}
+                aria-hidden="true"
+              />
+              {c.name}
+            </span>
+          ))}
+        </div>
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {RECENT.map((shot, i) => (
             <figure
               key={shot.src}
@@ -130,17 +148,18 @@ export default async function HomePage() {
                 <span className="font-display text-2xl font-semibold text-goldlight">1</span>
                 <span>
                   <strong className="text-bone">Draft and gather.</strong> We pick real
-                  leaves from the Maine woods — sumac, maple, oak, fern — or cut a custom
+                  leaves from the Maine woods — sumac, fern, etc. — or cut a custom
                   stencil by hand from a clean vector design.
                 </span>
               </li>
               <li className="flex gap-4">
                 <span className="font-display text-2xl font-semibold text-goldlight">2</span>
                 <span>
-                  <strong className="text-bone">Lay, seal, and spray.</strong> Everything is
-                  arranged on a heavyweight cotton tee — stencils heat-sealed for crisp
+                  <strong className="text-bone">Lay and spray.</strong> Everything is
+                  arranged on a heavyweight cotton tee — stencils held flat for crisp
                   edges, leaves laid flat for soft organic shadows — then carefully misted
-                  with bleach. The fabric burns to amber; the design keeps its ground.
+                  with bleach. The exposed fabric lightens to whatever that blank burns to;
+                  the design keeps its ground.
                 </span>
               </li>
               <li className="flex gap-4">

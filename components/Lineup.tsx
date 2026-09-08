@@ -48,7 +48,7 @@ export default function Lineup({
               <div className="card mt-6 flex flex-col items-start gap-3 p-6 sm:flex-row sm:items-center sm:justify-between">
                 <p className="max-w-xl text-sm leading-relaxed text-faded">
                   {line.key === "stencil"
-                    ? "The first stencil designs are being cut now. Until they land, any shape you can picture — a logo, a silhouette, a bold graphic — can be made as a 1-of-1."
+                    ? "Any shape you can picture — a logo, a silhouette, a bold graphic — can be made as a 1-of-1."
                     : "New botanical designs are on the way. Have a leaf in mind? Send it as a custom request."}
                 </p>
                 <Link href="/custom" className="btn btn-ghost shrink-0">

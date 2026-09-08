@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 const IDEAS = [
   {
     title: "Your logo, cut by hand",
-    text: "A stencil of your business, band, or team logo — heat-sealed for sharp edges, burned in so it never peels.",
+    text: "A stencil of your business, band, or team logo — cut by hand, burned in so it never peels.",
   },
   {
     title: "The wedding tree",

@@ -5,9 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/CartContext";
 import ShirtPreview from "@/components/ShirtPreview";
-import { COLORS, ORDER_MODE, availableQty, fmtPrice, isSoldOut, type Product } from "@/lib/products";
+import { COLORS, availableQty, fmtPrice, isSoldOut, type Product } from "@/lib/products";
 
-export default function AddToCart({ product }: { product: Product }) {
+// `card` = this design checks out by card through Stripe (counted stock with
+// Stripe connected). Otherwise the button sends the shirt to the cart's order
+// request form and Corey replies with a payment link. Decided server side in
+// lib/orderMode.ts.
+export default function AddToCart({ product, card = false }: { product: Product; card?: boolean }) {
   const { add } = useCart();
   const router = useRouter();
   const [size, setSize] = useState<string | null>(null);
@@ -63,8 +67,8 @@ export default function AddToCart({ product }: { product: Product }) {
       return;
     }
     setError("");
-    if (ORDER_MODE === "email") {
-      // No card checkout — put it in the cart and go straight to the order form
+    if (!card) {
+      // No card checkout for this one — put it in the cart and go straight to the order form
       add({
         slug: product.slug,
         size: size!,
@@ -196,7 +200,7 @@ export default function AddToCart({ product }: { product: Product }) {
           </select>
         </label>
         <button className="btn btn-gold grow sm:grow-0" onClick={handleBuyNow} disabled={buying}>
-          {buying ? "Heading to checkout…" : `${ORDER_MODE === "email" ? "Order this one" : "Buy now"} · ${fmtPrice(product.priceCents * qty)}`}
+          {buying ? "Heading to checkout…" : `${card ? "Buy now" : "Order this one"} · ${fmtPrice(product.priceCents * qty)}`}
         </button>
         <button className="btn btn-ghost grow sm:grow-0" onClick={handleAdd} disabled={buying}>
           {added ? "Added ✓" : "Add to cart"}
@@ -215,10 +219,13 @@ export default function AddToCart({ product }: { product: Product }) {
       {error && <p className="mt-3 text-sm text-rust">{error}</p>}
 
       <p className="mt-5 text-xs leading-relaxed text-faded">
-        {fmtPrice(product.priceCents)} + $5 flat shipping (US).{" "}
+        {fmtPrice(product.priceCents)} + $7 flat rate shipping (US).{" "}
         {product.trackStock
           ? "In stock and ready to ship in 1 to 2 days."
-          : "Made for you after you order — allow 5 to 7 days before it ships."}
+          : "Made for you after you order — allow 1 to 2 weeks before it ships, depending on the queue."}{" "}
+        {card
+          ? "Card, Apple Pay, and Google Pay checkout by Stripe."
+          : "No card needed up front — send the order and we reply with a secure payment link."}
       </p>
     </div>
   );

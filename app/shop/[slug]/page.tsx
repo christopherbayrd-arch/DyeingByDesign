@@ -6,6 +6,7 @@ import AddToCart from "@/components/AddToCart";
 import ProductCard from "@/components/ProductCard";
 import { getProduct, getProducts } from "@/lib/catalog";
 import { lineInfo } from "@/lib/products";
+import { cardCheckout } from "@/lib/orderMode";
 import { asset } from "@/lib/assets";
 
 // Re-checked against the database every 60 seconds, so admin edits
@@ -87,17 +88,17 @@ export default async function DesignPage({
           <p className="mt-4 text-base leading-relaxed text-faded">{product.story}</p>
 
           <div className="mt-8 border-t border-bone/10 pt-8">
-            <AddToCart product={product} />
+            <AddToCart product={product} card={cardCheckout(product)} />
           </div>
 
           <ul className="mt-8 space-y-2.5 border-t border-bone/10 pt-6 text-sm text-faded">
-            <li>· Heavyweight 100% cotton tee, unisex fit — six blank colors, pick yours above</li>
+            <li>· Heavyweight 100% cotton tee, unisex fit — nine blank colors, pick yours above</li>
             <li>· Bleach fully neutralized and washed before shipping</li>
             <li>· Wash cold, inside out. Hang dry or tumble low.</li>
             <li>
               · One of one —{" "}
               {isStencil
-                ? "even from the same stencil, the burn and amber tone land differently on every shirt"
+                ? "even from the same stencil, the burn lands differently on every shirt"
                 : "leaf placement and burn vary shirt to shirt"}
             </li>
           </ul>

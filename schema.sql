@@ -10,7 +10,7 @@ create table if not exists orders (
   email              text,
   name               text,
   amount_total       integer,          -- cents, includes shipping
-  items              text,             -- e.g. "sumac|M|x2; maple|L|x1"
+  items              text,             -- e.g. "sumac|M|black|x2; fern|L|daisy|x1"
   shipping           jsonb,            -- shipping name + address from Stripe
   status             text not null default 'paid',   -- paid → made → shipped
   created_at         timestamptz not null default now()
@@ -61,19 +61,13 @@ create table if not exists products (
   created_at   timestamptz not null default now()
 );
 
--- Seed the four launch designs (skipped automatically if they already exist)
+-- Seed the launch designs (skipped automatically if they already exist)
 insert into products (slug, name, species, blurb, story, image, card, price_cents, sample_photo, badge, sort) values
 (
   'sumac', 'Sumac', 'Staghorn sumac · Rhus typhina',
-  'Feathered fronds, deep amber burn. The original.',
-  'The one that started it all. Staghorn sumac grows wild along every back road in Maine, and its feathered fronds leave the cleanest shadow we print. We lay fronds across the chest and shoulders, mist the bleach by hand, and let the fabric turn that deep amber gold before the leaf ever moves.',
+  'Feathered fronds, deep burn. The original.',
+  'The one that started it all. Staghorn sumac grows wild along every back road in Maine, and its feathered fronds leave the cleanest shadow we print. We lay fronds across the chest and shoulders, mist the bleach by hand, and let the fabric burn to its lighter tone before the leaf ever moves.',
   '/images/sumac-shirt.jpg', '/images/design-sumac.jpg', 3999, false, 'The original', 1
-),
-(
-  'maple', 'Maple', 'Sugar maple · Acer saccharum',
-  'Leaves scattered like they just fell there. Deep gold burn.',
-  'Maple leaves laid out across the whole shirt, front and back, the way they land on the ground in October. We pick them the day they drop, while they still lie flat and full, then spray until the cotton burns to gold and the leaves keep their dark. Every shirt catches the spray differently, so no two ever land the same.',
-  '/images/maple-shirt.jpg', '/images/design-maple.jpg', 3999, false, null, 2
 ),
 (
   'oak', 'Oak', 'Northern red oak · Quercus rubra',
@@ -88,15 +82,6 @@ insert into products (slug, name, species, blurb, story, image, card, price_cent
   '/images/design-fern.jpg', '/images/design-fern.jpg', 3999, true, null, 4
 )
 on conflict (slug) do nothing;
-
--- Refresh the maple design if this database was seeded before the real
--- maple shirt was photographed (harmless to run when it's already current,
--- and it leaves any edits you made in /admin/products alone apart from
--- the photo + sample flag).
-update products
-set image = '/images/maple-shirt.jpg',
-    sample_photo = false
-where slug = 'maple' and image = '/images/design-maple.jpg';
 
 -- ============ DROP ANNOUNCEMENTS ============
 -- Every subscriber gets a private unsubscribe token, and unsubscribes are
@@ -119,4 +104,13 @@ create table if not exists drop_sends (
   sent        integer not null default 0,
   failed      integer not null default 0,
   created_at  timestamptz not null default now()
+);
+
+-- ============ COGS (cost of goods) — one JSON document, edited in /admin/cogs ============
+-- Holds blank tee costs per color+size, the materials list (bulk cost + how
+-- many shirts a unit covers) and the product types built from them.
+create table if not exists cogs (
+  id          integer primary key default 1 check (id = 1),
+  data        jsonb not null default '{}',
+  updated_at  timestamptz not null default now()
 );

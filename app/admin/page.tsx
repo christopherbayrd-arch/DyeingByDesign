@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { kindLabel } from "@/lib/requests";
 import AdminNav from "@/components/AdminNav";
 import EmailStatus from "@/components/EmailStatus";
+import OrderStatus from "@/components/OrderStatus";
 import { emailConfig } from "@/lib/email";
 import { pushConfig } from "@/lib/notify";
 import { getDb } from "@/lib/db";
@@ -14,7 +15,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 // Password-protected order desk (see middleware.ts + ADMIN_PASSWORD).
-// Shows paid orders, custom requests, and the drop email list.
+// Shows orders (card orders arrive as Paid; order requests as Awaiting
+// payment until you flip them), custom requests, and the drop email list.
 
 type Row = Record<string, unknown>;
 
@@ -116,6 +118,11 @@ export default async function AdminPage() {
         <h2 className="font-display text-2xl font-semibold">
           Orders <span className="text-base text-faded">({orders.length})</span>
         </h2>
+        <p className="mt-2 text-sm text-faded">
+          Order requests wait here as <em>Awaiting payment</em>. Reply to the customer with a
+          Stripe payment link or invoice, and once it&apos;s paid switch the status to
+          <em> Paid</em> (then Made, then Shipped, if you want to track it).
+        </p>
         <div className="card mt-4 overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead>
@@ -136,16 +143,7 @@ export default async function AdminPage() {
                 <tr key={String(o.id)} className="border-b border-bone/5 align-top">
                   <td className="p-3 whitespace-nowrap text-faded">{fmtDate(o.created_at)}</td>
                   <td className="p-3 whitespace-nowrap">
-                    <span
-                      className={
-                        "rounded-full px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-wider " +
-                        (o.status === "requested"
-                          ? "border border-gold/60 text-goldlight"
-                          : "bg-gold/20 text-goldlight")
-                      }
-                    >
-                      {o.status === "requested" ? "Awaiting payment" : String(o.status ?? "paid")}
-                    </span>
+                    <OrderStatus id={Number(o.id)} status={String(o.status ?? "paid")} />
                     {String(o.stripe_session_id ?? "").startsWith("email_") && (
                       <div className="mt-1 text-[0.65rem] text-faded">
                         {String(o.stripe_session_id).replace("email_", "")}

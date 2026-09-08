@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getProduct } from "@/lib/catalog";
-import { SHIPPING_CENTS, availableQty, colorName, isColorKey } from "@/lib/products";
+import { ORDER_MODE, SHIPPING_CENTS, availableQty, colorName, isColorKey } from "@/lib/products";
 
 // Creates a Stripe Checkout session from the cart.
 // Prices AND availability always come from the database on the server —
@@ -12,6 +12,12 @@ export async function POST(req: Request) {
     if (!key) {
       return NextResponse.json(
         { error: "Payments aren't switched on yet — the shop owner needs to add Stripe keys (see README)." },
+        { status: 503 }
+      );
+    }
+    if (ORDER_MODE === "email") {
+      return NextResponse.json(
+        { error: "Card checkout is switched off — send the order from your cart instead." },
         { status: 503 }
       );
     }
@@ -38,9 +44,20 @@ export async function POST(req: Request) {
       const product = await getProduct(String(it.slug));
       if (!product || !product.sizes.includes(size)) continue;
 
+      const combo = `${product.name} in ${colorName(color)} / ${size}`;
+
+      // In split mode only counted stock checks out by card; made to order
+      // shirts go in as an order request (the cart already routes them there,
+      // this just makes sure nobody gets around it).
+      if (ORDER_MODE === "split" && !product.trackStock) {
+        return NextResponse.json(
+          { error: `${product.name} is made to order — send it as an order request from your cart and we'll reply with a payment link.` },
+          { status: 400 }
+        );
+      }
+
       // stock check (Infinity when the product is made to order)
       const avail = availableQty(product, size, color);
-      const combo = `${product.name} in ${colorName(color)} / ${size}`;
       if (avail <= 0) {
         return NextResponse.json(
           { error: `${combo} just sold out. Remove it from your cart to continue.` },

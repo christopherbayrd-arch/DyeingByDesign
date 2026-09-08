@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 const FAQ = [
   {
     q: "Will mine look exactly like the photo?",
-    a: "No, and that's the point. Leaf placement, spray density, and the amber tone vary from shirt to shirt — even two shirts cut from the same stencil come out with their own contrast and burn. Yours is the only one like it.",
+    a: "No, and that's the point. Leaf placement, spray density, and how far the burn goes vary from shirt to shirt — even two shirts cut from the same stencil come out with their own contrast and tone. Yours is the only one like it.",
   },
   {
     q: "Why bleach instead of screen printing?",
@@ -20,7 +20,7 @@ const FAQ = [
   },
   {
     q: "Can you do my logo?",
-    a: "Yes. Send us a clean, high-contrast version (vector — SVG or PDF — is ideal) through the custom request page. We cut the stencil by hand, heat-seal it for sharp edges, and quote each piece individually.",
+    a: "Yes. Send us a clean, high-contrast version (vector — SVG or PDF — is ideal) through the custom request page. We cut the stencil by hand and quote each piece individually.",
   },
   {
     q: "How do I wash it?",
@@ -28,15 +28,15 @@ const FAQ = [
   },
   {
     q: "What shirts do you print on?",
-    a: "Heavyweight 100% cotton tees with a true to size unisex fit, in six blank colors: cherry red, electric green, forest green, sky blue, safety pink, and safety orange. The bleach burns each color differently — reds go peach and gold, greens go tan, blues go pale — so the same design reads differently on every blank. If you're between sizes, most people size up.",
+    a: "Heavyweight 100% cotton tees with a true to size unisex fit, in nine blank colors: black, antique cherry red, azalea, daisy, electric green, forest green, sky blue, royal blue, and purple. The bleach burns each color differently — black goes gold, reds go peach, greens go tan, blues go pale, and the lighter blanks go softer still — so the same design reads differently on every shirt. If you're between sizes, most people size up.",
   },
   {
     q: "How do I pay?",
-    a: "There's no card checkout on the site right now. Add what you want to your cart, send us the order with your shipping address, and we reply within a day with payment details and a ship date. Nothing is charged until you hear from us.",
+    a: "Add what you want to your cart. Shirts we have counted and ready go straight to a secure card checkout (card, Apple Pay, Google Pay). Made to order shirts and custom pieces go in as an order request — send it with your shipping address and we reply within a day with a secure payment link and a ship date. Nothing is charged until you pay.",
   },
   {
     q: "How long until it ships?",
-    a: "Each shirt is made after your order is paid. Allow 5 to 7 days of making time, then US shipping with tracking. Flat $5 per order.",
+    a: "Each shirt is made after your order is paid. Allow 1 to 2 weeks of making time depending on how many orders are ahead of you, then US shipping with tracking. $7 flat rate per order.",
   },
   {
     q: "Returns?",
@@ -61,16 +61,17 @@ export default function AboutPage() {
           Every Dyeing By Design shirt is reverse-bleach art: instead of adding ink to
           the fabric, we take color away from everything around the design. It starts
           one of two ways. For the botanical line, a walk in the Maine woods — we gather
-          real leaves, staghorn sumac, sugar maple, red oak, ostrich fern, and carry them
-          back while they still lie flat. For the graphic and stencil line, a clean
+          real leaves, staghorn sumac, ostrich fern, whatever the season drops, and carry
+          them back while they still lie flat. For the graphic and stencil line, a clean
           vector design, cut into a stencil by hand.
         </p>
         <p>
-          Everything gets arranged on a heavyweight cotton tee. Stencils are heat-sealed
+          Everything gets arranged on a heavyweight cotton tee. Stencils are held flat
           so the edges stay sharp; leaves are laid flat so their shadows come out soft
           and organic. Then comes the part you can&apos;t fake: a slow, even mist of
-          bleach over the whole layout. The exposed fabric burns from black to that deep
-          amber gold. Underneath the leaf or the stencil, the cotton keeps its color.
+          bleach over the whole layout. The exposed fabric lightens — every blank burns
+          to its own tone, black to gold, red to peach, blue to pale. Underneath the leaf
+          or the stencil, the cotton keeps its color.
           When it lifts away, its shadow stays behind — every vein of pressure, every
           crisp cut edge, every stray fleck of spray.
         </p>
