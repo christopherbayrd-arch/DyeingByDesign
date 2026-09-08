@@ -242,3 +242,14 @@ alter table special_requests add column if not exists updated_at  timestamptz no
 create index if not exists special_requests_order_idx on special_requests(order_id);
 -- Orders can be archived too (shipped and done, out of the list)
 alter table orders add column if not exists archived_at timestamptz;
+
+-- ============================================================
+--  Make queue (v7). Orders are worked first come first served, with a
+--  rush flag and a hold flag, and each shirt gets ticked off as it's made.
+-- ============================================================
+alter table orders add column if not exists priority  smallint not null default 0;  -- 1 rush · 0 normal · -1 on hold
+alter table orders add column if not exists queued_at timestamptz;                  -- place in line (earlier = sooner)
+update orders set queued_at = coalesce(queued_at, created_at);
+alter table orders alter column queued_at set default now();
+alter table order_lines add column if not exists made_at timestamptz;              -- ticked off in the queue
+create index if not exists orders_queue_idx on orders(priority desc, queued_at asc);

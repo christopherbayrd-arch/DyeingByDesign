@@ -6,6 +6,7 @@ import { getDb } from "@/lib/db";
 import { colorName, fmtPrice } from "@/lib/products";
 import { orderNote, parseItemsMeta } from "@/lib/orderFormat";
 import { kindLabel } from "@/lib/requests";
+import { queuePositions } from "@/lib/queue";
 
 export const metadata: Metadata = {
   title: "Your account",
@@ -45,6 +46,7 @@ export default async function AccountPage() {
   const sql = getDb();
   let orders: Row[] = [];
   let requests: Row[] = [];
+  let inLine = new Map<number, { position: number; of: number }>();
   if (sql) {
     try {
       const uid = Number(user.id) || 0;
@@ -60,6 +62,9 @@ export default async function AccountPage() {
         where user_id = ${uid} or lower(email) = lower(${user.email})
         order by created_at desc limit 50
       `) as Row[];
+      if (orders.some((o) => o.status === "requested" || o.status === "paid")) {
+        inLine = await queuePositions(sql).catch(() => new Map());
+      }
     } catch (err) {
       console.error("account page:", err);
     }
@@ -94,6 +99,7 @@ export default async function AccountPage() {
               const status = String(o.status ?? "paid");
               const ref = String(o.stripe_session_id ?? "");
               const note = orderNote(o.items as string);
+              const place = inLine.get(Number(o.id));
               return (
                 <div key={String(o.id)} className="card p-5 text-sm">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -118,8 +124,8 @@ export default async function AccountPage() {
                           ) : String(o.tracking_number)}
                         </>
                       ) : status === "requested" ? (
-                        "We'll email you when it's ready, with a link to pay."
-                      ) : status === "shipped" ? "" : "Being made by hand. Tracking arrives by email when it ships."}
+                        place ? `#${place.position} in line to be made. We'll email you when it's ready, with a link to pay.` : "We'll email you when it's ready, with a link to pay."
+                      ) : status === "shipped" ? "" : place ? `#${place.position} in line. Being made by hand — tracking arrives by email when it ships.` : "Being made by hand. Tracking arrives by email when it ships."}
                     </span>
                     {typeof o.amount_total === "number" && <span className="font-semibold text-goldlight">{fmtPrice(o.amount_total)}</span>}
                   </div>

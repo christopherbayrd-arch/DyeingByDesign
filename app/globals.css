@@ -191,3 +191,49 @@ body::after {
     animation: none;
   }
 }
+
+/* ---------- printing (the make queue, mostly) ----------
+   The site is dark on screen; paper gets black on white. Anything with
+   .no-print (buttons, the admin tabs) is left off the page. */
+@media print {
+  :root {
+    color-scheme: light;
+  }
+  body {
+    background: #fff;
+    color: #111;
+    padding: 0;
+  }
+  body::after,
+  header,
+  footer,
+  .no-print {
+    display: none !important;
+  }
+  .card {
+    background: #fff;
+    border-color: #bbb;
+    border-radius: 0.5rem;
+    break-inside: avoid;
+  }
+  .text-faded {
+    color: #555 !important;
+  }
+  .text-bone,
+  .text-goldlight,
+  .text-rust,
+  .text-inkdeep {
+    color: #111 !important;
+  }
+  .bg-gold,
+  .bg-gold\/20,
+  .bg-gold\/10 {
+    background: #e8e8e8 !important;
+  }
+  .opacity-60 {
+    opacity: 1;
+  }
+  a {
+    text-decoration: none;
+  }
+}

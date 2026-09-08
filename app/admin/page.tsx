@@ -11,6 +11,7 @@ import { pushConfig } from "@/lib/notify";
 import { getDb } from "@/lib/db";
 import { colorName, fmtPrice } from "@/lib/products";
 import { orderNote, parseItemsMeta } from "@/lib/orderFormat";
+import { queuePositions } from "@/lib/queue";
 
 export const metadata: Metadata = {
   title: "Admin",
@@ -93,6 +94,7 @@ export default async function AdminPage({
   let archivedOrders = 0;
   let archivedRequests = 0;
   let dbError = "";
+  let inLine = new Map<number, { position: number; of: number }>();
 
   try {
     orders = (showArchived
@@ -108,6 +110,7 @@ export default async function AdminPage({
     archivedOrders = Number(counts[0]?.o ?? 0);
     archivedRequests = Number(counts[0]?.r ?? 0);
     signups = (await sql`select * from drop_signups order by created_at desc limit 500`) as Row[];
+    if (!showArchived) inLine = await queuePositions(sql).catch(() => new Map());
   } catch (err) {
     dbError = `Could not read the database — have you run schema.sql in Neon yet? (${String(err).slice(0, 160)})`;
   }
@@ -157,7 +160,8 @@ export default async function AdminPage({
         <p className="mt-2 text-sm text-faded">
           Order requests wait here as <em>Awaiting payment</em>. Reply to the customer with a
           Stripe payment link or invoice, and once it&apos;s paid switch the status to
-          <em> Paid</em> (then Made, then Shipped, if you want to track it).
+          <em> Paid</em> (then Made, then Shipped, if you want to track it). The order to work them in is on the{" "}
+          <a href="/admin/queue" className="text-goldlight underline underline-offset-2">Make queue</a>.
           {ship.enabled
             ? " Buy label prices USPS for the shirts in the order, prints the label, marks it Shipped, and emails the customer the tracking number."
             : " Shipping labels switch on once EasyPost and your ship from address are in Vercel (README step 9)."}
@@ -197,6 +201,17 @@ export default async function AdminPage({
                     )}
                     {String(o.stripe_session_id ?? "").startsWith("manual_") && (
                       <div className="mt-1 text-[0.65rem] text-faded">hand entered</div>
+                    )}
+                    {Number(o.priority) > 0 && (
+                      <div className="mt-1 inline-block rounded-full bg-gold px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-inkdeep">rush</div>
+                    )}
+                    {Number(o.priority) < 0 && (
+                      <div className="mt-1 inline-block rounded-full border border-bone/30 px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-faded">on hold</div>
+                    )}
+                    {inLine.has(Number(o.id)) && (
+                      <div className="mt-1 text-[0.65rem] text-faded">
+                        <a href={`/admin/queue#q-${String(o.id)}`} className="underline underline-offset-2 hover:text-goldlight">#{inLine.get(Number(o.id))!.position} in line</a>
+                      </div>
                     )}
                     <ArchiveOrder id={Number(o.id)} archived={Boolean(o.archived_at)} />
                   </td>

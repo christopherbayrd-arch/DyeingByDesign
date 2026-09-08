@@ -116,7 +116,7 @@ function RequestCard({ r }: { r: RequestRow }) {
   }
 
   return (
-    <div className={"card p-4 text-sm " + (r.archived ? "opacity-70" : "")}>
+    <div id={`request-${r.id}`} className={"card p-4 text-sm " + (r.archived ? "opacity-70" : "")}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="font-semibold">

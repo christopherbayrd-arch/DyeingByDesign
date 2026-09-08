@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export default function AdminNav({ active }: { active: "orders" | "products" | "cogs" | "history" | "drop" }) {
+export default function AdminNav({ active }: { active: "orders" | "queue" | "products" | "cogs" | "history" | "drop" }) {
   const tab = (href: string, label: string, key: string) => (
     <Link
       href={href}
@@ -18,6 +18,7 @@ export default function AdminNav({ active }: { active: "orders" | "products" | "
   return (
     <div className="mt-6 flex flex-wrap items-center gap-2">
       {tab("/admin", "Orders & requests", "orders")}
+      {tab("/admin/queue", "Make queue", "queue")}
       {tab("/admin/products", "Products & stock", "products")}
       {tab("/admin/cogs", "COGS", "cogs")}
       {tab("/admin/history", "Sales history", "history")}

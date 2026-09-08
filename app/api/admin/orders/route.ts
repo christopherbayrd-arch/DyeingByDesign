@@ -5,9 +5,12 @@ import { costOrder } from "@/lib/costing";
 // Order edits from the admin. Owner only — middleware guards /api/admin.
 //   POST  { id, status }                      change status; flipping a request to
 //                                             Paid stamps paid_at and freezes the cost
-//   PATCH { id, postage?, fee?, note?, archived? }  money you actually spent on the
-//                                             order (dollars as typed, "" clears),
-//                                             or archive it off the desk
+//   PATCH { id, postage?, fee?, note?, archived?, priority?, queue? }
+//         postage / fee   money you actually spent (dollars as typed, "" clears)
+//         note            your own note on the order
+//         archived        true/false — off the desk and back
+//         priority        1 rush · 0 normal · -1 on hold   (the make queue)
+//         queue           "top" | "bottom" — move it in line
 const ORDER_STATUSES = ["requested", "paid", "made", "shipped"] as const;
 
 export async function POST(req: Request) {
@@ -69,16 +72,35 @@ export async function PATCH(req: Request) {
     const fee = centsOrNull(body?.fee);
     const note = body?.note === undefined ? undefined : String(body.note).slice(0, 500);
     const archived = body?.archived === undefined ? undefined : Boolean(body.archived);
+    const priority = body?.priority === undefined ? undefined : Number(body.priority);
+    const queue = body?.queue === undefined ? undefined : String(body.queue);
+    if (priority !== undefined && ![1, 0, -1].includes(priority)) {
+      return NextResponse.json({ error: "Priority is rush (1), normal (0), or on hold (-1)." }, { status: 400 });
+    }
+    if (queue !== undefined && queue !== "top" && queue !== "bottom") {
+      return NextResponse.json({ error: "Queue moves are \"top\" or \"bottom\"." }, { status: 400 });
+    }
 
     if (archived === true) await sql`update orders set archived_at = now() where id = ${id}`;
     if (archived === false) await sql`update orders set archived_at = null where id = ${id}`;
     if (postage !== undefined) await sql`update orders set postage_cents = ${postage} where id = ${id}`;
     if (fee !== undefined) await sql`update orders set fee_cents = ${fee} where id = ${id}`;
     if (note !== undefined) await sql`update orders set note = ${note || null} where id = ${id}`;
+    if (priority !== undefined) await sql`update orders set priority = ${priority} where id = ${id}`;
+    // Place in line is queued_at: earlier = sooner. Top = a minute before whoever is first now.
+    if (queue === "top") {
+      await sql`
+        update orders
+        set queued_at = (select coalesce(min(queued_at), now()) - interval '1 minute'
+                         from orders where archived_at is null and status in ('requested', 'paid', 'made'))
+        where id = ${id}
+      `;
+    }
+    if (queue === "bottom") await sql`update orders set queued_at = now() where id = ${id}`;
 
     const rows = (await sql`
-      select id, postage_cents, fee_cents, note from orders where id = ${id}
-    `) as { id: number; postage_cents: number | null; fee_cents: number | null; note: string | null }[];
+      select id, postage_cents, fee_cents, note, priority, queued_at from orders where id = ${id}
+    `) as { id: number; postage_cents: number | null; fee_cents: number | null; note: string | null; priority: number; queued_at: unknown }[];
     if (rows.length === 0) return NextResponse.json({ error: "Order not found." }, { status: 404 });
     return NextResponse.json({ ok: true, order: rows[0] });
   } catch (err) {
