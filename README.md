@@ -36,7 +36,29 @@ playbook.
   bulk price and how many shirts a unit covers, and build product types
   (bleach shirt, tie dye shirt…) from them. It shows cost per shirt and
   profit at your sale price. Hit **Save** when you're done — it's stored in
-  the database.
+  the database, and every save also files a dated copy so old sales keep
+  their old costs (the little "what changed" box next to Save is a note on
+  that copy). The **History** button at the top of the page opens those
+  copies: *What changed* lists every save with the blank, material, and
+  shirt type prices that moved (cost increases in rust), and *One item over
+  time* charts a single blank, material, or shirt type across every version.
+  *Load this version into the editor* puts an old sheet back as unsaved
+  changes — Save to make it current again.
+- **Sales history** (`/admin/history`): every shirt sold, with the cost that
+  was true the day it was paid for — frozen on the sale, so changing prices on
+  the COGS page later never rewrites an old margin. Card orders freeze their
+  cost in the webhook (plus the exact Stripe fee); order requests freeze it
+  the moment you flip them to **Paid**. Totals by month and by design, then
+  every sale with price, cost, and margin; type a postage or card fee on a
+  row and click away to save it. **Record a sale** is for anything that
+  didn't go through the site (market table, a DM, Tap to Pay) — pick the
+  design, price, date, and where it sold. **Download CSV** gives you one row
+  per shirt for a spreadsheet or the accountant. Orders from before this
+  existed show a **Backfill** button: it builds their lines and costs them
+  with today's sheet, marked *est.* A shirt shows *not costed* when its
+  design isn't linked to a shirt type on the COGS page — fix that, then
+  **Cost the missing ones**. *recost* on a row re-freezes it with the sheet
+  from its paid date. Needs the latest `schema.sql` run in Neon.
 - **Announce a drop** (`/admin/drop`): write one email and send it to
   everyone on the drop list. Send yourself a test first — it's the exact
   email subscribers get. Everyone receives their own copy (nobody sees
@@ -84,7 +106,8 @@ Deploy. Every push/upload to GitHub redeploys automatically.
    (Re-run it any time the file changes — v3 added the product **line** column
    for the Botanical / Graphic & Stencil split, and **kind** + **artwork_url**
    on custom requests for logo uploads. Existing rows default to Botanical.)
-   That creates orders, custom requests, the drop list, the COGS table, **and
+   That creates orders, custom requests, the drop list, the COGS table, the
+   sales history tables (`order_lines`, `cogs_versions`, v4), **and
    the products table pre-loaded with the launch designs**. Safe to re-run any time —
    it never wipes data. **Run it again any time this file changes** — it
    adds new tables and columns (products, drop unsubscribes) without
