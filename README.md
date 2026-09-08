@@ -352,6 +352,19 @@ In Sales history, click any shirt's cost to type your own in (it shows
 *by hand* and recost never overwrites it) — that's how custom pieces get
 costed when the COGS sheet can't know them.
 
+**Make queue:** log in → **Make queue**. Every open order in the order to
+work it: first come first served, with **Rush** to jump the line and
+**Hold** to park one at the bottom (waiting on a blank, a customer, a
+design). **To top** / **To bottom** nudge one by hand. Tick each shirt as
+you finish it; when the last one is ticked the order drops to *Made,
+waiting* — a paid order flips itself to Made there, an unpaid one keeps
+saying Awaiting payment until you email the Stripe link and hit **Mark
+paid**. The side column is the pick list (blanks by color and size, then
+by design) and the custom requests that aren't orders yet. **Print this**
+gives a black-on-white copy for the bench. The desk shows *#N in line*
+under each order and the customer sees the same number on their account
+page. Re-run `schema.sql` in Neon once for the queue columns.
+
 **Announce a drop:** log in → **Announce a drop**. Write a subject,
 headline, and message, optionally feature one of your designs (it pulls
 in the photo, name, and price), then send yourself a test. When it looks
