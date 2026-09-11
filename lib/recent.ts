@@ -63,9 +63,9 @@ export const RECENT: RecentShot[] = [
   },
   {
     src: "/images/recent/sumac-flat.jpg",
-    alt: "A bleached shirt with a single tall staghorn sumac frond down the center",
-    title: "Sumac on black, heavy burn",
-    note: "One frond, chest to hem. Speckle from the mist.",
+    alt: "A black tee bleached with spiny bull thistle leaves, one running down the center, laid flat on a weathered deck",
+    title: "Bull thistle on black, heavy burn",
+    note: "One tall leaf, spines and all. Speckle from the mist.",
   },
   {
     src: "/images/recent/gathering-sumac.jpg",
