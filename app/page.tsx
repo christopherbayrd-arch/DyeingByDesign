@@ -153,7 +153,7 @@ export default async function HomePage() {
                 <span className="font-display text-2xl font-semibold text-goldlight">1</span>
                 <span>
                   <strong className="text-bone">Draft and gather.</strong> We pick real
-                  leaves from the Maine woods — sumac, fern, etc. — or cut a custom
+                  leaves from the Maine woods — sumac, cedar, fern, etc. — or cut a custom
                   stencil by hand from a clean vector design.
                 </span>
               </li>

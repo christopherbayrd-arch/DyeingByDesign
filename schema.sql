@@ -70,10 +70,10 @@ insert into products (slug, name, species, blurb, story, image, card, price_cent
   '/images/sumac-shirt.jpg', '/images/design-sumac.jpg', 3999, false, 'The original', 1
 ),
 (
-  'oak', 'Oak', 'Northern red oak · Quercus rubra',
-  'Broad lobes, real presence. The sturdy one.',
-  'Oak leaves hold their shape under the spray better than anything else we work with. The result is a heavy, grounded silhouette that wears in like a favorite flannel.',
-  '/images/design-oak.jpg', '/images/design-oak.jpg', 3999, true, null, 3
+  'cedar', 'Cedar', 'Northern white cedar · Thuja occidentalis',
+  'Fanned sprays that branch like frost. The North Woods one.',
+  'Northern white cedar grows thick along Maine''s lake shores and swamp edges. Its flat, fanned sprays lie tight to the cotton, so every branch and tiny scale comes through. We scatter sprigs across the front and sleeves, mist the bleach by hand, and the shirt keeps its color everywhere the cedar sat.',
+  '/images/cedar-shirt.jpg', '/images/design-cedar.jpg', 3999, false, 'New', 3
 ),
 (
   'fern', 'Fern', 'Ostrich fern · Matteuccia struthiopteris',
@@ -83,11 +83,12 @@ insert into products (slug, name, species, blurb, story, image, card, price_cent
 )
 on conflict (slug) do nothing;
 
--- Housekeeping (safe to re-run): the fern photo is a real fern shirt now, and
--- maple is retired. Hiding maple here keeps it out of the storefront even
--- before it's deleted from the admin.
+-- Housekeeping (safe to re-run): the fern photo is a real fern shirt now,
+-- maple is retired, and oak is paused (cedar took its spot, Sept 2026).
+-- Hiding them here keeps them out of the storefront even before they're
+-- deleted from the admin.
 update products set sample_photo = false where slug = 'fern';
-update products set active = false where slug = 'maple';
+update products set active = false where slug in ('maple', 'oak');
 
 -- ============ DROP ANNOUNCEMENTS ============
 -- Every subscriber gets a private unsubscribe token, and unsubscribes are

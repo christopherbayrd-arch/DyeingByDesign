@@ -69,7 +69,7 @@ export default function AboutPage() {
           Every Dyeing By Design shirt is reverse-bleach art: instead of adding ink to
           the fabric, we take color away from everything around the design. It starts
           one of two ways. For the botanical line, a walk in the Maine woods — we gather
-          real leaves, staghorn sumac, ostrich fern, whatever the season drops, and carry
+          real leaves, staghorn sumac, northern white cedar, ostrich fern, whatever the season drops, and carry
           them back while they still lie flat. For the graphic and stencil line, a clean
           vector design, cut into a stencil by hand.
         </p>
