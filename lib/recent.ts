@@ -26,22 +26,22 @@ export const RECENT: RecentShot[] = [
     wide: true,
   },
   {
+    src: "/images/recent/cedar-royal.jpg",
+    alt: "A royal blue tee with cedar sprigs bleached across it, laid on a tile floor",
+    title: "Cedar on royal blue",
+    note: "The new design. Blue burns pale; every sprig stays blue.",
+  },
+  {
+    src: "/images/recent/cedar-azalea.jpg",
+    alt: "An azalea pink tee with cedar sprigs bleached across it, laid on a tile floor",
+    title: "Cedar on azalea",
+    note: "Azalea burns nearly white, so the sprigs pop bright pink.",
+  },
+  {
     src: "/images/recent/sumac-cherry.jpg",
     alt: "An antique cherry red tee with sumac fronds bleached across the front, laid on gravel",
     title: "Sumac on antique cherry red",
     note: "Fronds fanned from the shoulders. The red burns to pink.",
-  },
-  {
-    src: "/images/recent/sumac-sky.jpg",
-    alt: "A sky blue tee with one sumac frond bleached down the center, laid on gravel",
-    title: "Sumac on sky blue",
-    note: "One frond straight down the middle, blue to bone.",
-  },
-  {
-    src: "/images/recent/sumac-daisy.jpg",
-    alt: "A daisy yellow tee with sumac fronds bleached across it, laid on gravel",
-    title: "Sumac on daisy",
-    note: "The softest burn of the nine — yellow to cream.",
   },
   {
     src: "/images/recent/sumac-forest.jpg",

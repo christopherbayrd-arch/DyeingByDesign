@@ -18,7 +18,7 @@ export const LINES: { key: ProductLine; name: string; tagline: string; short: st
     key: "botanical",
     name: "The Botanical Line",
     short: "Botanical",
-    tagline: "Real leaves laid by hand — sumac, fern, and whatever the season drops.",
+    tagline: "Real leaves laid by hand — sumac, cedar, fern, and whatever the season drops.",
   },
   {
     key: "stencil",
@@ -77,10 +77,11 @@ export const SHIPPING_CENTS = 700;
 
 export const SIZES = ["S", "M", "L", "XL", "2XL"];
 
-// Designs we no longer make. The storefront and sitemap skip these even if
-// a row for them still exists in the database, so retiring a design is a
-// code change plus (when you get to it) hiding or deleting it in /admin.
-export const RETIRED_SLUGS = ["maple"];
+// Designs we no longer make (or have paused). The storefront and sitemap skip
+// these even if a row for them still exists in the database, so retiring a
+// design is a code change plus (when you get to it) hiding or deleting it in
+// /admin. Oak is paused for now; Cedar took its spot in the lineup (Sept 2026).
+export const RETIRED_SLUGS = ["maple", "oak"];
 
 // Blank colors. Every design comes in every color. `key` is what gets
 // stored (cart, orders, stock); `name` is what people see; `hex` is the
@@ -158,15 +159,15 @@ export const DEFAULT_PRODUCTS: Product[] = [
   },
   {
     ...base,
-    slug: "oak",
-    name: "Oak",
-    species: "Northern red oak · Quercus rubra",
-    blurb: "Broad lobes, real presence. The sturdy one.",
+    slug: "cedar",
+    name: "Cedar",
+    species: "Northern white cedar · Thuja occidentalis",
+    blurb: "Fanned sprays that branch like frost. The North Woods one.",
     story:
-      "Oak leaves hold their shape under the spray better than anything else we work with. The result is a heavy, grounded silhouette that wears in like a favorite flannel.",
-    image: "/images/design-oak.jpg",
-    card: "/images/design-oak.jpg",
-    samplePhoto: true,
+      "Northern white cedar grows thick along Maine's lake shores and swamp edges. Its flat, fanned sprays lie tight to the cotton, so every branch and tiny scale comes through. We scatter sprigs across the front and sleeves, mist the bleach by hand, and the shirt keeps its color everywhere the cedar sat.",
+    image: "/images/cedar-shirt.jpg",
+    card: "/images/design-cedar.jpg",
+    badge: "New",
     sort: 3,
   },
   {

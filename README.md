@@ -291,9 +291,10 @@ Ordering never requires it.
 
 **Add or change a product:** log in → Products & stock. Photos: use a
 square-ish photo for the grid, any tall/portrait photo for the design page.
-The oak design is still seeded with a crop of the sumac shirt as a
-technique sample — replace it with a real photo from the admin when you've
-made that shirt, and untick "technique sample." (Fern has a real photo now;
+Oak is paused (it's in `RETIRED_SLUGS`) and Cedar took its spot in
+September 2026. Re-run `schema.sql` in Neon once to add Cedar to the
+database and hide Oak, or add Cedar by hand in the admin with the photos
+`/images/cedar-shirt.jpg` (design page) and `/images/design-cedar.jpg` (grid). (Fern has a real photo now;
 if the fern page still shows the "Photo shows the technique" badge, untick
 "technique sample" on Fern in the admin, or re-run `schema.sql` in Neon, which
 clears it.) Retired designs are listed in `RETIRED_SLUGS` in
