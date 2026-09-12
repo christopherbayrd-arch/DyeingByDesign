@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { colorName } from "@/lib/products";
 import { kindLabel } from "@/lib/requests";
+import { blankKey, shirtKey } from "@/lib/inventoryShared";
 import type { QueueData, QueueOrder } from "@/lib/queue";
 
 // ============================================================
@@ -52,7 +53,9 @@ function lineText(l: QueueOrder["lines"][number]) {
   return `${l.qty} × ${l.name}${l.color ? ` · ${colorName(l.color)}` : ""}${l.size ? ` · ${l.size}` : ""}`;
 }
 
-function OrderCard({ o, waiting }: { o: QueueOrder; waiting?: boolean }) {
+type Shelf = QueueData["shelf"];
+
+function OrderCard({ o, waiting, shelf }: { o: QueueOrder; waiting?: boolean; shelf: Shelf }) {
   const router = useRouter();
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
@@ -80,9 +83,9 @@ function OrderCard({ o, waiting }: { o: QueueOrder; waiting?: boolean }) {
 
   const patch = (label: string, body: Record<string, unknown>) => run(label, () => call("/api/admin/orders", "PATCH", { id: o.id, ...body }));
 
-  async function tick(lineId: number, made: boolean) {
+  async function tick(lineId: number, made: boolean, fromStock = false) {
     setTicks((t) => ({ ...t, [lineId]: made }));
-    const ok = await run(`line-${lineId}`, () => call("/api/admin/queue/line", "POST", { lineId, made }));
+    const ok = await run(`line-${lineId}`, () => call("/api/admin/queue/line", "POST", { lineId, made, fromStock }));
     if (!ok) setTicks((t) => ({ ...t, [lineId]: !made }));   // put the box back
   }
 
@@ -117,8 +120,13 @@ function OrderCard({ o, waiting }: { o: QueueOrder; waiting?: boolean }) {
           <ul className="mt-2 space-y-1">
             {o.lines.map((l, i) => {
               const done = l.id !== null ? Boolean(ticks[l.id]) : false;
+              // a finished shirt already on the shelf can fill this line instead of making one
+              const onShelf =
+                l.color && l.size && l.slug !== "custom" && l.slug !== "other"
+                  ? shelf.shirts[shirtKey(l.slug, l.color, l.size)] ?? 0
+                  : 0;
               return (
-                <li key={l.id ?? `m${i}`}>
+                <li key={l.id ?? `m${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <label className="flex cursor-pointer items-center gap-2">
                     {l.id !== null ? (
                       <input type="checkbox" checked={done} disabled={busy !== ""} onChange={(e) => tick(l.id as number, e.target.checked)} className="h-4 w-4 accent-[#cf9440]" />
@@ -127,6 +135,16 @@ function OrderCard({ o, waiting }: { o: QueueOrder; waiting?: boolean }) {
                     )}
                     <span className={done ? "text-faded line-through" : "text-bone"}>{lineText(l)}</span>
                   </label>
+                  {done && l.fromStock > 0 && (
+                    <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-goldlight">from stock</span>
+                  )}
+                  {!done && l.id !== null && onShelf > 0 && (
+                    <span className="no-print">
+                      <Tiny tone="gold" busy={busy !== ""} onClick={() => tick(l.id as number, true, true)} title="Ship one you already made — it comes off the Inventory count">
+                        {busy === `line-${l.id}` ? "…" : `Use one on hand (${onShelf})`}
+                      </Tiny>
+                    </span>
+                  )}
                 </li>
               );
             })}
@@ -195,7 +213,7 @@ function Tile({ label, value, sub }: { label: string; value: number | string; su
 }
 
 export default function QueueBoard({ data }: { data: QueueData }) {
-  const { toMake, made, waitingQuote, totals, byDesign, byBlank } = data;
+  const { toMake, made, waitingQuote, totals, byDesign, byBlank, shelf } = data;
   const inLine = toMake.filter((o) => o.priority >= 0);
   const onHold = toMake.filter((o) => o.priority < 0);
   const cardKey = (o: QueueOrder) => `${o.id}-${o.status}-${o.priority}-${o.made}-${o.queuedAt}`;
@@ -206,6 +224,11 @@ export default function QueueBoard({ data }: { data: QueueData }) {
         <p className="max-w-2xl text-sm leading-relaxed text-faded">
           Work from the top. Rush orders go first, then whoever ordered first, and anything on hold sits at the bottom.
           Tick each shirt as you finish it — when the last one&apos;s ticked the order moves down to <em>made, waiting</em>.
+          {shelf.ready && (
+            <>
+              {" "}Ticking one takes a blank off Inventory; <em>Use one on hand</em> ships a shirt you already made instead.
+            </>
+          )}
         </p>
         <button type="button" onClick={() => window.print()} className="btn btn-ghost no-print min-h-0 px-4 py-2 text-sm">
           Print this
@@ -225,7 +248,7 @@ export default function QueueBoard({ data }: { data: QueueData }) {
           <h2 className="font-display text-2xl font-semibold">The line</h2>
           <div className="mt-4 space-y-3">
             {inLine.length === 0 && <p className="card p-5 text-sm text-faded">Nothing to make. {made.length > 0 ? "Everything's made — check the waiting list below." : "Enjoy it."}</p>}
-            {inLine.map((o) => <OrderCard key={cardKey(o)} o={o} />)}
+            {inLine.map((o) => <OrderCard key={cardKey(o)} o={o} shelf={shelf} />)}
           </div>
 
           {onHold.length > 0 && (
@@ -233,7 +256,7 @@ export default function QueueBoard({ data }: { data: QueueData }) {
               <h2 className="mt-10 font-display text-2xl font-semibold">On hold <span className="text-base text-faded">({onHold.length})</span></h2>
               <p className="mt-1 text-sm text-faded">Parked — waiting on the customer, a blank, a design. Release puts them back in line where their order date falls.</p>
               <div className="mt-4 space-y-3">
-                {onHold.map((o) => <OrderCard key={cardKey(o)} o={o} />)}
+                {onHold.map((o) => <OrderCard key={cardKey(o)} o={o} shelf={shelf} />)}
               </div>
             </>
           )}
@@ -242,26 +265,47 @@ export default function QueueBoard({ data }: { data: QueueData }) {
           <p className="mt-1 text-sm text-faded">Every shirt made. Waiting on the customer to pay, or on you to buy the label.</p>
           <div className="mt-4 space-y-3">
             {made.length === 0 && <p className="card p-5 text-sm text-faded">Nothing here.</p>}
-            {made.map((o) => <OrderCard key={cardKey(o)} o={o} waiting />)}
+            {made.map((o) => <OrderCard key={cardKey(o)} o={o} waiting shelf={shelf} />)}
           </div>
         </div>
 
         <aside className="space-y-8">
           <div>
             <h3 className="font-display text-xl font-semibold">Blanks to pull</h3>
-            <p className="mt-1 text-xs text-faded">Every shirt still to make, by blank. Holds aren&apos;t counted.</p>
+            <p className="mt-1 text-xs text-faded">
+              Every shirt still to make, by blank. Holds aren&apos;t counted.
+              {shelf.ready && " Have = blanks on the Inventory shelf."}
+            </p>
             {byBlank.length === 0 ? (
               <p className="mt-3 text-sm text-faded">—</p>
             ) : (
               <table className="mt-3 w-full text-sm">
-                <tbody>
-                  {byBlank.map((b) => (
-                    <tr key={`${b.color}|${b.size}`} className="border-b border-bone/5">
-                      <td className="py-1.5 pr-2 text-bone">{b.color ? colorName(b.color) : "any color"}</td>
-                      <td className="py-1.5 pr-2 text-faded">{b.size || "?"}</td>
-                      <td className="py-1.5 text-right font-semibold text-goldlight tabular-nums">{b.qty}</td>
+                {shelf.ready && (
+                  <thead>
+                    <tr className="text-[0.65rem] uppercase tracking-wider text-faded">
+                      <th className="pb-1 text-left font-semibold" colSpan={2}>Blank</th>
+                      <th className="pb-1 text-right font-semibold">Need</th>
+                      <th className="pb-1 pl-2 text-right font-semibold">Have</th>
                     </tr>
-                  ))}
+                  </thead>
+                )}
+                <tbody>
+                  {byBlank.map((b) => {
+                    const have = shelf.blanks[blankKey(b.color, b.size)] ?? 0;
+                    const short = shelf.ready && b.color && b.size && have < b.qty;
+                    return (
+                      <tr key={`${b.color}|${b.size}`} className="border-b border-bone/5">
+                        <td className="py-1.5 pr-2 text-bone">{b.color ? colorName(b.color) : "any color"}</td>
+                        <td className="py-1.5 pr-2 text-faded">{b.size || "?"}</td>
+                        <td className="py-1.5 text-right font-semibold text-goldlight tabular-nums">{b.qty}</td>
+                        {shelf.ready && (
+                          <td className={"py-1.5 pl-2 text-right tabular-nums " + (short ? "font-semibold text-rust" : "text-faded")}>
+                            {b.color && b.size ? have : "—"}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}

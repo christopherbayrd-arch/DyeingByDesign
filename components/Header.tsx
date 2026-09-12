@@ -14,6 +14,7 @@ const NAV = [
   { href: "/custom", label: "Custom" },
   { href: "/about", label: "Process" },
   { href: "/artist", label: "Artist" },
+  { href: "/news", label: "News" },
 ];
 
 export default function Header() {
@@ -57,8 +58,8 @@ export default function Header() {
           </span>
         </Link>
 
-        {/* iPad + desktop: everything inline */}
-        <nav className="ml-auto hidden items-center gap-5 text-sm font-medium text-faded md:flex">
+        {/* iPad landscape + desktop: everything inline (iPad upright uses the menu, it doesn't all fit) */}
+        <nav className="ml-auto hidden items-center gap-5 whitespace-nowrap text-sm font-medium text-faded lg:flex">
           {NAV.map((n) => (
             <Link key={n.href} href={n.href} className="transition hover:text-goldlight">
               {n.label}
@@ -69,8 +70,8 @@ export default function Header() {
           {cart}
         </nav>
 
-        {/* phone: cart stays visible, the rest folds into a menu */}
-        <div className="ml-auto flex items-center gap-1.5 md:hidden">
+        {/* phone + iPad upright: cart stays visible, the rest folds into a menu */}
+        <div className="ml-auto flex items-center gap-1.5 lg:hidden">
           {cart}
           <button
             type="button"
@@ -98,7 +99,7 @@ export default function Header() {
         </div>
       </div>
 
-      <div id="mobile-nav" hidden={!open} className="border-t border-bone/10 bg-ink/95 md:hidden">
+      <div id="mobile-nav" hidden={!open} className="border-t border-bone/10 bg-ink/95 lg:hidden">
         <nav className="mx-auto flex max-w-6xl flex-col px-5 py-1">
           {NAV.map((n) => (
             <Link

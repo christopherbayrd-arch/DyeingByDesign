@@ -18,7 +18,7 @@ export default function Footer() {
             className="rounded-full"
           />
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-faded">
-            Real botanicals, hand-cut stencils, and a careful pass of bleach. Hand made in
+            Real botanicals, hand-cut stencils, and a careful pass of bleach. Hand made in{" "}
             {TOWN}, {STATE_NAME}, one shirt at a time.
           </p>
           <InstagramLink className="mt-4 inline-flex items-baseline gap-2 text-sm font-medium text-bone transition hover:text-goldlight">
@@ -37,6 +37,7 @@ export default function Footer() {
             <li><Link className="transition hover:text-goldlight" href="/custom">Custom designs</Link></li>
             <li><Link className="transition hover:text-goldlight" href="/about">How it&apos;s made + care</Link></li>
             <li><Link className="transition hover:text-goldlight" href="/artist">Meet the artist</Link></li>
+            <li><Link className="transition hover:text-goldlight" href="/news">News &amp; events</Link></li>
             <li><InstagramLink className="transition hover:text-goldlight" /></li>
             <li><Link className="transition hover:text-goldlight" href="/cart">Your cart</Link></li>
           </ul>

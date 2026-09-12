@@ -5,6 +5,7 @@
 // ============================================================
 import { getDb } from "@/lib/db";
 import { orderNote, parseItemsMeta } from "@/lib/orderFormat";
+import { stockMapsSafe } from "@/lib/inventory";
 
 type Sql = NonNullable<ReturnType<typeof getDb>>;
 type Row = Record<string, unknown>;
@@ -17,6 +18,7 @@ export type QueueLine = {
   color: string;
   qty: number;
   madeAt: string | null;
+  fromStock: number;      // how many were filled with a shirt already on the shelf
 };
 
 export type QueueOrder = {
@@ -50,6 +52,8 @@ export type QueueData = {
   totals: { orders: number; shirts: number; shirtsLeft: number; rush: number; hold: number };
   byDesign: { name: string; qty: number }[];
   byBlank: { color: string; size: string; qty: number }[];
+  // what's on the Inventory shelf: finished shirts ("slug|color|size") and blanks ("color|size")
+  shelf: { shirts: Record<string, number>; blanks: Record<string, number>; ready: boolean };
   error: string;
 };
 
@@ -79,6 +83,7 @@ const EMPTY: QueueData = {
   totals: { orders: 0, shirts: 0, shirtsLeft: 0, rush: 0, hold: 0 },
   byDesign: [],
   byBlank: [],
+  shelf: { shirts: {}, blanks: {}, ready: false },
   error: "",
 };
 
@@ -96,6 +101,22 @@ export async function loadQueue(sql: Sql): Promise<QueueData> {
       where o.archived_at is null and o.status in ('requested', 'paid', 'made')
       order by l.id
     `) as Row[];
+    // lines filled from the shelf (Inventory), so the queue can say "from stock"
+    const pulled = new Map<number, number>();
+    try {
+      const moves = (await sql`
+        select m.line_id, coalesce(sum(-m.delta), 0)::int as n
+        from inventory_moves m
+        join order_lines l on l.id = m.line_id
+        join orders o on o.id = l.order_id
+        where o.archived_at is null and o.status in ('requested', 'paid', 'made')
+          and m.reason = 'pulled' and m.reversed_at is null
+        group by m.line_id
+      `) as Row[];
+      for (const m of moves) pulled.set(Number(m.line_id), Number(m.n) || 0);
+    } catch {
+      // no inventory tables yet
+    }
     const linesByOrder = new Map<number, QueueLine[]>();
     for (const r of lineRows) {
       const oid = Number(r.order_id);
@@ -107,6 +128,7 @@ export async function loadQueue(sql: Sql): Promise<QueueData> {
         color: str(r.color),
         qty: Number(r.qty) || 1,
         madeAt: r.made_at ? iso(r.made_at) : null,
+        fromStock: pulled.get(Number(r.id)) ?? 0,
       };
       linesByOrder.set(oid, [...(linesByOrder.get(oid) ?? []), l]);
     }
@@ -125,6 +147,7 @@ export async function loadQueue(sql: Sql): Promise<QueueData> {
           color: l.color,
           qty: l.qty,
           madeAt: null,
+          fromStock: 0,
         }));
       }
       const shirts = lines.reduce((n, l) => n + l.qty, 0);
@@ -189,10 +212,12 @@ export async function loadQueue(sql: Sql): Promise<QueueData> {
       // older schema — fine
     }
 
+    const shelf = await stockMapsSafe(sql);
     return {
       toMake,
       made: madeList,
       waitingQuote,
+      shelf: { shirts: shelf.shirts, blanks: shelf.blanks, ready: shelf.ready },
       totals: {
         orders: toMake.length,
         shirts: toMake.filter((o) => o.priority >= 0).reduce((n, o) => n + o.shirts, 0),

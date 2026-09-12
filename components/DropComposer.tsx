@@ -10,13 +10,21 @@ type Info = {
   reason: string;
 };
 
-export default function DropComposer({ designs }: { designs: { slug: string; name: string }[] }) {
+type Initial = { subject?: string; headline?: string; message?: string; ctaLabel?: string; ctaUrl?: string };
+
+export default function DropComposer({
+  designs,
+  initial = {},
+}: {
+  designs: { slug: string; name: string }[];
+  initial?: Initial;
+}) {
   const [info, setInfo] = useState<Info | null>(null);
-  const [subject, setSubject] = useState("");
-  const [headline, setHeadline] = useState("");
-  const [message, setMessage] = useState("");
-  const [ctaLabel, setCtaLabel] = useState("Shop the drop");
-  const [ctaUrl, setCtaUrl] = useState("/shop");
+  const [subject, setSubject] = useState(initial.subject ?? "");
+  const [headline, setHeadline] = useState(initial.headline ?? "");
+  const [message, setMessage] = useState(initial.message ?? "");
+  const [ctaLabel, setCtaLabel] = useState(initial.ctaLabel || "Shop the drop");
+  const [ctaUrl, setCtaUrl] = useState(initial.ctaUrl || "/shop");
   const [featureSlug, setFeatureSlug] = useState("");
   const [busy, setBusy] = useState<"" | "test" | "send">("");
   const [confirming, setConfirming] = useState(false);

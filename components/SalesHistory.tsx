@@ -208,6 +208,7 @@ export default function SalesHistory({ orders, withoutLines, hasSheet, products 
     note: "",
   });
   const [saleMsg, setSaleMsg] = useState("");
+  const [saleFromStock, setSaleFromStock] = useState(true);
 
   function setSaleField(k: keyof typeof sale, v: string) {
     setSale((s) => {
@@ -226,11 +227,12 @@ export default function SalesHistory({ orders, withoutLines, hasSheet, products 
     setBusy("sale");
     setSaleMsg("");
     try {
-      const d = await post("/api/admin/sales", sale);
+      const d = await post("/api/admin/sales", { ...sale, fromStock: saleFromStock });
+      const shelf = d.fromShelf > 0 ? ` ${d.fromShelf} came off the Inventory count.` : "";
       setSaleMsg(
-        d.costed > 0
+        (d.costed > 0
           ? "Recorded, with today's cost frozen on it."
-          : "Recorded. No cost yet — link the design to a shirt type on the COGS page, then cost it from the table."
+          : "Recorded. No cost yet — link the design to a shirt type on the COGS page, then cost it from the table.") + shelf
       );
       setSale((s) => ({ ...s, qty: "1", buyer: "", note: "" }));
       router.refresh();
@@ -411,6 +413,18 @@ export default function SalesHistory({ orders, withoutLines, hasSheet, products 
               <input value={sale.note} onChange={(e) => setSaleField("note", e.target.value)} placeholder="Brunswick farmers market" className="input mt-1 block w-full py-1.5 text-sm" />
             </label>
           </div>
+          <label className="mt-4 flex items-start gap-2 text-sm text-faded">
+            <input
+              type="checkbox"
+              checked={saleFromStock}
+              onChange={(e) => setSaleFromStock(e.target.checked)}
+              className="mt-1 h-4 w-4 accent-[#cf9440]"
+            />
+            <span>
+              It came off the shelf — take it out of Inventory
+              <span className="block text-xs">Leave this on for a shirt you already had made. Turn it off for one you made just for this sale.</span>
+            </span>
+          </label>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button type="submit" disabled={busy !== ""} className="btn btn-gold">
               {busy === "sale" ? "Saving…" : "Save this sale"}

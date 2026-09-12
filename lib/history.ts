@@ -78,11 +78,13 @@ export async function loadHistory(sql: Sql): Promise<HistoryData> {
       const sid = str(r.stripe_session_id);
       const ref = sid.startsWith("email_")
         ? sid.replace("email_", "")
-        : sid.startsWith("manual_")
-          ? "hand entered"
-          : sid.startsWith("custom_")
-            ? "custom piece"
-            : "card";
+        : sid.startsWith("manual_booth_")
+          ? "quick sale"
+          : sid.startsWith("manual_")
+            ? "hand entered"
+            : sid.startsWith("custom_")
+              ? "custom piece"
+              : "card";
       return {
         id,
         at: iso(r.sold_at || r.paid_at || r.created_at),

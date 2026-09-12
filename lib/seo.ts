@@ -4,6 +4,7 @@
 // based, and what each shirt costs.
 import { asset } from "@/lib/assets";
 import { isSoldOut, SHIPPING_CENTS, type Product } from "@/lib/products";
+import { isoWithOffset, lastDay, summaryOf, type NewsPost } from "@/lib/newsFormat";
 import {
   FOUNDED,
   INSTAGRAM_PROFILE,
@@ -138,5 +139,63 @@ export function faqJsonLd(items: { q: string; a: string }[]): Record<string, unk
       name: item.q,
       acceptedAnswer: { "@type": "Answer", text: item.a },
     })),
+  };
+}
+
+// A craft fair or market we'll be at. Lets Google list it in event
+// searches ("craft fairs near Brunswick this weekend") with the date and place.
+export function eventJsonLd(post: NewsPost): Record<string, unknown> {
+  const url = `${SITE_URL}/news/${post.slug}`;
+  const end = lastDay(post);
+  const endDate = post.endTime
+    ? isoWithOffset(end, post.endTime)
+    : end !== post.startsOn
+      ? end
+      : "";
+  return {
+    "@context": "https://schema.org",
+    "@type": "Event",
+    "@id": `${url}#event`,
+    name: post.title,
+    description: summaryOf(post),
+    url,
+    startDate: isoWithOffset(post.startsOn, post.startTime),
+    ...(endDate ? { endDate } : {}),
+    eventStatus: "https://schema.org/EventScheduled",
+    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+    location: {
+      "@type": "Place",
+      name: post.venue || post.town || TOWN,
+      address: {
+        "@type": "PostalAddress",
+        ...(post.street ? { streetAddress: post.street } : {}),
+        addressLocality: post.town || TOWN,
+        addressRegion: post.state || STATE,
+        addressCountry: "US",
+      },
+    },
+    image: [absoluteImage(post.imageUrl || "/images/design-sumac.jpg")],
+    ...(post.eventUrl ? { organizer: { "@type": "Organization", name: post.title, url: post.eventUrl } } : {}),
+    // who'll be there selling
+    attendee: { "@id": BUSINESS_ID },
+  };
+}
+
+// An ordinary news post
+export function articleJsonLd(post: NewsPost): Record<string, unknown> {
+  const url = `${SITE_URL}/news/${post.slug}`;
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "@id": `${url}#post`,
+    headline: post.title,
+    description: summaryOf(post),
+    url,
+    mainEntityOfPage: url,
+    ...(post.publishedAt ? { datePublished: post.publishedAt } : {}),
+    ...(post.updatedAt ? { dateModified: post.updatedAt } : {}),
+    image: [absoluteImage(post.imageUrl || "/images/design-sumac.jpg")],
+    author: { "@id": BUSINESS_ID },
+    publisher: { "@id": BUSINESS_ID },
   };
 }

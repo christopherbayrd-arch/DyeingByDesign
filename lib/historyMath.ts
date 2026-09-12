@@ -41,7 +41,7 @@ export const CHANNEL_LABELS: Record<string, string> = {
   site: "Site · card",
   request: "Site · request",
   custom: "Custom piece",
-  market: "Market",
+  market: "Market / in person",
   instagram: "Instagram / DM",
   other: "Other",
 };
