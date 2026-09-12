@@ -5,6 +5,9 @@ import { sendPush } from "@/lib/notify";
 import { SHIPPING_CENTS, stockKey } from "@/lib/products";
 import { itemLinesFromMeta, parseItemsMeta, shipToLine, money, siteUrl } from "@/lib/orderFormat";
 import { costOrder, insertOrderLines, linesFromMeta } from "@/lib/costing";
+import { takeStock } from "@/lib/inventory";
+
+type Row = Record<string, unknown>;
 
 // Stripe calls this after a successful checkout. We save the order into Neon,
 // subtract sold stock, and send notification emails.
@@ -93,19 +96,30 @@ export async function POST(req: Request) {
 
         // Subtract stock only when this order was newly recorded
         // (Stripe retries webhooks — this stops double-subtracting).
+        // Designs sold from what's on hand come off the Inventory shelf.
         if (isNew && itemsMeta) {
           for (const l of parseItemsMeta(itemsMeta)) {
             const { slug, size, color, qty } = l;
             if (!slug || !size || !color || !(qty >= 1)) continue;
-            const key = stockKey(color, size);
-            await sql`
-              update products set stock = jsonb_set(
-                coalesce(stock, '{}'::jsonb),
-                array[${key}],
-                to_jsonb(greatest(coalesce((stock->>${key})::int, 0) - ${qty}, 0))
-              )
-              where slug = ${slug} and track_stock = true
-            `;
+            const tracked = (await sql`select 1 from products where slug = ${slug} and track_stock = true`) as Row[];
+            if (tracked.length === 0) continue;
+            try {
+              await takeStock(sql, { kind: "shirt", slug, color, size }, qty, "sold", {
+                orderId: inserted[0].id,
+                note: "Card order",
+              });
+            } catch {
+              // database without the inventory table yet: the old per product counts
+              const key = stockKey(color, size);
+              await sql`
+                update products set stock = jsonb_set(
+                  coalesce(stock, '{}'::jsonb),
+                  array[${key}],
+                  to_jsonb(greatest(coalesce((stock->>${key})::int, 0) - ${qty}, 0))
+                )
+                where slug = ${slug} and track_stock = true
+              `;
+            }
           }
         }
       } catch (err) {

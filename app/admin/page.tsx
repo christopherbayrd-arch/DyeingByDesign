@@ -200,7 +200,9 @@ export default async function AdminPage({
                       <div className="mt-1 text-[0.65rem] font-bold uppercase tracking-wider text-goldlight">custom piece</div>
                     )}
                     {String(o.stripe_session_id ?? "").startsWith("manual_") && (
-                      <div className="mt-1 text-[0.65rem] text-faded">hand entered</div>
+                      <div className="mt-1 text-[0.65rem] text-faded">
+                        {String(o.stripe_session_id).startsWith("manual_booth_") ? "quick sale" : "hand entered"}
+                      </div>
                     )}
                     {Number(o.priority) > 0 && (
                       <div className="mt-1 inline-block rounded-full bg-gold px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-inkdeep">rush</div>

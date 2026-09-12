@@ -254,3 +254,89 @@ update orders set queued_at = coalesce(queued_at, created_at);
 alter table orders alter column queued_at set default now();
 alter table order_lines add column if not exists made_at timestamptz;              -- ticked off in the queue
 create index if not exists orders_queue_idx on orders(priority desc, queued_at asc);
+
+-- ============================================================
+--  News & events (v8). Posts written from /admin/news. An "event" post
+--  (a craft fair, a market) carries a date, a place, and a booth number;
+--  it gets a countdown card on the home page until it's over and tells
+--  Google about itself so it can show up in event searches.
+-- ============================================================
+create table if not exists news_posts (
+  id            serial primary key,
+  slug          text unique not null,
+  kind          text not null default 'news',   -- news | event
+  title         text not null,
+  summary       text not null default '',       -- a line or two for cards, the home page, and search results
+  body          text not null default '',       -- blank line = new paragraph, "- " starts a bullet
+  image_url     text,                           -- a photo (uploaded, or one already on the site)
+  published     boolean not null default false,
+  published_at  timestamptz,                    -- first time it went live
+  starts_on     date,                           -- event: first day
+  ends_on       date,                           -- event: last day (empty = one day)
+  start_time    text,                           -- event: "09:00", Maine time
+  end_time      text,                           -- event: "15:00"
+  venue         text,                           -- event: "Brunswick Rec Center"
+  street        text,                           -- event: street address, for directions
+  town          text,                           -- event: "Brunswick"
+  state         text not null default 'ME',
+  booth         text,                           -- event: "Booth 14"
+  event_url     text,                           -- event: the fair's own page
+  show_on_home  boolean not null default true,  -- event: countdown card on the home page
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+create index if not exists news_posts_live_idx on news_posts(published, starts_on);
+
+-- Quick sale (v8): booth and cash sales record how they were paid and
+-- which event (craft fair, market) they happened at.
+alter table orders add column if not exists pay_method text;   -- cash | card | venmo | other
+alter table orders add column if not exists event_id   integer references news_posts(id) on delete set null;
+create index if not exists orders_event_idx on orders(event_id);
+
+-- ============================================================
+--  Inventory (v9). What's physically on the shelf: finished shirts
+--  ready to sell, plain blanks, and other items (tie dye, hoodies,
+--  one offs). Every change is written to inventory_moves, so a count
+--  can always be explained: made 5, sold at the fair, counted, used.
+-- ============================================================
+create table if not exists inventory (
+  id           serial primary key,
+  kind         text not null,                -- shirt | blank | other
+  slug         text not null default '',     -- shirt: the design (products.slug)
+  name         text not null default '',     -- other: what it is ("Tie dye hoodie")
+  color        text not null default '',     -- shirt + blank: color key from lib/products.ts; other: any text
+  size         text not null default '',
+  qty          integer not null default 0,
+  price_cents  integer,                      -- other: what you sell it for (optional)
+  updated_at   timestamptz not null default now(),
+  unique (kind, slug, name, color, size)
+);
+create table if not exists inventory_moves (
+  id           serial primary key,
+  item_id      integer references inventory(id) on delete set null,
+  kind         text not null,
+  label        text not null default '',     -- "Sumac · Royal blue · L", kept even if the item is deleted
+  delta        integer not null,             -- +5 made, -1 sold …
+  qty_after    integer,
+  reason       text not null,                -- made | bought | sold | pulled | used | counted | adjusted | returned
+  order_id     integer,                      -- the sale or order it came from
+  line_id      integer,                      -- the order line (make queue)
+  note         text,
+  reversed_at  timestamptz,                  -- set when an undo put it back
+  created_at   timestamptz not null default now()
+);
+create index if not exists inventory_moves_item_idx  on inventory_moves(item_id, created_at desc);
+create index if not exists inventory_moves_order_idx on inventory_moves(order_id);
+create index if not exists inventory_moves_line_idx  on inventory_moves(line_id);
+
+-- Carry over any counts typed into the old "Track stock by size" grid on
+-- Products & stock (one time — re-running this never changes a count).
+insert into inventory (kind, slug, color, size, qty)
+select 'shirt', c.slug, split_part(c.key, ':', 1), split_part(c.key, ':', 2), c.n
+from (
+  select p.slug, s.key,
+         case when s.value ~ '^[0-9]{1,6}$' then s.value::int else 0 end as n
+  from products p, jsonb_each_text(coalesce(p.stock, '{}'::jsonb)) s
+) c
+where c.n > 0 and position(':' in c.key) > 0
+on conflict (kind, slug, name, color, size) do nothing;

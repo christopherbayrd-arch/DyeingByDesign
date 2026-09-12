@@ -1,17 +1,57 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { insertOrderLines, linesFromMeta } from "@/lib/costing";
+import { reverseMoves, takeStock } from "@/lib/inventory";
+import { colorName } from "@/lib/products";
 
 // Ticking shirts off in the make queue. Owner only — middleware guards /api/admin.
-//   POST { lineId, made }     one line of an order is made (or un-made)
-//   POST { orderId, made }    every shirt in the order at once
+//   POST { lineId, made }              one line of an order is made (or un-made)
+//   POST { lineId, made, fromStock }   filled with a shirt already on the shelf
+//   POST { orderId, made }             every shirt in the order at once
 //
 // When every shirt in a Paid order is made, the order flips to Made on its
 // own; unticking one on a Made order puts it back to Paid. An order that's
 // still awaiting payment keeps that status — the queue shows it under
 // "made, waiting on the customer" so you know to send the payment link.
+//
+// Inventory: making a shirt uses a blank of its color and size; filling it
+// from stock takes the finished shirt instead. Unticking puts it all back.
 
+type Sql = NonNullable<ReturnType<typeof getDb>>;
 type Row = Record<string, unknown>;
+
+const NOT_A_SHIRT = new Set(["other"]);
+
+// A line just got made: take the finished shirt (fromStock) and/or blanks off the shelf
+async function useShelf(sql: Sql, orderId: number, l: Row, fromStock: boolean) {
+  try {
+    const lineId = Number(l.id);
+    const slug = String(l.slug ?? "");
+    const color = String(l.color ?? "");
+    const size = String(l.size ?? "");
+    const qty = Number(l.qty) || 1;
+    if (!color || !size || NOT_A_SHIRT.has(slug)) return;
+    const label = `${String(l.name || slug)} · ${colorName(color)} · ${size}`;
+    let pulled = 0;
+    if (fromStock && slug !== "custom") {
+      const r = await takeStock(sql, { kind: "shirt", slug, color, size }, qty, "pulled", { orderId, lineId, label });
+      pulled = r.moved;
+    }
+    if (qty - pulled > 0) {
+      await takeStock(sql, { kind: "blank", color, size }, qty - pulled, "used", { orderId, lineId, note: `made ${label}` });
+    }
+  } catch (err) {
+    console.error("queue inventory:", err); // never blocks the tick
+  }
+}
+
+async function putBack(sql: Sql, lineId: number) {
+  try {
+    await reverseMoves(sql, { lineId }, "back in line");
+  } catch (err) {
+    console.error("queue inventory undo:", err);
+  }
+}
 
 export async function POST(req: Request) {
   const sql = getDb();
@@ -19,15 +59,27 @@ export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
     const made = Boolean(body?.made);
+    const fromStock = Boolean(body?.fromStock);
     const lineId = Number(body?.lineId);
     let orderId = Number(body?.orderId);
 
     if (Number.isInteger(lineId) && lineId > 0) {
-      const rows = (made
-        ? await sql`update order_lines set made_at = coalesce(made_at, now()) where id = ${lineId} returning order_id`
-        : await sql`update order_lines set made_at = null where id = ${lineId} returning order_id`) as Row[];
-      if (rows.length === 0) return NextResponse.json({ error: "That shirt isn't on an order any more." }, { status: 404 });
-      orderId = Number(rows[0].order_id);
+      const line = (await sql`select id, order_id from order_lines where id = ${lineId}`) as Row[];
+      if (line.length === 0) return NextResponse.json({ error: "That shirt isn't on an order any more." }, { status: 404 });
+      orderId = Number(line[0].order_id);
+      if (made) {
+        // only a line that wasn't made yet touches the shelf (a double tap does nothing)
+        const changed = (await sql`
+          update order_lines set made_at = now() where id = ${lineId} and made_at is null
+          returning id, slug, name, color, size, qty
+        `) as Row[];
+        if (changed.length) await useShelf(sql, orderId, changed[0], fromStock);
+      } else {
+        const changed = (await sql`
+          update order_lines set made_at = null where id = ${lineId} and made_at is not null returning id
+        `) as Row[];
+        if (changed.length) await putBack(sql, lineId);
+      }
     } else if (Number.isInteger(orderId) && orderId > 0) {
       const order = (await sql`select id, items from orders where id = ${orderId}`) as Row[];
       if (order.length === 0) return NextResponse.json({ error: "Order not found." }, { status: 404 });
@@ -36,8 +88,18 @@ export async function POST(req: Request) {
       if (Number(have[0]?.n ?? 0) === 0) {
         await insertOrderLines(sql, orderId, await linesFromMeta(String(order[0].items ?? "")));
       }
-      if (made) await sql`update order_lines set made_at = coalesce(made_at, now()) where order_id = ${orderId}`;
-      else await sql`update order_lines set made_at = null where order_id = ${orderId}`;
+      if (made) {
+        const changed = (await sql`
+          update order_lines set made_at = now() where order_id = ${orderId} and made_at is null
+          returning id, slug, name, color, size, qty
+        `) as Row[];
+        for (const l of changed) await useShelf(sql, orderId, l, false);
+      } else {
+        const changed = (await sql`
+          update order_lines set made_at = null where order_id = ${orderId} and made_at is not null returning id
+        `) as Row[];
+        for (const l of changed) await putBack(sql, Number(l.id));
+      }
     } else {
       return NextResponse.json({ error: "Which shirt?" }, { status: 400 });
     }

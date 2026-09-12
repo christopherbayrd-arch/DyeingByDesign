@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getProducts } from "@/lib/catalog";
+import { getPublishedPosts } from "@/lib/news";
 import { SITE_URL } from "@/lib/site";
 
 // Served at /sitemap.xml. Lists every public page plus every shown design,
@@ -15,6 +16,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/custom`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE_URL}/about`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${SITE_URL}/artist`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${SITE_URL}/news`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
   ];
 
   const products = await getProducts();
@@ -25,5 +27,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  return [...pages, ...designs];
+  // every live news post and event (written in /admin/news)
+  const posts = await getPublishedPosts();
+  const news: MetadataRoute.Sitemap = posts.map((p) => ({
+    url: `${SITE_URL}/news/${p.slug}`,
+    lastModified: p.updatedAt ? new Date(p.updatedAt) : now,
+    changeFrequency: "weekly",
+    priority: 0.6,
+  }));
+
+  return [...pages, ...designs, ...news];
 }

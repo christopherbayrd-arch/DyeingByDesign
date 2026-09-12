@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 
 // Owner photo uploads (guarded by middleware). Files land in Vercel Blob
-// storage and we hand back the public URL to store on the product.
+// storage and we hand back the public URL to store on the product (or on
+// a news post, when the form sends folder=news).
 export async function POST(req: Request) {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return NextResponse.json(
@@ -31,7 +32,8 @@ export async function POST(req: Request) {
     }
 
     const safeName = (file.name || "photo.jpg").replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-80);
-    const blob = await put(`products/${safeName}`, file, {
+    const folder = form.get("folder") === "news" ? "news" : "products";
+    const blob = await put(`${folder}/${safeName}`, file, {
       access: "public",
       addRandomSuffix: true,
     });

@@ -5,6 +5,8 @@ import { getProduct } from "@/lib/catalog";
 import { isColorKey } from "@/lib/products";
 import { metaLine } from "@/lib/orderFormat";
 import { costOrder, insertOrderLines } from "@/lib/costing";
+import { takeStock } from "@/lib/inventory";
+import { colorName } from "@/lib/products";
 
 // Records a sale that never touched the site — a market table, an
 // Instagram DM, Tap to Pay — so the sales history is complete.
@@ -35,6 +37,7 @@ export async function POST(req: Request) {
     const buyer = String(body?.buyer ?? "").trim().slice(0, 120);
     const note = String(body?.note ?? "").trim().slice(0, 500);
     const soldAtRaw = String(body?.soldAt ?? "").trim();
+    const fromStock = body?.fromStock !== false; // take it off the Inventory shelf (default yes)
 
     if (!slug) return NextResponse.json({ error: "Pick a design." }, { status: 400 });
     if (!(qty >= 1 && qty <= 50)) return NextResponse.json({ error: "How many shirts?" }, { status: 400 });
@@ -68,7 +71,24 @@ export async function POST(req: Request) {
     const id = inserted[0].id;
     await insertOrderLines(sql, id, [{ slug, name, size, color, qty, unitPriceCents: unit, priceSource: "order" }]);
     const result = await costOrder(sql, id);
-    return NextResponse.json({ ok: true, id, costed: result.costed });
+
+    // A shirt that was sitting on the shelf comes off the Inventory count
+    let fromShelf = 0;
+    if (fromStock && slug !== "custom" && color && size) {
+      try {
+        const line = (await sql`select id from order_lines where order_id = ${id} order by id limit 1`) as { id: number }[];
+        const r = await takeStock(sql, { kind: "shirt", slug, color, size }, qty, "sold", {
+          orderId: id,
+          lineId: Number(line[0]?.id) || null,
+          label: `${name} · ${colorName(color)} · ${size}`,
+          note: note || "Recorded sale",
+        });
+        fromShelf = r.moved;
+      } catch (err) {
+        console.error("record sale inventory:", err);
+      }
+    }
+    return NextResponse.json({ ok: true, id, costed: result.costed, fromShelf });
   } catch (err) {
     console.error("record sale:", err);
     return NextResponse.json(

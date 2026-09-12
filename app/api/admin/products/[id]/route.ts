@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { rowToProduct } from "@/lib/catalog";
+import { rowToProduct, withShelfCounts } from "@/lib/catalog";
 import { COLORS, SIZES, stockKey } from "@/lib/products";
 
 const NO_DB = { error: "No database connected yet (see README)." };
@@ -99,7 +99,8 @@ export async function PATCH(
       returning *
     `) as Record<string, unknown>[];
 
-    return NextResponse.json({ product: rowToProduct(rows[0]) });
+    const saved = rowToProduct(rows[0]);
+    return NextResponse.json({ product: (await withShelfCounts(sql, [saved], saved.slug))[0] });
   } catch (err) {
     const msg = String(err);
     if (msg.includes("products_slug_key") || msg.includes("duplicate key")) {

@@ -4,7 +4,9 @@ import Link from "next/link";
 import Lineup from "@/components/Lineup";
 import { RECENT } from "@/lib/recent";
 import SignupForm from "@/components/SignupForm";
+import EventCard from "@/components/EventCard";
 import { getProducts } from "@/lib/catalog";
+import { getHomeEvent } from "@/lib/news";
 import { asset } from "@/lib/assets";
 import { COLORS } from "@/lib/products";
 
@@ -17,6 +19,8 @@ export const revalidate = 60;
 
 export default async function HomePage() {
   const products = await getProducts();
+  // The next craft fair / market (from /admin/news). Hides itself once it's over.
+  const event = await getHomeEvent();
   return (
     <>
       {/* ---------- HERO ---------- */}
@@ -51,6 +55,13 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ---------- NEXT EVENT (only when one is coming up) ---------- */}
+      {event && (
+        <section className="relative z-10 mx-auto -mt-10 max-w-6xl px-5 sm:-mt-14" aria-label="Where to find us next">
+          <EventCard post={event} />
+        </section>
+      )}
 
       {/* ---------- LINEUP ---------- */}
       <section className="mx-auto max-w-6xl px-5 pt-20">

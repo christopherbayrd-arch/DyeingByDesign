@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { rowToProduct } from "@/lib/catalog";
+import { rowToProduct, withShelfCounts } from "@/lib/catalog";
 
 const NO_DB = {
   error:
@@ -16,7 +16,8 @@ export async function GET() {
       string,
       unknown
     >[];
-    return NextResponse.json({ products: rows.map(rowToProduct) });
+    // on hand counts come from the Inventory tab
+    return NextResponse.json({ products: await withShelfCounts(sql, rows.map(rowToProduct)) });
   } catch (err) {
     console.error("admin products list:", err);
     return NextResponse.json(

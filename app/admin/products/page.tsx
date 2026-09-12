@@ -16,9 +16,10 @@ export default function AdminProductsPage() {
       <AdminNav active="products" />
       <p className="mt-6 max-w-2xl text-sm leading-relaxed text-faded">
         Changes here go live on the site within about a minute. &quot;Always
-        available&quot; means made to order — no limits. &quot;Track stock&quot; sets a
-        per-size count: checkout blocks anything you don&apos;t have, and every paid
-        order subtracts automatically.
+        available&quot; means made to order — no limits. &quot;Only sell what&apos;s on
+        hand&quot; sells from the counts on the{" "}
+        <a href="/admin/inventory" className="text-goldlight underline underline-offset-2">Inventory</a> tab:
+        checkout blocks anything you don&apos;t have, and every paid order takes it off.
       </p>
       <div className="mt-8">
         <ProductManager />
