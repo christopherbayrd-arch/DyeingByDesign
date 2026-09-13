@@ -94,7 +94,8 @@ export async function loadMoves(sql: Sql, limit = 150): Promise<InvMove[]> {
   return rows.map(rowToMove);
 }
 
-// What's on hand, as quick lookups: shirts by "slug|color|size", blanks by "color|size"
+// What's on hand, as quick lookups: shirts by "slug|color|size" (bandanas add
+// "|design" on the end), blanks by "color|size"
 export async function stockMaps(sql: Sql): Promise<{
   shirts: Record<string, number>;
   blanks: Record<string, number>;
@@ -104,7 +105,7 @@ export async function stockMaps(sql: Sql): Promise<{
   const shirts: Record<string, number> = {};
   const blanks: Record<string, number> = {};
   for (const it of items) {
-    if (it.kind === "shirt") shirts[shirtKey(it.slug, it.color, it.size)] = it.qty;
+    if (it.kind === "shirt") shirts[shirtKey(it.slug, it.color, it.size, it.name)] = it.qty;
     else if (it.kind === "blank") blanks[blankKey(it.color, it.size)] = it.qty;
   }
   return { shirts, blanks, others: items.filter((i) => i.kind === "other") };
@@ -238,6 +239,28 @@ export async function reverseMoves(sql: Sql, where: { orderId?: number; lineId?:
     back += n;
   }
   return back;
+}
+
+// How many of one exact bandana design are on the shelf. The storefront
+// counts a color across every design (4 black bandanas), which is what a
+// shopper should see; this is the exact check before taking money, so a
+// design nobody has made can't be sold as ready to ship. null = can't tell
+// (the inventory tables aren't there yet), which never blocks an order.
+export async function variantOnHand(
+  sql: Sql | null,
+  key: { slug: string; variant: string; color: string; size: string }
+): Promise<number | null> {
+  if (!sql || !key.variant) return null;
+  try {
+    const rows = (await sql`
+      select qty from inventory
+      where kind = 'shirt' and slug = ${key.slug} and name = ${key.variant}
+        and color = ${key.color} and size = ${key.size}
+    `) as Row[];
+    return Number(rows[0]?.qty ?? 0);
+  } catch {
+    return null;
+  }
 }
 
 // For the "on hand" numbers on the booth and the make queue. Never throws:

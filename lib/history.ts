@@ -56,6 +56,7 @@ export async function loadHistory(sql: Sql): Promise<HistoryData> {
         size: str(r.size),
         color: str(r.color),
         qty: Number(r.qty) || 1,
+        variant: str(r.variant),
         unitPriceCents: Number(r.unit_price_cents) || 0,
         unitCogsCents: intOrNull(r.unit_cogs_cents),
         estimated: Boolean(b.estimated) || intOrNull(r.unit_cogs_cents) === null,

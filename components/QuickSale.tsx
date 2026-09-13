@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  BANDANA_PRICES,
   BOOTH_PRICES,
   CUSTOM_SLUG,
   OTHER_SLUG,
@@ -10,7 +11,7 @@ import {
   payLabel,
   type PayMethod,
 } from "@/lib/booth";
-import { COLORS, SIZES, colorName } from "@/lib/products";
+import { COLORS, ONE_SIZE, SIZES, colorName } from "@/lib/products";
 import { shirtKey, type InvItem } from "@/lib/inventoryShared";
 
 // ============================================================
@@ -20,10 +21,20 @@ import { shirtKey, type InvItem } from "@/lib/inventoryShared";
 //  when the phone is back online (the server ignores repeats).
 // ============================================================
 
-export type QuickDesign = { slug: string; name: string; image: string };
+export type QuickDesign = { slug: string; name: string; image: string; kind?: "shirt" | "bandana" };
 export type QuickEvent = { id: number; title: string; startsOn: string; endsOn: string };
 
-type Line = { slug: string; name: string; color: string; size: string; qty: number; unitCents: number; itemId?: number };
+type Line = {
+  slug: string;
+  name: string;
+  color: string;
+  size: string;
+  qty: number;
+  unitCents: number;
+  itemId?: number;
+  variant?: string;     // the design on a bandana
+  variantName?: string; // …spelled out, for the receipt line
+};
 export type ShelfStock = { shirts: Record<string, number>; others: InvItem[] };
 type Pending = {
   clientId: string;
@@ -95,7 +106,14 @@ function totalOf(lines: Line[]) {
   return lines.reduce((n, l) => n + l.qty * l.unitCents, 0);
 }
 function lineText(l: Line) {
-  return [l.qty > 1 ? `${l.qty} × ${l.name}` : l.name, l.color ? colorName(l.color) : "", l.size].filter(Boolean).join(" · ");
+  const what = l.variantName ? `${l.name} · ${l.variantName}` : l.name;
+  return [
+    l.qty > 1 ? `${l.qty} × ${what}` : what,
+    l.color ? colorName(l.color) : "",
+    l.size === ONE_SIZE ? "" : l.size,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 function timeText(iso: string) {
   const d = new Date(iso);
@@ -151,6 +169,7 @@ export default function QuickSale({
 }) {
   // ---- the shirt being rung up ----
   const [slug, setSlug] = useState("");
+  const [variant, setVariant] = useState(""); // which design goes on a bandana
   const [otherName, setOtherName] = useState("");
   const [otherItemId, setOtherItemId] = useState(0); // an "other" item from the Inventory shelf
   // what's on the shelf (Inventory), so the booth can see what's left
@@ -287,35 +306,76 @@ export default function QuickSale({
     return () => clearTimeout(t);
   }, [toast]);
 
-  // ---- the current shirt + this sale ----
+  // ---- the current piece + this sale ----
+  // bandanas are one size and have their own price buttons
+  const picked = designs.find((d) => d.slug === slug) ?? null;
+  const isBandana = picked?.kind === "bandana";
+  const shirtDesigns = designs.filter((d) => d.kind !== "bandana");
+  const prices = isBandana ? BANDANA_PRICES : BOOTH_PRICES;
   const typedCents = Math.round(parseFloat(otherPrice.replace(/[$,\s]/g, "")) * 100);
-  const unitCents = priceIdx >= 0 ? BOOTH_PRICES[priceIdx]?.cents ?? 0 : typedCents;
+  const unitCents = priceIdx >= 0 ? prices[priceIdx]?.cents ?? 0 : typedCents;
   const priceOk = Number.isFinite(unitCents) && unitCents >= 0 && unitCents <= 100000;
   const designName =
     slug === CUSTOM_SLUG
       ? "Custom piece"
       : slug === OTHER_SLUG
         ? otherName.trim() || "Other"
-        : designs.find((d) => d.slug === slug)?.name ?? "";
+        : picked?.name ?? "";
+  const variantName = variant ? designs.find((d) => d.slug === variant)?.name ?? variant : "";
   const current: Line | null =
-    slug && priceOk
-      ? { slug, name: designName, color, size, qty, unitCents, ...(slug === OTHER_SLUG && otherItemId ? { itemId: otherItemId } : {}) }
+    slug && priceOk && (!isBandana || variant)
+      ? {
+          slug,
+          name: designName,
+          color,
+          size: isBandana ? ONE_SIZE : size,
+          qty,
+          unitCents,
+          ...(slug === OTHER_SLUG && otherItemId ? { itemId: otherItemId } : {}),
+          ...(isBandana ? { variant, variantName } : {}),
+        }
       : null;
 
   // on hand counts for the tiles, swatches, and size buttons
-  const onHand = (s: string, c = "", z = "") => {
+  // (a bandana's count is per design, which is the 4th part of its key)
+  const onHand = (s: string, c = "", z = "", v = "") => {
     let n = 0;
     for (const [k, q] of Object.entries(stock.shirts)) {
-      const [ks, kc, kz] = k.split("|");
-      if (ks === s && (!c || kc === c) && (!z || kz === z)) n += q;
+      const [ks, kc, kz, kv = ""] = k.split("|");
+      if (ks === s && (!c || kc === c) && (!z || kz === z) && (!v || kv === v)) n += q;
     }
     return n;
   };
   const isDesign = Boolean(slug) && slug !== CUSTOM_SLUG && slug !== OTHER_SLUG;
+  // "shirt" everywhere until there are bandanas to sell too
+  const hasBandanas = designs.some((d) => d.kind === "bandana");
+  const thing = hasBandanas ? "piece" : "shirt";
+  const things = hasBandanas ? "pieces" : "shirts";
+  // the booth's version of the set price: a shirt already rung up on this
+  // sale means the next bandana is $15, not $20
+  const shirtsInCart = cart.filter((l) => l.slug !== OTHER_SLUG && !l.variant).reduce((n, l) => n + l.qty, 0);
+  const bandanasInCart = cart.filter((l) => Boolean(l.variant)).reduce((n, l) => n + l.qty, 0);
+  const priceFor = (d: QuickDesign | null) =>
+    d?.kind === "bandana" && shirtsInCart > bandanasInCart ? 1 : 0;
   const shelfOthers = stock.others.filter((o) => o.qty > 0);
   const lines = current ? [...cart, current] : cart;
   const total = totalOf(lines);
   const canRecord = lines.length > 0 && (!slug || priceOk);
+
+  // Picking a design tile: a bandana switches to its own price buttons and
+  // its one size, and asks which design goes on it.
+  function pickDesign(d: QuickDesign) {
+    if (slug === d.slug) {
+      setSlug("");
+      setVariant("");
+      return;
+    }
+    setSlug(d.slug);
+    setVariant("");
+    setPriceIdx(priceFor(d));
+    if (d.kind === "bandana") setSize(ONE_SIZE);
+    else if (size === ONE_SIZE) setSize("");
+  }
 
   function choosePay(k: PayMethod) {
     setPay(k);
@@ -328,6 +388,7 @@ export default function QuickSale({
 
   function resetShirt() {
     setSlug("");
+    setVariant("");
     setOtherName("");
     setOtherItemId(0);
     setColor("");
@@ -374,7 +435,7 @@ export default function QuickSale({
       let others = st.others;
       for (const l of lines) {
         if (l.slug !== CUSTOM_SLUG && l.slug !== OTHER_SLUG && l.color && l.size) {
-          const k = shirtKey(l.slug, l.color, l.size);
+          const k = shirtKey(l.slug, l.color, l.size, l.variant ?? "");
           if (k in shirts) shirts[k] = Math.max(0, shirts[k] - l.qty);
         } else if (l.itemId) {
           others = others.map((o) => (o.id === l.itemId ? { ...o, qty: Math.max(0, o.qty - l.qty) } : o));
@@ -383,7 +444,7 @@ export default function QuickSale({
       return { shirts, others };
     });
     setToast({
-      text: `${lines.length === 1 ? lineText(lines[0]) : `${shirtsIn(lines)} shirts`} · ${dollars(total)} ${payLabel(pay).toLowerCase()}`,
+      text: `${lines.length === 1 ? lineText(lines[0]) : `${shirtsIn(lines)} ${things}`} · ${dollars(total)} ${payLabel(pay).toLowerCase()}`,
       clientId: sale.clientId,
     });
     resetShirt();
@@ -504,7 +565,7 @@ export default function QuickSale({
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-faded">Today</p>
           <p className="font-display text-3xl font-semibold leading-tight">{dollars(today.revenue)}</p>
           <p className="text-xs text-faded">
-            {today.shirts} {today.shirts === 1 ? "shirt" : "shirts"} · {today.sales} {today.sales === 1 ? "sale" : "sales"}
+            {today.shirts} {today.shirts === 1 ? thing : things} · {today.sales} {today.sales === 1 ? "sale" : "sales"}
           </p>
         </div>
         <div>
@@ -567,7 +628,7 @@ export default function QuickSale({
       <p className="kicker">This sale</p>
       <div className="mt-3">
         {lines.length === 0 ? (
-          <p className="text-sm text-faded">Tap a shirt to start.</p>
+          <p className="text-sm text-faded">Tap a {thing} to start.</p>
         ) : (
           <>
             {cartList}
@@ -590,7 +651,7 @@ export default function QuickSale({
           {recordLabel}
         </button>
         <button type="button" className="btn btn-ghost w-full text-sm" disabled={!current} onClick={addAnother}>
-          + Add another shirt to this sale
+          + Add another {thing} to this sale
         </button>
       </div>
     </div>
@@ -681,7 +742,7 @@ export default function QuickSale({
           )}
 
           <section className="card p-4 sm:p-5">
-            {step(1, cart.length ? "Next shirt" : "Which shirt?")}
+            {step(1, cart.length ? `Next ${thing}` : hasBandanas ? "What are they buying?" : "Which shirt?")}
             <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-5">
               {designs.map((d) => {
                 const on = slug === d.slug;
@@ -691,7 +752,7 @@ export default function QuickSale({
                     key={d.slug}
                     type="button"
                     aria-pressed={on}
-                    onClick={() => setSlug(on ? "" : d.slug)}
+                    onClick={() => pickDesign(d)}
                     className={
                       "relative aspect-square overflow-hidden rounded-2xl border-2 bg-panel text-left transition " +
                       (on ? "border-gold shadow-[0_0_0_3px_rgba(207,148,64,0.3)]" : "border-transparent")
@@ -794,6 +855,38 @@ export default function QuickSale({
                 />
               </div>
             )}
+            {isBandana && (
+              <div className="mt-3">
+                <p className="mb-2 text-sm text-faded">Which design is on it?</p>
+                <div className="flex flex-wrap gap-2">
+                  {shirtDesigns.map((d) => {
+                    const on = variant === d.slug;
+                    const have = color ? onHand(slug, color, ONE_SIZE, d.slug) : onHand(slug, "", ONE_SIZE, d.slug);
+                    return (
+                      <button
+                        key={d.slug}
+                        type="button"
+                        data-active={on}
+                        aria-pressed={on}
+                        onClick={() => setVariant(on ? "" : d.slug)}
+                        className="size-pill flex min-h-12 items-center gap-2 py-1.5 pl-1.5 pr-4"
+                      >
+                        {d.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={d.image} alt="" className="h-9 w-9 rounded-full object-cover" />
+                        ) : (
+                          <span className="h-9 w-9 rounded-full border border-dashed border-bone/30" />
+                        )}
+                        <span className="leading-tight">
+                          {d.name}
+                          {have > 0 && <span className="block text-[0.7rem] font-semibold opacity-80">{have} on hand</span>}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </section>
 
           <section className="card p-4 sm:p-5">
@@ -830,7 +923,10 @@ export default function QuickSale({
           </section>
 
           <section className="card p-4 sm:p-5">
-            {step(3, "Size", isDesign && color ? "numbers are how many you have" : "optional")}
+            {step(3, isBandana ? "Size" : "Size", isBandana ? "" : isDesign && color ? "numbers are how many you have" : "optional")}
+            {isBandana ? (
+              <p className="text-sm text-faded">One size — nothing to pick.</p>
+            ) : (
             <div className="flex flex-wrap gap-2">
               {SIZES.map((s) => {
                 const have = isDesign && color ? onHand(slug, color, s) : -1;
@@ -850,12 +946,13 @@ export default function QuickSale({
                 );
               })}
             </div>
+            )}
           </section>
 
           <section className="card p-4 sm:p-5">
             {step(4, "Price")}
             <div className="flex flex-wrap gap-2">
-              {BOOTH_PRICES.map((p, i) => (
+              {prices.map((p, i) => (
                 <button
                   key={p.cents}
                   type="button"
@@ -889,7 +986,7 @@ export default function QuickSale({
               </label>
             </div>
             {priceIdx === -1 && slug && !priceOk && (
-              <p className="mt-2 text-xs text-rust">Type what they paid per shirt.</p>
+              <p className="mt-2 text-xs text-rust">Type what they paid for each one.</p>
             )}
             <div className="mt-4 flex items-center gap-3">
               <span className="text-sm text-faded">How many</span>
@@ -960,7 +1057,7 @@ export default function QuickSale({
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-bone/15 bg-ink/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur-md md:hidden">
         <div className="flex items-center justify-between gap-3 text-sm">
           <span className="min-w-0 truncate text-faded">
-            {lines.length === 0 ? "Tap a shirt to start" : lines.length === 1 ? lineText(lines[0]) : `${shirtsIn(lines)} shirts`}
+            {lines.length === 0 ? `Tap a ${thing} to start` : lines.length === 1 ? lineText(lines[0]) : `${shirtsIn(lines)} ${things}`}
           </span>
           {current ? (
             <button type="button" onClick={addAnother} className="shrink-0 font-semibold text-goldlight">

@@ -11,6 +11,11 @@ export const STATE = "ME";
 export const STATE_NAME = "Maine";
 export const FOUNDED = "2026";
 
+// Where a swap gets sent back to. Fill this in (street, town, state, zip)
+// and approved swaps carry it automatically; leave it empty and the address
+// you type on the swaps board is what goes in the email instead.
+export const RETURN_ADDRESS = "";
+
 export const INSTAGRAM_URL = "https://www.instagram.com/dyeingbydesign?utm_source=qr";
 export const INSTAGRAM_PROFILE = "https://www.instagram.com/dyeingbydesign"; // clean URL for search engines
 export const INSTAGRAM_HANDLE = "@dyeingbydesign";

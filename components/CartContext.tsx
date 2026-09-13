@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { useSession } from "next-auth/react";
-import { isColorKey } from "@/lib/products";
+import { isColorKey, type ProductKind } from "@/lib/products";
 
 // Each cart line carries a snapshot of what the buyer saw (name, price, photo)
 // so the cart renders instantly. The server always re-checks real prices and
@@ -24,6 +24,8 @@ export type CartLine = {
   name: string;
   priceCents: number;
   card: string;
+  variant?: string;      // which design goes on a bandana
+  kind?: ProductKind;    // shirt | bandana (for the set price)
 };
 
 type CartApi = {
@@ -40,7 +42,7 @@ type CartApi = {
 const CartCtx = createContext<CartApi | null>(null);
 const STORAGE_KEY = "dbd-cart-v3"; // v3: lines carry a color
 
-const lineKey = (l: CartLine) => `${l.slug}|${l.size}|${l.color}`;
+const lineKey = (l: CartLine) => `${l.slug}|${l.size}|${l.color}|${l.variant ?? ""}`;
 
 // Phone cart + laptop cart → one cart (same shirt on both keeps the bigger qty)
 function mergeLines(a: CartLine[], b: CartLine[]): CartLine[] {
@@ -121,7 +123,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const add = useCallback((line: CartLine) => {
     setLines((prev) => {
-      const i = prev.findIndex((p) => p.slug === line.slug && p.size === line.size && p.color === line.color);
+      const i = prev.findIndex(
+        (p) => p.slug === line.slug && p.size === line.size && p.color === line.color && (p.variant ?? "") === (line.variant ?? "")
+      );
       if (i >= 0) {
         const next = [...prev];
         next[i] = { ...line, qty: Math.min(10, next[i].qty + line.qty) };

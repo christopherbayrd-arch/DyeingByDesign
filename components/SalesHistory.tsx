@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { COLORS, SIZES, colorName } from "@/lib/products";
+import { COLORS, ONE_SIZE, SIZES, colorName } from "@/lib/products";
 import {
   CHANNEL_LABELS,
   byDesign,
@@ -23,7 +23,7 @@ import {
 //  the day the shirt was paid for.
 // ============================================================
 
-type ProductOpt = { slug: string; name: string; priceCents: number; sizes: string[] };
+type ProductOpt = { slug: string; name: string; priceCents: number; sizes: string[]; kind?: "shirt" | "bandana" };
 
 type Props = {
   orders: HistoryOrder[];
@@ -195,6 +195,7 @@ export default function SalesHistory({ orders, withoutLines, hasSheet, products 
   const firstProduct = products[0];
   const [sale, setSale] = useState({
     slug: firstProduct?.slug ?? "custom",
+    variant: "", // the design, when the thing sold is a bandana
     size: "M",
     color: "black",
     qty: "1",
@@ -217,6 +218,9 @@ export default function SalesHistory({ orders, withoutLines, hasSheet, products 
         const p = products.find((x) => x.slug === v);
         if (p) next.unitPrice = (p.priceCents / 100).toFixed(2);
         if (p && !p.sizes.includes(next.size)) next.size = p.sizes[0] ?? "M";
+        // only a bandana carries a design
+        if (p?.kind !== "bandana") next.variant = "";
+        else if (!next.variant) next.variant = products.find((x) => x.kind !== "bandana")?.slug ?? "";
       }
       return next;
     });
@@ -355,6 +359,18 @@ export default function SalesHistory({ orders, withoutLines, hasSheet, products 
                 <option value="custom">Custom piece</option>
               </select>
             </label>
+            {products.find((p) => p.slug === sale.slug)?.kind === "bandana" && (
+              <label className="text-xs text-faded">
+                Design on it
+                <select value={sale.variant} onChange={(e) => setSaleField("variant", e.target.value)} className="input mt-1 block w-full py-1.5 text-sm">
+                  {products
+                    .filter((p) => p.kind !== "bandana")
+                    .map((p) => (
+                      <option key={p.slug} value={p.slug}>{p.name}</option>
+                    ))}
+                </select>
+              </label>
+            )}
             <label className="text-xs text-faded">
               Color
               <select value={sale.color} onChange={(e) => setSaleField("color", e.target.value)} className="input mt-1 block w-full py-1.5 text-sm">
@@ -614,7 +630,8 @@ export default function SalesHistory({ orders, withoutLines, hasSheet, products 
                         <>
                           <td className="p-3">
                             {l.name}
-                            <span className="text-faded"> · {l.color ? colorName(l.color) : "—"} · {l.size || "—"}</span>
+                            {l.variant && <span className="text-faded"> · {l.variant.charAt(0).toUpperCase() + l.variant.slice(1)}</span>}
+                            <span className="text-faded"> · {l.color ? colorName(l.color) : "—"} · {l.size === ONE_SIZE ? "one size" : l.size || "—"}</span>
                             {l.priceSource === "catalog" && (
                               <span className="ml-1 text-[0.65rem] text-faded" title="This order didn't record its price; today's catalog price was used.">price est.</span>
                             )}

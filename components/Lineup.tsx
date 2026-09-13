@@ -5,6 +5,8 @@ import { LINES, type Product } from "@/lib/products";
 // Renders the catalog grouped into its two lines (Botanical / Graphic & Stencil).
 // A line with nothing in it yet shows a short "coming soon" card that points
 // people at custom requests, so the site never has an awkward empty gap.
+// Bandanas aren't a line — they take any design, so they get their own
+// section on the shop page instead of sitting inside one of these.
 export default function Lineup({
   products,
   columns = 4,
@@ -22,7 +24,9 @@ export default function Lineup({
   return (
     <div className="space-y-14">
       {LINES.map((line) => {
-        const items = products.filter((p) => (p.line ?? "botanical") === line.key);
+        const items = products.filter(
+          (p) => p.kind !== "bandana" && (p.line ?? "botanical") === line.key
+        );
         return (
           <section key={line.key} id={line.key}>
             <div className="flex flex-wrap items-end justify-between gap-3">

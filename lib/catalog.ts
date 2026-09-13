@@ -7,6 +7,7 @@ import {
   SIZES,
   stockKey,
   type Product,
+  type ProductKind,
   type ProductLine,
 } from "@/lib/products";
 
@@ -24,6 +25,7 @@ export function rowToProduct(r: Row): Product {
     name: String(r.name ?? ""),
     species: String(r.species ?? ""),
     line: (r.line === "stencil" ? "stencil" : "botanical") as ProductLine,
+    kind: (r.kind === "bandana" ? "bandana" : "shirt") as ProductKind,
     blurb: String(r.blurb ?? ""),
     story: String(r.story ?? ""),
     image: String(r.image ?? ""),
@@ -47,8 +49,8 @@ type Sql = NonNullable<ReturnType<typeof getDb>>;
 export async function withShelfCounts(sql: Sql, products: Product[], slug?: string): Promise<Product[]> {
   try {
     const rows = (slug
-      ? await sql`select slug, color, size, qty from inventory where kind = 'shirt' and slug = ${slug}`
-      : await sql`select slug, color, size, qty from inventory where kind = 'shirt'`) as Row[];
+      ? await sql`select slug, color, size, sum(qty)::int as qty from inventory where kind = 'shirt' and slug = ${slug} group by slug, color, size`
+      : await sql`select slug, color, size, sum(qty)::int as qty from inventory where kind = 'shirt' group by slug, color, size`) as Row[];
     const bySlug = new Map<string, Record<string, number>>();
     for (const r of rows) {
       const m = bySlug.get(String(r.slug)) ?? {};
@@ -64,7 +66,7 @@ export async function withShelfCounts(sql: Sql, products: Product[], slug?: stri
 // Live products for the storefront (active only, retired designs skipped)
 export async function getProducts(): Promise<Product[]> {
   const sql = getDb();
-  if (!sql) return DEFAULT_PRODUCTS.filter(notRetired);
+  if (!sql) return DEFAULT_PRODUCTS.filter((p) => p.active).filter(notRetired);
   try {
     const rows = (await sql`
       select * from products where active order by sort, id
@@ -73,14 +75,14 @@ export async function getProducts(): Promise<Product[]> {
     return withShelfCounts(sql, rows.map(rowToProduct).filter(notRetired));
   } catch {
     // table probably doesn't exist yet — run schema.sql in Neon
-    return DEFAULT_PRODUCTS.filter(notRetired);
+    return DEFAULT_PRODUCTS.filter((p) => p.active).filter(notRetired);
   }
 }
 
 export async function getProduct(slug: string): Promise<Product | null> {
   if (!notRetired({ slug } as Product)) return null;
   const sql = getDb();
-  if (!sql) return DEFAULT_PRODUCTS.find((p) => p.slug === slug) ?? null;
+  if (!sql) return DEFAULT_PRODUCTS.find((p) => p.slug === slug && p.active) ?? null;
   try {
     const rows = (await sql`
       select * from products where slug = ${slug} and active limit 1
@@ -88,7 +90,7 @@ export async function getProduct(slug: string): Promise<Product | null> {
     if (rows.length === 0) return null;
     return (await withShelfCounts(sql, [rowToProduct(rows[0])], slug))[0];
   } catch {
-    return DEFAULT_PRODUCTS.find((p) => p.slug === slug) ?? null;
+    return DEFAULT_PRODUCTS.find((p) => p.slug === slug && p.active) ?? null;
   }
 }
 

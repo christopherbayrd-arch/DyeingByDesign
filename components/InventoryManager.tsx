@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { COLORS, SIZES, colorName } from "@/lib/products";
+import { COLORS, ONE_SIZE, SIZES, colorName, supplierColor } from "@/lib/products";
 import {
   LOW_BLANKS,
   REASON_LABELS,
@@ -15,13 +15,20 @@ import {
 // ============================================================
 //  /admin/inventory — everything on the shelf, three kinds:
 //    Ready to sell  finished shirts, by design, color, size
-//    Blanks         plain tees, by color and size
+//                   (+ bandanas, by design and color — they're one size)
+//    Blanks         plain tees by color and size, plus blank bandanas
 //    Other items    tie dye, hoodies, one offs
 //  Type a number in any box and tap away to save it (that's a count).
 //  "Just made some" and "Bought blanks" add on top of what's there.
 // ============================================================
 
-export type InvDesign = { slug: string; name: string; image: string; inLineup: boolean };
+export type InvDesign = {
+  slug: string;
+  name: string;
+  image: string;
+  inLineup: boolean;
+  kind?: "shirt" | "bandana";
+};
 
 type Tab = "shirts" | "blanks" | "other" | "history";
 
@@ -155,13 +162,19 @@ export default function InventoryManager({
   const [showAll, setShowAll] = useState(false);
   const [historyKind, setHistoryKind] = useState<"" | InvKind>("");
 
+  // Bandanas take any design, so they're counted per design + color and
+  // live in their own block; everything else is a shirt.
+  const bandana = designs.find((d) => d.kind === "bandana") ?? null;
+  const shirtDesigns = designs.filter((d) => d.kind !== "bandana");
   // "Just made some"
-  const [madeSlug, setMadeSlug] = useState(designs.find((d) => d.inLineup)?.slug ?? designs[0]?.slug ?? "");
+  const [madeWhat, setMadeWhat] = useState<"shirt" | "bandana">("shirt");
+  const [madeSlug, setMadeSlug] = useState(shirtDesigns.find((d) => d.inLineup)?.slug ?? shirtDesigns[0]?.slug ?? "");
   const [madeColor, setMadeColor] = useState("black");
   const [madeSize, setMadeSize] = useState("M");
   const [madeQty, setMadeQty] = useState(1);
   const [useBlanks, setUseBlanks] = useState(true);
   // "Bought blanks"
+  const [boughtWhat, setBoughtWhat] = useState<"shirt" | "bandana">("shirt");
   const [boughtColor, setBoughtColor] = useState("black");
   const [boughtSize, setBoughtSize] = useState("M");
   const [boughtQty, setBoughtQty] = useState(12);
@@ -203,7 +216,7 @@ export default function InventoryManager({
   // ---- lookups ----
   const shirts = useMemo(() => {
     const m: Record<string, number> = {};
-    for (const i of items) if (i.kind === "shirt") m[shirtKey(i.slug, i.color, i.size)] = i.qty;
+    for (const i of items) if (i.kind === "shirt") m[shirtKey(i.slug, i.color, i.size, i.name)] = i.qty;
     return m;
   }, [items]);
   const blanks = useMemo(() => {
@@ -222,6 +235,23 @@ export default function InventoryManager({
 
   const designTotal = (slug: string) => SIZES.reduce((n, s) => n + COLORS.reduce((m, c) => m + (shirts[shirtKey(slug, c.key, s)] ?? 0), 0), 0);
   const designName = (slug: string) => designs.find((d) => d.slug === slug)?.name ?? slug;
+  // bandanas: one size, counted per design and color
+  const bandanaQty = (design: string, color: string) =>
+    bandana ? shirts[shirtKey(bandana.slug, color, ONE_SIZE, design)] ?? 0 : 0;
+  const bandanaTotal = () =>
+    bandana ? items.filter((i) => i.kind === "shirt" && i.slug === bandana.slug).reduce((n, i) => n + i.qty, 0) : 0;
+  // what "Just made some" is about to add
+  const madeIsBandana = madeWhat === "bandana" && Boolean(bandana);
+  const madeKey = madeIsBandana
+    ? { kind: "shirt", slug: bandana!.slug, name: madeSlug, color: madeColor, size: ONE_SIZE }
+    : { kind: "shirt", slug: madeSlug, color: madeColor, size: madeSize };
+  const madeBlankSize = madeIsBandana ? ONE_SIZE : madeSize;
+  const boughtIsBandana = boughtWhat === "bandana" && Boolean(bandana);
+  const boughtBlankSize = boughtIsBandana ? ONE_SIZE : boughtSize;
+  const blankSizes = bandana ? [...SIZES, ONE_SIZE] : SIZES;
+  const piece = bandana ? "piece" : "shirt";
+  const pieces = bandana ? "pieces" : "shirts";
+  const sizeHead = (sz: string) => (sz === ONE_SIZE ? "Band" : sz);
 
   if (error) return <p className="card mt-8 p-6 text-sm leading-relaxed text-rust">{error}</p>;
 
@@ -244,10 +274,28 @@ export default function InventoryManager({
       {/* add what you just made */}
       <section className="card p-4 sm:p-6">
         <p className="kicker">Just made some?</p>
-        <p className="mt-1 text-sm text-faded">Add finished shirts to Ready to sell.</p>
+        <p className="mt-1 text-sm text-faded">
+          Add finished {bandana ? "pieces" : "shirts"} to Ready to sell.
+        </p>
         <div className="mt-4 space-y-4">
+          {bandana && (
+            <div className="flex flex-wrap gap-2">
+              {(["shirt", "bandana"] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  data-active={madeWhat === k}
+                  aria-pressed={madeWhat === k}
+                  onClick={() => setMadeWhat(k)}
+                  className="size-pill min-h-11 px-5 text-base"
+                >
+                  {k === "shirt" ? "Shirts" : "Bandanas"}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex flex-wrap gap-2">
-            {designs.map((d) => (
+            {shirtDesigns.map((d) => (
               <button
                 key={d.slug}
                 type="button"
@@ -261,7 +309,11 @@ export default function InventoryManager({
             ))}
           </div>
           <Swatches value={madeColor} set={setMadeColor} />
-          <Sizes value={madeSize} set={setMadeSize} />
+          {madeIsBandana ? (
+            <p className="text-sm text-faded">One size — bandanas only come the one way.</p>
+          ) : (
+            <Sizes value={madeSize} set={setMadeSize} />
+          )}
           <div className="flex flex-wrap items-center gap-4">
             <span className="text-sm text-faded">How many</span>
             <Stepper value={madeQty} set={setMadeQty} />
@@ -271,7 +323,9 @@ export default function InventoryManager({
             <span>
               Take the blanks out of Blanks
               <span className="block text-xs">
-                {colorName(madeColor)} {madeSize}: {blanks[blankKey(madeColor, madeSize)] ?? 0} blanks on hand
+                {colorName(madeColor)} {madeIsBandana ? "bandana" : madeSize}:{" "}
+                {blanks[blankKey(madeColor, madeBlankSize)] ?? 0} blank
+                {madeIsBandana ? " bandanas" : "s"} on hand
               </span>
             </span>
           </label>
@@ -282,16 +336,18 @@ export default function InventoryManager({
             onClick={async () => {
               const ok = await send("made", {
                 op: "add",
-                kind: "shirt",
-                slug: madeSlug,
-                color: madeColor,
-                size: madeSize,
+                ...madeKey,
                 qty: madeQty,
                 reason: "made",
                 useBlanks,
               });
               if (ok) {
-                setNote({ text: `Added ${madeQty} ${designName(madeSlug)} · ${colorName(madeColor)} · ${madeSize}.`, good: true });
+                setNote({
+                  text: madeIsBandana
+                    ? `Added ${madeQty} ${designName(madeSlug)} bandana · ${colorName(madeColor)}.`
+                    : `Added ${madeQty} ${designName(madeSlug)} · ${colorName(madeColor)} · ${madeSize}.`,
+                  good: true,
+                });
                 setMadeQty(1);
               }
             }}
@@ -310,7 +366,7 @@ export default function InventoryManager({
         </button>
       </div>
 
-      {designs.map((d) => {
+      {shirtDesigns.map((d) => {
         const total = designTotal(d.slug);
         const rows = COLORS.filter((c) => showAll || SIZES.some((s) => (shirts[shirtKey(d.slug, c.key, s)] ?? 0) > 0));
         if (!showAll && total === 0) {
@@ -374,6 +430,69 @@ export default function InventoryManager({
           </section>
         );
       })}
+
+      {bandana && (
+        <section className="card p-4 sm:p-6">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="font-display text-xl font-semibold">
+              {bandana.name}{" "}
+              {!bandana.inLineup && <span className="text-xs font-normal text-faded">(hidden on the site)</span>}
+            </p>
+            <p className="text-sm text-faded">
+              <strong className="text-goldlight">{bandanaTotal()}</strong> on hand
+            </p>
+          </div>
+          <p className="mt-1 text-xs text-faded">One size — counted by the design on it.</p>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full border-separate border-spacing-y-1 text-sm">
+              <thead>
+                <tr className="text-[0.7rem] font-semibold uppercase tracking-wider text-faded">
+                  <th className="pr-2 text-left font-semibold">Color</th>
+                  {shirtDesigns.map((d) => (
+                    <th key={d.slug} className="px-0.5 text-center font-semibold">{d.name}</th>
+                  ))}
+                  <th className="hidden pl-2 text-right font-semibold sm:table-cell">All</th>
+                </tr>
+              </thead>
+              <tbody>
+                {COLORS.filter((c) => showAll || shirtDesigns.some((d) => bandanaQty(d.slug, c.key) > 0)).map((c) => {
+                  const rowTotal = shirtDesigns.reduce((n, d) => n + bandanaQty(d.slug, c.key), 0);
+                  return (
+                    <tr key={c.key}>
+                      <td className="max-w-[5.5rem] pr-1.5 sm:max-w-none sm:pr-2">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-bone/30" style={{ background: c.hex }} />
+                          <span className="truncate text-xs text-bone sm:text-sm">{c.name}</span>
+                        </span>
+                      </td>
+                      {shirtDesigns.map((d) => (
+                        <td key={d.slug} className="px-0.5 text-center">
+                          <CountInput
+                            value={bandanaQty(d.slug, c.key)}
+                            label={`${d.name} bandana ${c.name}`}
+                            onSave={(n) =>
+                              send(`bd-${d.slug}-${c.key}`, {
+                                op: "set",
+                                kind: "shirt",
+                                slug: bandana.slug,
+                                name: d.slug,
+                                color: c.key,
+                                size: ONE_SIZE,
+                                qty: n,
+                              })
+                            }
+                          />
+                        </td>
+                      ))}
+                      <td className="hidden pl-2 text-right font-semibold tabular-nums text-goldlight sm:table-cell">{rowTotal || ""}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </div>
   );
 
@@ -381,10 +500,32 @@ export default function InventoryManager({
     <div className="space-y-5">
       <section className="card p-4 sm:p-6">
         <p className="kicker">Bought blanks?</p>
-        <p className="mt-1 text-sm text-faded">Add plain tees to Blanks.</p>
+        <p className="mt-1 text-sm text-faded">
+          Add plain tees{bandana ? " or bandanas" : ""} to Blanks.
+        </p>
         <div className="mt-4 space-y-4">
+          {bandana && (
+            <div className="flex flex-wrap gap-2">
+              {(["shirt", "bandana"] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  data-active={boughtWhat === k}
+                  aria-pressed={boughtWhat === k}
+                  onClick={() => setBoughtWhat(k)}
+                  className="size-pill min-h-11 px-5 text-base"
+                >
+                  {k === "shirt" ? "Tees" : "Bandanas"}
+                </button>
+              ))}
+            </div>
+          )}
           <Swatches value={boughtColor} set={setBoughtColor} />
-          <Sizes value={boughtSize} set={setBoughtSize} />
+          {boughtIsBandana ? (
+            <p className="text-sm text-faded">One size — bandanas only come the one way.</p>
+          ) : (
+            <Sizes value={boughtSize} set={setBoughtSize} />
+          )}
           <div className="flex flex-wrap items-center gap-4">
             <span className="text-sm text-faded">How many</span>
             <Stepper value={boughtQty} set={setBoughtQty} />
@@ -394,11 +535,24 @@ export default function InventoryManager({
             className="btn btn-gold w-full sm:w-auto"
             disabled={busy !== ""}
             onClick={async () => {
-              const ok = await send("bought", { op: "add", kind: "blank", color: boughtColor, size: boughtSize, qty: boughtQty, reason: "bought" });
-              if (ok) setNote({ text: `Added ${boughtQty} ${colorName(boughtColor)} ${boughtSize} blanks.`, good: true });
+              const ok = await send("bought", {
+                op: "add",
+                kind: "blank",
+                color: boughtColor,
+                size: boughtBlankSize,
+                qty: boughtQty,
+                reason: "bought",
+              });
+              if (ok)
+                setNote({
+                  text: boughtIsBandana
+                    ? `Added ${boughtQty} ${colorName(boughtColor)} blank bandanas.`
+                    : `Added ${boughtQty} ${colorName(boughtColor)} ${boughtSize} blanks.`,
+                  good: true,
+                });
             }}
           >
-            {busy === "bought" ? "Adding…" : `Add ${boughtQty} blanks`}
+            {busy === "bought" ? "Adding…" : `Add ${boughtQty} blank${boughtIsBandana ? " bandanas" : "s"}`}
           </button>
         </div>
       </section>
@@ -420,31 +574,36 @@ export default function InventoryManager({
             <thead>
               <tr className="text-[0.7rem] font-semibold uppercase tracking-wider text-faded">
                 <th className="pr-2 text-left font-semibold">Color</th>
-                {SIZES.map((s) => (
-                  <th key={s} className="px-0.5 text-center font-semibold">{s}</th>
+                {blankSizes.map((s) => (
+                  <th key={s} className="px-0.5 text-center font-semibold" title={s === ONE_SIZE ? "Blank bandanas" : s}>
+                    {sizeHead(s)}
+                  </th>
                 ))}
                 <th className="hidden pl-2 text-right font-semibold sm:table-cell">All</th>
               </tr>
             </thead>
             <tbody>
               {COLORS.map((c) => {
-                const rowTotal = SIZES.reduce((n, s) => n + (blanks[blankKey(c.key, s)] ?? 0), 0);
+                const rowTotal = blankSizes.reduce((n, s) => n + (blanks[blankKey(c.key, s)] ?? 0), 0);
                 return (
                   <tr key={c.key}>
-                    <td className="max-w-[5.5rem] pr-1.5 sm:max-w-none sm:pr-2">
+                    <td
+                      className="max-w-[5.5rem] pr-1.5 sm:max-w-none sm:pr-2"
+                      title={`${c.name} — order as "${supplierColor(c.key)}"`}
+                    >
                       <span className="flex items-center gap-1.5">
                         <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-bone/30" style={{ background: c.hex }} />
                         <span className="truncate text-xs text-bone sm:text-sm">{c.name}</span>
                       </span>
                     </td>
-                    {SIZES.map((s) => {
+                    {blankSizes.map((s) => {
                       const k = blankKey(c.key, s);
                       const q = blanks[k] ?? 0;
                       return (
                         <td key={s} className="px-0.5 text-center">
                           <CountInput
                             value={q}
-                            label={`${c.name} ${s} blanks`}
+                            label={s === ONE_SIZE ? `${c.name} blank bandanas` : `${c.name} ${s} blanks`}
                             flag={blankRows.has(k) && q < LOW_BLANKS}
                             onSave={(n) => send(`b-${k}`, { op: "set", kind: "blank", color: c.key, size: s, qty: n })}
                           />
@@ -688,8 +847,14 @@ export default function InventoryManager({
   return (
     <div className="mt-6">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {tile("Ready to sell", shirtTotal, shirtTotal === 1 ? "shirt" : "shirts", "shirts")}
-        {tile("Blanks", blankTotal, lowBlanks > 0 ? `${lowBlanks} running low` : "plain tees", "blanks", false)}
+        {tile("Ready to sell", shirtTotal, shirtTotal === 1 ? piece : pieces, "shirts")}
+        {tile(
+          "Blanks",
+          blankTotal,
+          lowBlanks > 0 ? `${lowBlanks} running low` : bandana ? "tees + bandanas" : "plain tees",
+          "blanks",
+          false
+        )}
         {tile("Other items", otherTotal, `${others.length} kind${others.length === 1 ? "" : "s"}`, "other")}
         {tile("Changes", moves.length, "see History", "history")}
       </div>

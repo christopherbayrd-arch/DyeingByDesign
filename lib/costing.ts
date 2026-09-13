@@ -137,6 +137,7 @@ export type LineInput = {
   qty: number;
   unitPriceCents: number;
   priceSource: "order" | "catalog"; // catalog = price wasn't on the order, used today's price
+  variant?: string;                 // which design goes on a bandana
 };
 
 // Turns metadata into line inputs, filling in names (and, for old
@@ -163,6 +164,7 @@ export async function linesFromMeta(meta: string | null | undefined): Promise<Li
       qty: l.qty,
       unitPriceCents: l.priceCents ?? catalogPrice,
       priceSource: l.priceCents !== null ? "order" : "catalog",
+      variant: l.variant,
     });
   }
   return out;
@@ -170,11 +172,20 @@ export async function linesFromMeta(meta: string | null | undefined): Promise<Li
 
 export async function insertOrderLines(sql: Sql, orderId: number, lines: LineInput[]) {
   for (const l of lines) {
-    await sql`
-      insert into order_lines (order_id, slug, name, size, color, qty, unit_price_cents, cogs_breakdown)
-      values (${orderId}, ${l.slug}, ${l.name}, ${l.size}, ${l.color}, ${l.qty}, ${l.unitPriceCents},
-              ${JSON.stringify({ priceSource: l.priceSource })}::jsonb)
-    `;
+    try {
+      await sql`
+        insert into order_lines (order_id, slug, name, size, color, qty, unit_price_cents, variant, cogs_breakdown)
+        values (${orderId}, ${l.slug}, ${l.name}, ${l.size}, ${l.color}, ${l.qty}, ${l.unitPriceCents},
+                ${l.variant ?? ""}, ${JSON.stringify({ priceSource: l.priceSource })}::jsonb)
+      `;
+    } catch {
+      // a database that hasn't had the latest schema.sql run yet
+      await sql`
+        insert into order_lines (order_id, slug, name, size, color, qty, unit_price_cents, cogs_breakdown)
+        values (${orderId}, ${l.slug}, ${l.name}, ${l.size}, ${l.color}, ${l.qty}, ${l.unitPriceCents},
+                ${JSON.stringify({ priceSource: l.priceSource })}::jsonb)
+      `;
+    }
   }
 }
 

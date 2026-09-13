@@ -10,15 +10,21 @@ export type MetaLine = {
   color: string;
   qty: number;
   priceCents: number | null; // unit price when the order was placed (v4 meta); null on older orders
+  variant: string;           // which design goes on a bandana (v5 meta); "" on everything else
 };
 
-// One line of metadata. Field order: slug | size | color | xQTY | unit price in cents.
-export function metaLine(l: { slug: string; size: string; color: string; qty: number; priceCents: number }) {
-  return `${l.slug}|${l.size}|${l.color}|x${l.qty}|${l.priceCents}`;
+// One line of metadata. Field order: slug | size | color | xQTY | unit price in
+// cents | variant. The variant is only written when there is one, so a shirt
+// line still looks exactly like it always has.
+export function metaLine(l: { slug: string; size: string; color: string; qty: number; priceCents: number; variant?: string }) {
+  const base = `${l.slug}|${l.size}|${l.color}|x${l.qty}|${l.priceCents}`;
+  const variant = (l.variant ?? "").trim();
+  return variant ? `${base}|${variant}` : base;
 }
 
 // Reads every version of the format we've ever written:
-//   v1  slug|size|xN          v3  slug|size|color|xN          v4  slug|size|color|xN|price
+//   v1  slug|size|xN     v3  slug|size|color|xN     v4  slug|size|color|xN|price
+//   v5  slug|size|color|xN|price|variant   (variant = the design on a bandana)
 // and ignores a trailing " | note: ..." from order requests.
 export function parseItemsMeta(meta: string | null | undefined): MetaLine[] {
   if (!meta) return [];
@@ -34,7 +40,8 @@ export function parseItemsMeta(meta: string | null | undefined): MetaLine[] {
     const color = qi >= 3 ? bits[2] : "";
     const priceRaw = qi >= 0 ? bits[qi + 1] : undefined;
     const priceCents = priceRaw && /^\d+$/.test(priceRaw) ? Number(priceRaw) : null;
-    out.push({ slug, size, color, qty: qty >= 1 ? qty : 1, priceCents });
+    const variant = qi >= 0 && priceCents !== null ? (bits[qi + 2] ?? "") : "";
+    out.push({ slug, size, color, qty: qty >= 1 ? qty : 1, priceCents, variant });
   }
   return out;
 }
@@ -56,6 +63,7 @@ export async function itemLinesFromMeta(meta: string | null | undefined): Promis
     } catch {
       // fall back to the slug — never block an email over a lookup
     }
+    if (l.variant) name = `${name} · ${l.variant.charAt(0).toUpperCase()}${l.variant.slice(1)}`;
     lines.push(`${l.qty} × ${name} — ${l.color ? `${colorName(l.color)}, ` : ""}size ${l.size || "?"}`);
   }
   return lines;

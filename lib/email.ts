@@ -267,11 +267,103 @@ export function customerShippedHtml(o: {
       <p style="margin:0 0 8px;font:600 12px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#cf9440;">In the package</p>
       <ul style="margin:0;padding-left:18px;font:400 15px/1.6 Helvetica,Arial,sans-serif;color:#f0e7d1;">${items}</ul>
     </div>
-    <p style="margin:0;">Wash it cold and inside out, hang dry or tumble low. Thank you for wearing something made by hand.</p>
+    <p style="margin:0 0 12px;">Wash it cold and inside out, hang dry or tumble low. Thank you for wearing something made by hand.</p>
+    <p style="margin:0;font-size:14px;color:#bdb19a;">Not the right size? Every piece gets one free swap for another size or color — <a href="${o.siteUrl}/swap" style="color:#e3b96e;">ask for one here</a>.</p>
     <p style="margin:22px 0 0;">
       <a href="${o.siteUrl}" style="display:inline-block;border:1px solid rgba(240,231,209,.3);color:#f0e7d1;text-decoration:none;font:600 14px/1 Helvetica,Arial,sans-serif;padding:13px 22px;border-radius:999px;">Back to the shop</a>
     </p>`;
   return shell("Your shirt shipped", body, "Questions? Just reply to this email — it reaches the person who made your shirt.");
+}
+
+// ---------- 3d. SWAP ASKED FOR → the shop ----------
+export function swapAlertHtml(o: {
+  ref: string;
+  customerName: string;
+  customerEmail: string;
+  have: string;
+  want: string;
+  reason: string;
+  note: string;
+  orderRef: string;
+  siteUrl: string;
+}) {
+  const body = `
+    <p style="margin:0 0 18px;color:#f0e7d1;">Someone wants a different size or color. Nothing has moved yet — approve it on the swaps board and they'll get the instructions.</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+      ${row("Swap", `<strong style="color:#e3b96e;">${escapeHtml(o.ref)}</strong>`)}
+      ${row("Customer", escapeHtml(o.customerName || "—"))}
+      ${row("Email", escapeHtml(o.customerEmail || "—"))}
+      ${row("They have", escapeHtml(o.have))}
+      ${row("They want", `<strong style="color:#e3b96e;">${escapeHtml(o.want)}</strong>`)}
+      ${row("Why", escapeHtml(o.reason || "—"))}
+      ${o.orderRef ? row("Order", escapeHtml(o.orderRef)) : ""}
+      ${o.note ? row("Note", escapeHtml(o.note).replace(/\n/g, "<br>")) : ""}
+    </table>
+    <p style="margin:22px 0 0;">
+      <a href="${o.siteUrl}/admin/swaps" style="display:inline-block;background:#cf9440;color:#110d05;text-decoration:none;font:700 14px/1 Helvetica,Arial,sans-serif;padding:13px 22px;border-radius:999px;">Open the swaps board</a>
+    </p>`;
+  return shell("Swap asked for", body, "Replying to this email goes straight to the customer.");
+}
+
+// ---------- 3e. SWAP → the customer ----------
+export function customerSwapHtml(o: {
+  firstName: string;
+  ref: string;
+  have: string;
+  want: string;
+  status: "requested" | "approved" | "sent" | "done" | "declined";
+  message: string;      // whatever Corey typed (the return address, usually)
+  returnTo: string;     // where to send it back, when the site knows
+  siteUrl: string;
+}) {
+  const hi = o.firstName ? `${escapeHtml(o.firstName)}, ` : "";
+  const head: Record<string, string> = {
+    requested: `${hi}we got it.`,
+    approved: `${hi}your swap is approved.`,
+    sent: `${hi}your replacement is on its way.`,
+    done: `${hi}that's all sorted.`,
+    declined: `${hi}about your swap.`,
+  };
+  const lead: Record<string, string> = {
+    requested:
+      "You asked to swap a piece for a different size or color. We'll look at it and write back within a day with where to send it.",
+    approved:
+      "Send the original back and the new one gets made as soon as it lands. Postage back is on you; we cover shipping the replacement out.",
+    sent: "The replacement shipped today. Thank you for your patience while it was made.",
+    done: "Your original is back with us and the replacement is on its way to you. One swap per piece, so this one's used up — but you're all set.",
+    declined: "We weren't able to do this one. Here's why:",
+  };
+  const body = `
+    <p style="margin:0 0 18px;color:#f0e7d1;">${head[o.status]} ${escapeHtml(lead[o.status])}</p>
+    <div style="background:rgba(0,0,0,.25);border-radius:12px;padding:16px 18px;margin-bottom:18px;">
+      <p style="margin:0 0 8px;font:600 12px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#cf9440;">Swap ${escapeHtml(o.ref)}</p>
+      <p style="margin:0;font:400 15px/1.6 Helvetica,Arial,sans-serif;color:#f0e7d1;">
+        ${escapeHtml(o.have)}<br>
+        <span style="color:#e3b96e;">→ ${escapeHtml(o.want)}</span>
+      </p>
+    </div>
+    ${
+      o.status === "approved" && (o.returnTo || o.message)
+        ? `<div style="background:rgba(0,0,0,.25);border-radius:12px;padding:16px 18px;margin-bottom:18px;">
+             <p style="margin:0 0 8px;font:600 12px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#cf9440;">Send it back to</p>
+             <p style="margin:0;font:400 15px/1.6 Helvetica,Arial,sans-serif;color:#f0e7d1;">${escapeHtml(o.returnTo || o.message).replace(/\n/g, "<br>")}</p>
+           </div>`
+        : ""
+    }
+    ${
+      o.message && !(o.status === "approved" && !o.returnTo)
+        ? `<p style="margin:0 0 18px;color:#f0e7d1;">${escapeHtml(o.message).replace(/\n/g, "<br>")}</p>`
+        : ""
+    }
+    <p style="margin:0;">Pop the original in any envelope — no need for the original packaging. Fold it, tape it, send it.</p>
+    <p style="margin:22px 0 0;">
+      <a href="${o.siteUrl}/shop" style="display:inline-block;border:1px solid rgba(240,231,209,.3);color:#f0e7d1;text-decoration:none;font:600 14px/1 Helvetica,Arial,sans-serif;padding:13px 22px;border-radius:999px;">Back to the shop</a>
+    </p>`;
+  return shell(
+    o.status === "requested" ? "We got your swap request" : `Swap ${o.ref}`,
+    body,
+    "Questions? Just reply to this email — it reaches the person who made your piece."
+  );
 }
 
 // ---------- 3c. SIGN IN LINK ----------

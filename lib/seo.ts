@@ -30,9 +30,9 @@ export function absoluteImage(src: string): string {
 // Site-wide: who we are + the site itself. Rendered once, in the root layout.
 export function siteJsonLd(): Record<string, unknown> {
   const description =
-    `${SITE_NAME} (${SITE_SHORT}) makes one of a kind reverse bleach shirts in ` +
-    `${TOWN}, ${STATE_NAME} — real leaves and hand-cut stencils on heavyweight ` +
-    `cotton, bleached by hand one shirt at a time.`;
+    `${SITE_NAME} (${SITE_SHORT}) makes one of a kind reverse bleach shirts and ` +
+    `bandanas in ${TOWN}, ${STATE_NAME} — real leaves and hand-cut stencils on ` +
+    `heavyweight cotton, bleached by hand one piece at a time.`;
   return {
     "@context": "https://schema.org",
     "@graph": [
@@ -68,6 +68,8 @@ export function siteJsonLd(): Record<string, unknown> {
           "botanical bleach printing",
           "hand-cut stencil shirts",
           "custom logo shirts",
+          "bleach dyed dog bandanas",
+          "matching dog and owner shirts",
         ],
       },
       {
@@ -89,11 +91,12 @@ export function productJsonLd(product: Product): Record<string, unknown> {
   const url = `${SITE_URL}/shop/${product.slug}`;
   const images = [product.image, product.card].filter(Boolean).map(absoluteImage);
   const kind = product.line === "stencil" ? "hand-cut stencil" : "real leaf";
+  const bandana = product.kind === "bandana";
   return {
     "@context": "https://schema.org",
     "@type": "Product",
     "@id": `${url}#product`,
-    name: `${product.name} bleach shirt`,
+    name: bandana ? `${product.name} — hand bleached bandana` : `${product.name} bleach shirt`,
     description: product.blurb || product.story,
     image: images,
     url,
@@ -101,10 +104,19 @@ export function productJsonLd(product: Product): Record<string, unknown> {
     brand: { "@type": "Brand", name: SITE_NAME, alternateName: SITE_SHORT },
     manufacturer: { "@id": BUSINESS_ID },
     material: "100% cotton",
-    category: "Apparel & Accessories > Clothing > Shirts & Tops",
+    category: bandana
+      ? "Apparel & Accessories > Clothing Accessories > Scarves & Shawls"
+      : "Apparel & Accessories > Clothing > Shirts & Tops",
     additionalProperty: [
-      { "@type": "PropertyValue", name: "Technique", value: `Reverse bleach, ${kind}` },
+      {
+        "@type": "PropertyValue",
+        name: "Technique",
+        value: bandana ? "Reverse bleach, any design from the lineup" : `Reverse bleach, ${kind}`,
+      },
       { "@type": "PropertyValue", name: "Made in", value: `${TOWN}, ${STATE_NAME}` },
+      ...(bandana
+        ? [{ "@type": "PropertyValue", name: "Fits", value: "One size — dogs and people" }]
+        : []),
     ],
     offers: {
       "@type": "Offer",

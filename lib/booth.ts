@@ -4,10 +4,17 @@
 // ============================================================
 
 // The price buttons, in cents. The first one is picked by default.
-// Anything else (a deal, a custom piece) goes in "Other amount".
+// Anything else (a deal, a bigger size, a custom piece) goes in "Other amount".
 export const BOOTH_PRICES: { cents: number; label: string; note: string }[] = [
-  { cents: 4000, label: "$40", note: "Regular tee" },
-  { cents: 4500, label: "$45", note: "Comfort Colors" },
+  { cents: 4000, label: "$40", note: "Shirt" },
+];
+
+// The price buttons when the thing being sold is a bandana. The second one
+// is the set price: a shirt at $40 plus a bandana at $15 comes to $55, the
+// same as the site charges for the pair.
+export const BANDANA_PRICES: { cents: number; label: string; note: string }[] = [
+  { cents: 2000, label: "$20", note: "On its own" },
+  { cents: 1500, label: "$15", note: "With a shirt" },
 ];
 
 export const PAY_METHODS = [

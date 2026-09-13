@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { colorName } from "@/lib/products";
+import { colorName, ONE_SIZE } from "@/lib/products";
 import { kindLabel } from "@/lib/requests";
 import { blankKey, shirtKey } from "@/lib/inventoryShared";
 import type { QueueData, QueueOrder } from "@/lib/queue";
@@ -49,8 +49,15 @@ function Tiny({ onClick, busy, children, title, tone = "faded" }: { onClick: () 
   );
 }
 
+function cap(v: string) {
+  return v ? v.charAt(0).toUpperCase() + v.slice(1) : v;
+}
+
 function lineText(l: QueueOrder["lines"][number]) {
-  return `${l.qty} × ${l.name}${l.color ? ` · ${colorName(l.color)}` : ""}${l.size ? ` · ${l.size}` : ""}`;
+  // a bandana says which design goes on it, and its size is just "One size"
+  const what = l.variant ? `${l.name} · ${cap(l.variant)}` : l.name;
+  const size = l.size && l.size !== ONE_SIZE ? ` · ${l.size}` : "";
+  return `${l.qty} × ${what}${l.color ? ` · ${colorName(l.color)}` : ""}${size}`;
 }
 
 type Shelf = QueueData["shelf"];
@@ -123,7 +130,7 @@ function OrderCard({ o, waiting, shelf }: { o: QueueOrder; waiting?: boolean; sh
               // a finished shirt already on the shelf can fill this line instead of making one
               const onShelf =
                 l.color && l.size && l.slug !== "custom" && l.slug !== "other"
-                  ? shelf.shirts[shirtKey(l.slug, l.color, l.size)] ?? 0
+                  ? shelf.shirts[shirtKey(l.slug, l.color, l.size, l.variant)] ?? 0
                   : 0;
               return (
                 <li key={l.id ?? `m${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -296,7 +303,7 @@ export default function QueueBoard({ data }: { data: QueueData }) {
                     return (
                       <tr key={`${b.color}|${b.size}`} className="border-b border-bone/5">
                         <td className="py-1.5 pr-2 text-bone">{b.color ? colorName(b.color) : "any color"}</td>
-                        <td className="py-1.5 pr-2 text-faded">{b.size || "?"}</td>
+                        <td className="py-1.5 pr-2 text-faded">{b.size === ONE_SIZE ? "bandana" : b.size || "?"}</td>
                         <td className="py-1.5 text-right font-semibold text-goldlight tabular-nums">{b.qty}</td>
                         {shelf.ready && (
                           <td className={"py-1.5 pl-2 text-right tabular-nums " + (short ? "font-semibold text-rust" : "text-faded")}>

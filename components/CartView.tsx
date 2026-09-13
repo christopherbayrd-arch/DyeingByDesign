@@ -5,7 +5,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/components/CartContext";
 import { useSession } from "next-auth/react";
-import { COLORS, SHIPPING_CENTS, colorName, fmtPrice } from "@/lib/products";
+import { COLORS, SET_PRICE_CENTS, SHIPPING_CENTS, colorName, fmtPrice, setDiscount } from "@/lib/products";
+
+// what a bandana costs on its own, for the "add one and save" hint
+const BANDANA_HINT_CENTS = 2000;
 import { asset } from "@/lib/assets";
 
 type Done = { orderRef: string; mailto?: string; customerEmailed?: boolean; emailFailed?: boolean };
@@ -16,6 +19,11 @@ type Done = { orderRef: string; mailto?: string; customerEmailed?: boolean; emai
 // order request and Corey replies with one payment link for the lot.
 export default function CartView({ cardSlugs = [] }: { cardSlugs?: string[] }) {
   const { lines, ready, remove, setQty, subtotalCents, clear } = useCart();
+  // shirt + bandana together = the set price
+  const set = setDiscount(lines.map((l) => ({ kind: l.kind, qty: l.qty, unitPriceCents: l.priceCents })));
+  const hasShirt = lines.some((l) => l.kind !== "bandana");
+  const hasBandana = lines.some((l) => l.kind === "bandana");
+  const SET_FULL_HINT = (lines.find((l) => l.kind !== "bandana")?.priceCents ?? 4000) + BANDANA_HINT_CENTS;
   // Signed in customers get their name and email filled in (still editable)
   const { data: session } = useSession();
   const me = session?.user;
@@ -36,7 +44,7 @@ export default function CartView({ cardSlugs = [] }: { cardSlugs?: string[] }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
-          items: lines.map(({ slug, size, color, qty }) => ({ slug, size, color, qty })),
+          items: lines.map(({ slug, size, color, qty, variant }) => ({ slug, size, color, qty, variant })),
         }),
       });
       const body = await res.json().catch(() => ({}));
@@ -60,7 +68,7 @@ export default function CartView({ cardSlugs = [] }: { cardSlugs?: string[] }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: lines.map(({ slug, size, color, qty }) => ({ slug, size, color, qty })),
+          items: lines.map(({ slug, size, color, qty, variant }) => ({ slug, size, color, qty, variant })),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -129,7 +137,7 @@ export default function CartView({ cardSlugs = [] }: { cardSlugs?: string[] }) {
     <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
       <ul className="space-y-4">
         {lines.map((line, i) => (
-          <li key={`${line.slug}-${line.size}-${line.color}`} className="card flex gap-3 p-3 sm:gap-4 sm:p-4">
+          <li key={`${line.slug}-${line.size}-${line.color}-${line.variant ?? ""}`} className="card flex gap-3 p-3 sm:gap-4 sm:p-4">
             <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl sm:h-24 sm:w-24">
               {line.card ? (
                 <Image src={asset(line.card)} alt={line.name} fill sizes="96px" className="object-cover" />
@@ -139,13 +147,16 @@ export default function CartView({ cardSlugs = [] }: { cardSlugs?: string[] }) {
             </div>
             <div className="flex flex-1 flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="font-display text-lg font-semibold">{line.name}</p>
+                <p className="font-display text-lg font-semibold">
+                  {line.name}
+                  {line.variant && <span className="text-faded"> · {line.variant.charAt(0).toUpperCase() + line.variant.slice(1)}</span>}
+                </p>
                 <p className="mt-0.5 flex items-center gap-1.5 text-sm text-faded">
                   <span
                     className="inline-block h-3 w-3 rounded-full border border-bone/30"
                     style={{ background: COLORS.find((c) => c.key === line.color)?.hex }}
                   />
-                  {colorName(line.color)} · Size {line.size}
+                  {colorName(line.color)}{line.size ? ` · ${line.size === "One size" ? line.size : `Size ${line.size}`}` : ""}
                 </p>
                 <button
                   onClick={() => remove(i)}
@@ -183,15 +194,32 @@ export default function CartView({ cardSlugs = [] }: { cardSlugs?: string[] }) {
             <dt>Subtotal</dt>
             <dd>{fmtPrice(subtotalCents)}</dd>
           </div>
+          {set.off > 0 && (
+            <div className="flex justify-between text-goldlight">
+              <dt>
+                Shirt + bandana set{set.pairs > 1 ? ` × ${set.pairs}` : ""}
+              </dt>
+              <dd>−{fmtPrice(set.off)}</dd>
+            </div>
+          )}
           <div className="flex justify-between text-faded">
             <dt>Shipping (flat rate, US)</dt>
             <dd>{fmtPrice(SHIPPING_CENTS)}</dd>
           </div>
           <div className="flex justify-between border-t border-bone/15 pt-3 text-base font-semibold text-bone">
             <dt>Total</dt>
-            <dd>{fmtPrice(subtotalCents + SHIPPING_CENTS)}</dd>
+            <dd>{fmtPrice(subtotalCents - set.off + SHIPPING_CENTS)}</dd>
           </div>
         </dl>
+        {set.off === 0 && hasShirt && !hasBandana && (
+          <p className="mt-3 rounded-xl bg-black/20 px-4 py-3 text-xs leading-relaxed text-faded">
+            Add a matching{" "}
+            <a href="/shop/bandana" className="font-semibold text-goldlight underline underline-offset-2">
+              bandana
+            </a>{" "}
+            and the pair is {fmtPrice(SET_PRICE_CENTS)} instead of {fmtPrice(SET_FULL_HINT)}.
+          </p>
+        )}
 
         {!allCard ? (
           <form onSubmit={sendOrder} className="mt-6 space-y-3">

@@ -3,7 +3,17 @@ import Link from "next/link";
 export default function AdminNav({
   active,
 }: {
-  active: "orders" | "sell" | "queue" | "inventory" | "products" | "cogs" | "history" | "news" | "drop";
+  active:
+    | "orders"
+    | "sell"
+    | "queue"
+    | "inventory"
+    | "swaps"
+    | "products"
+    | "cogs"
+    | "history"
+    | "news"
+    | "drop";
 }) {
   const tab = (href: string, label: string, key: string) => (
     <Link
@@ -25,6 +35,7 @@ export default function AdminNav({
       {tab("/admin/sell", "Quick sale", "sell")}
       {tab("/admin/queue", "Make queue", "queue")}
       {tab("/admin/inventory", "Inventory", "inventory")}
+      {tab("/admin/swaps", "Swaps", "swaps")}
       {tab("/admin/products", "Products & stock", "products")}
       {tab("/admin/cogs", "COGS", "cogs")}
       {tab("/admin/history", "Sales history", "history")}

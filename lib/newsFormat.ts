@@ -448,7 +448,7 @@ export function craftFairStarter(): NewsPost {
     summary:
       "Come see the whole lineup in person at [Fair name] in [Town]. Try them on, see the colors in real light, and take one home.",
     body: [
-      "We're bringing the whole lineup to [Fair name]: sumac, cedar, and fern across all nine blank colors, plus a few one of a kind pieces that will never be on the site.",
+      "We're bringing the whole lineup to [Fair name]: sumac, cedar, and fern across all seventeen blank colors, plus a few one of a kind pieces that will never be on the site.",
       "- Try shirts on and see the colors in real light\n- Pay at the table and take it home the same day\n- Ask about a custom design: your leaves, your logo, your idea",
     ].join("\n\n"),
     startTime: "09:00",

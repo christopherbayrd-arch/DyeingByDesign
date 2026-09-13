@@ -1,20 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/CartContext";
 import ShirtPreview from "@/components/ShirtPreview";
 import { COLORS, availableQty, fmtPrice, isSoldOut, type Product } from "@/lib/products";
 
+export type DesignChoice = { slug: string; name: string; card: string };
+
 // `card` = this design checks out by card through Stripe (counted stock with
 // Stripe connected). Otherwise the button sends the shirt to the cart's order
 // request form and Corey replies with a payment link. Decided server side in
 // lib/orderMode.ts.
-export default function AddToCart({ product, card = false }: { product: Product; card?: boolean }) {
+export default function AddToCart({
+  product,
+  card = false,
+  designs = [],
+}: {
+  product: Product;
+  card?: boolean;
+  designs?: DesignChoice[];   // bandanas: which design goes on it
+}) {
   const { add } = useCart();
   const router = useRouter();
-  const [size, setSize] = useState<string | null>(null);
+  const bandana = product.kind === "bandana";
+  const oneSize = product.sizes.length === 1;
+  const [variant, setVariant] = useState<string | null>(null);
+  const [size, setSize] = useState<string | null>(oneSize ? product.sizes[0] : null);
+
+  // "Add the matching bandana" links land here with the design already picked
+  useEffect(() => {
+    if (!bandana || designs.length === 0) return;
+    try {
+      const want = new URLSearchParams(window.location.search).get("design");
+      if (want && designs.some((d) => d.slug === want)) setVariant(want);
+    } catch {
+      // no query string, no problem
+    }
+  }, [bandana, designs]);
   const [color, setColor] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
@@ -39,8 +63,25 @@ export default function AddToCart({ product, card = false }: { product: Product;
     setError("");
     clampQty(size, c);
   }
-  const ready = Boolean(size && color);
-  const missing = !color && !size ? "Pick a color and a size first." : !color ? "Pick a color first." : "Pick a size first.";
+  const ready = Boolean(size && color && (!bandana || variant));
+  const missing = bandana && !variant
+    ? "Pick a design first."
+    : !color && !size
+      ? "Pick a color and a size first."
+      : !color
+        ? "Pick a color first."
+        : "Pick a size first.";
+  const line = () => ({
+    slug: product.slug,
+    size: size!,
+    color: color!,
+    qty,
+    name: product.name,
+    priceCents: product.priceCents,
+    card: product.card,
+    kind: product.kind,
+    variant: variant ?? "",
+  });
 
   function handleAdd() {
     if (!ready) {
@@ -48,15 +89,7 @@ export default function AddToCart({ product, card = false }: { product: Product;
       return;
     }
     setError("");
-    add({
-      slug: product.slug,
-      size: size!,
-      color: color!,
-      qty,
-      name: product.name,
-      priceCents: product.priceCents,
-      card: product.card,
-    });
+    add(line());
     setAdded(true);
     setTimeout(() => setAdded(false), 2600);
   }
@@ -69,15 +102,7 @@ export default function AddToCart({ product, card = false }: { product: Product;
     setError("");
     if (!card) {
       // No card checkout for this one — put it in the cart and go straight to the order form
-      add({
-        slug: product.slug,
-        size: size!,
-        color: color!,
-        qty,
-        name: product.name,
-        priceCents: product.priceCents,
-        card: product.card,
-      });
+      add(line());
       router.push("/cart");
       return;
     }
@@ -86,7 +111,7 @@ export default function AddToCart({ product, card = false }: { product: Product;
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: [{ slug: product.slug, size, color, qty }] }),
+        body: JSON.stringify({ items: [{ slug: product.slug, size, color, qty, variant: variant ?? "" }] }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.url) {
@@ -120,8 +145,39 @@ export default function AddToCart({ product, card = false }: { product: Product;
 
   return (
     <div>
+      {bandana && designs.length > 0 && (
+        <div className="mb-6">
+          <div className="mb-1.5 flex items-center justify-between text-sm">
+            <span className="font-medium text-faded">Which design</span>
+            <span className="text-faded">{variant ? designs.find((d) => d.slug === variant)?.name : "Pick one"}</span>
+          </div>
+          <div className="flex flex-wrap gap-2.5">
+            {designs.map((d) => (
+              <button
+                key={d.slug}
+                type="button"
+                data-active={variant === d.slug}
+                aria-pressed={variant === d.slug}
+                onClick={() => {
+                  setVariant(d.slug);
+                  setError("");
+                }}
+                className="size-pill flex min-h-12 items-center gap-2 py-1.5 pl-1.5 pr-4"
+              >
+                {d.card ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={d.card} alt="" className="h-9 w-9 rounded-full object-cover" />
+                ) : (
+                  <span className="h-9 w-9 rounded-full border border-dashed border-bone/30" />
+                )}
+                {d.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="mb-1.5 flex items-center justify-between text-sm">
-        <span className="font-medium text-faded">Shirt color</span>
+        <span className="font-medium text-faded">{bandana ? "Bandana color" : "Shirt color"}</span>
         <span className="text-faded">{color ? COLORS.find((c) => c.key === color)?.name : "Pick one"}</span>
       </div>
       <div className="flex items-start gap-4">
@@ -149,16 +205,20 @@ export default function AddToCart({ product, card = false }: { product: Product;
           );
         })}
       </div>
-      <div className="shrink-0 rounded-xl bg-black/20 p-2 text-center">
-        <ShirtPreview color={color} size={92} />
-        <p className="mt-0.5 text-[0.6rem] uppercase tracking-wider text-faded">the blank</p>
-      </div>
+      {!bandana && (
+        <div className="shrink-0 rounded-xl bg-black/20 p-2 text-center">
+          <ShirtPreview color={color} size={92} />
+          <p className="mt-0.5 text-[0.6rem] uppercase tracking-wider text-faded">the blank</p>
+        </div>
+      )}
       </div>
 
       <div className="mb-1.5 mt-6 flex items-center justify-between text-sm">
-        <span className="font-medium text-faded">Size — unisex, true to size</span>
+        <span className="font-medium text-faded">
+          {oneSize ? "One size — a square that folds to any neck, dog or person" : "Size — relaxed fit, runs roomy"}
+        </span>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className={"flex flex-wrap gap-2 " + (oneSize ? "hidden" : "")}>
         {product.sizes.map((s) => {
           const avail = color ? availableQty(product, s, color) : availableQty(product, s);
           const out = avail <= 0;

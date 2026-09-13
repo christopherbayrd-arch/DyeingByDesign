@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import CogsHistory from "@/components/CogsHistory";
-import { COLORS, SIZES, fmtPrice, lineInfo, stockKey, type Product } from "@/lib/products";
+import { COLORS, ONE_SIZE, SIZES, fmtPrice, lineInfo, stockKey, supplierColor, type Product } from "@/lib/products";
 import {
   blankStats,
   materialPerShirt,
@@ -32,6 +32,8 @@ export default function CogsManager() {
   const [fill, setFill] = useState<Record<string, string>>({});
   const [products, setProducts] = useState<Product[] | null>(null);
   const [productsNote, setProductsNote] = useState("");
+  // the blanks grid grows a Bandana column once there's a bandana to cost
+  const blankSizes = products?.some((p) => p.kind === "bandana") ? [...SIZES, ONE_SIZE] : SIZES;
 
   const load = useCallback(async () => {
     try {
@@ -204,7 +206,7 @@ export default function CogsManager() {
         <p className="kicker">1 · Blank tees</p>
         <h2 className="mt-1 font-display text-2xl font-semibold">What you pay per blank</h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-faded">
-          Dollars per shirt, before you touch it. Type a price in the <em>Fill column</em> row to
+          Dollars per piece, before you touch it. Type a price in the <em>Fill column</em> row to
           set every color in that size at once, then change any color that costs different.
           Leave a cell empty if you don&apos;t stock it.
         </p>
@@ -213,13 +215,15 @@ export default function CogsManager() {
             <thead>
               <tr>
                 <th className="pb-1 pr-3 text-left font-medium text-faded">Color</th>
-                {SIZES.map((s) => (
-                  <th key={s} className="px-1 pb-1 text-center font-semibold text-bone">{s}</th>
+                {blankSizes.map((s) => (
+                  <th key={s} className="px-1 pb-1 text-center font-semibold text-bone">
+                    {s === ONE_SIZE ? "Bandana" : s}
+                  </th>
                 ))}
               </tr>
               <tr>
                 <td className="py-1 pr-3 whitespace-nowrap text-faded italic">Fill column →</td>
-                {SIZES.map((s) => (
+                {blankSizes.map((s) => (
                   <td key={s} className="px-1 py-1">
                     <input
                       inputMode="decimal"
@@ -236,11 +240,14 @@ export default function CogsManager() {
             <tbody>
               {COLORS.map((c) => (
                 <tr key={c.key}>
-                  <td className="py-1 pr-3 whitespace-nowrap text-faded">
+                  <td
+                    className="py-1 pr-3 whitespace-nowrap text-faded"
+                    title={`${c.name} — order as "${supplierColor(c.key)}"`}
+                  >
                     <span className="mr-1.5 inline-block h-3 w-3 rounded-full border border-bone/30 align-middle" style={{ background: c.hex }} />
                     {c.name}
                   </td>
-                  {SIZES.map((s) => {
+                  {blankSizes.map((s) => {
                     const k = stockKey(c.key, s);
                     return (
                       <td key={k} className="px-1 py-1">
@@ -249,7 +256,7 @@ export default function CogsManager() {
                           value={doc.blanks[k] ?? ""}
                           onChange={(e) => setBlank(k, e.target.value)}
                           className="input w-[4.5rem] px-1.5 py-1 text-center"
-                          aria-label={`${c.name} ${s} blank cost`}
+                          aria-label={s === ONE_SIZE ? `${c.name} blank bandana cost` : `${c.name} ${s} blank cost`}
                         />
                       </td>
                     );

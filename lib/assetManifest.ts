@@ -4,7 +4,9 @@
 export const ASSET_HASHES: Record<string, string> = {
   "/images/artist-square.jpg": "240cfd7d",
   "/images/artist.jpg": "aec066c0",
+  "/images/bandana.jpg": "19e6b9a7",
   "/images/cedar-shirt.jpg": "1b082cfa",
+  "/images/design-bandana.jpg": "9bfc79c6",
   "/images/design-cedar.jpg": "4898b07c",
   "/images/design-fern.jpg": "9b874132",
   "/images/design-oak.jpg": "b0116189",

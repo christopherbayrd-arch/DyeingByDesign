@@ -13,6 +13,10 @@
 
 export type ProductLine = "botanical" | "stencil";
 
+// What the thing is. Shirts have the five sizes; a bandana is one size and
+// the customer picks which design goes on it.
+export type ProductKind = "shirt" | "bandana";
+
 export const LINES: { key: ProductLine; name: string; tagline: string; short: string }[] = [
   {
     key: "botanical",
@@ -38,6 +42,7 @@ export type Product = {
   name: string;
   species: string;    // italic sub-line: a species for leaves, a style note for stencils
   line: ProductLine;  // which lineup the design belongs to
+  kind: ProductKind;  // shirt | bandana
   blurb: string;
   story: string;
   image: string;        // big photo on the design page
@@ -77,31 +82,126 @@ export const SHIPPING_CENTS = 700;
 
 export const SIZES = ["S", "M", "L", "XL", "2XL"];
 
+// Bandanas come one size (a square that folds down to any neck, dog or person)
+export const ONE_SIZE = "One size";
+export const BANDANA_SIZES = [ONE_SIZE];
+
+// A shirt and a bandana bought together: the pair costs this much, so the
+// saving is whatever the two would have been minus this.
+export const SET_PRICE_CENTS = 5500;
+
+type PricedLine = { kind?: ProductKind; qty: number; unitPriceCents: number };
+
+// Pairs up shirts and bandanas in a cart and works out the saving
+export function setDiscount(lines: PricedLine[]): { pairs: number; off: number } {
+  const shirts: number[] = [];
+  const bandanas: number[] = [];
+  for (const l of lines) {
+    const n = Math.max(0, Math.floor(l.qty));
+    for (let i = 0; i < n; i++) (l.kind === "bandana" ? bandanas : shirts).push(l.unitPriceCents);
+  }
+  shirts.sort((a, b) => b - a);
+  bandanas.sort((a, b) => b - a);
+  const pairs = Math.min(shirts.length, bandanas.length);
+  let off = 0;
+  for (let i = 0; i < pairs; i++) off += Math.max(0, shirts[i] + bandanas[i] - SET_PRICE_CENTS);
+  return { pairs: off > 0 ? pairs : 0, off };
+}
+
+// The same pairing, but as prices to charge: the saving comes off the
+// bandana, so a $40 shirt and a $20 bandana check out as $40 + $15. A line
+// that's only half paired (two bandanas, one shirt) comes back split in two —
+// the set priced one first, then the rest at the usual price. Every unit is
+// still there, so stock and the sales history stay honest.
+export function setPricedLines<T extends PricedLine>(
+  lines: T[]
+): { line: T; qty: number; unitPriceCents: number; setPriced: boolean }[] {
+  type Unit = { at: number; price: number };
+  const shirts: Unit[] = [];
+  const bandanas: Unit[] = [];
+  lines.forEach((l, at) => {
+    const n = Math.max(0, Math.floor(l.qty));
+    for (let i = 0; i < n; i++) (l.kind === "bandana" ? bandanas : shirts).push({ at, price: l.unitPriceCents });
+  });
+  shirts.sort((a, b) => b.price - a.price);
+  bandanas.sort((a, b) => b.price - a.price);
+  const pairs = Math.min(shirts.length, bandanas.length);
+
+  // what each unit ends up costing, kept per line
+  const priced = new Map<number, { cents: number; setPriced: boolean }[]>();
+  const put = (at: number, cents: number, setPriced: boolean) =>
+    priced.set(at, [...(priced.get(at) ?? []), { cents, setPriced }]);
+  bandanas.forEach((b, i) => {
+    const off = i < pairs ? Math.max(0, Math.min(b.price, shirts[i].price + b.price - SET_PRICE_CENTS)) : 0;
+    put(b.at, b.price - off, off > 0);
+  });
+  for (const s of shirts) put(s.at, s.price, false);
+
+  const out: { line: T; qty: number; unitPriceCents: number; setPriced: boolean }[] = [];
+  lines.forEach((line, at) => {
+    const units = (priced.get(at) ?? []).sort((a, b) => a.cents - b.cents);
+    for (const u of units) {
+      const last = out[out.length - 1];
+      if (last && last.line === line && last.unitPriceCents === u.cents) last.qty += 1;
+      else out.push({ line, qty: 1, unitPriceCents: u.cents, setPriced: u.setPriced });
+    }
+  });
+  return out;
+}
+
 // Designs we no longer make (or have paused). The storefront and sitemap skip
 // these even if a row for them still exists in the database, so retiring a
 // design is a code change plus (when you get to it) hiding or deleting it in
 // /admin. Oak is paused for now; Cedar took its spot in the lineup (Sept 2026).
 export const RETIRED_SLUGS = ["maple", "oak"];
 
-// Blank colors. Every design comes in every color. `key` is what gets
-// stored (cart, orders, stock); `name` is what people see; `hex` is the
-// swatch. To add a color, add a line — that's it.
-// (Names follow the blank maker's color names; the `cherry-red` key is kept
-// from the old list so any stock counts already entered for it carry over.)
-export const COLORS: { key: string; name: string; hex: string }[] = [
-  { key: "black", name: "Black", hex: "#141414" },
-  { key: "cherry-red", name: "Antique cherry red", hex: "#9a1c2e" },
-  { key: "azalea", name: "Azalea", hex: "#f28cb1" },
-  { key: "daisy", name: "Daisy", hex: "#f6c945" },
-  { key: "electric-green", name: "Electric green", hex: "#3ddc3a" },
-  { key: "forest-green", name: "Forest green", hex: "#1f4d2e" },
-  { key: "sky-blue", name: "Sky blue", hex: "#7fb8e6" },
-  { key: "royal-blue", name: "Royal blue", hex: "#1f4fa3" },
-  { key: "purple", name: "Purple", hex: "#4a2d7e" },
+// Blank colors (2026-09-12: the seventeen Hanes Beefy-T colors Corey orders).
+//   key      what gets stored forever — cart lines, orders, stock counts, COGS.
+//            Never rename a key; add or retire instead.
+//   name     the DBD name customers see.
+//   hex      the swatch. These are read off the supplier's photos, so nudge
+//            them once you have the real shirts in hand.
+//   supplier the Hanes color to reorder — shown as a tooltip on the Blanks
+//            grid and the COGS blanks grid so you order the right one.
+// Keys kept from the old nine (black, sky-blue, royal-blue, purple) so any
+// counts or blank prices already typed in carry straight over.
+export const COLORS: { key: string; name: string; hex: string; supplier: string }[] = [
+  { key: "black",       name: "Black Spruce", hex: "#131313", supplier: "Black" },
+  { key: "smoke-grey",  name: "Granite",      hex: "#6e6e73", supplier: "Smoke Grey" },
+  { key: "navy",        name: "Deep Harbor",  hex: "#1e2a44", supplier: "Navy" },
+  { key: "royal-blue",  name: "Blueberry",    hex: "#2340b8", supplier: "Deep Royal" },
+  { key: "sky-blue",    name: "Sea Smoke",    hex: "#a9c4e0", supplier: "Light Blue" },
+  { key: "teal",        name: "Tide Pool",    hex: "#0e7fa3", supplier: "Teal" },
+  { key: "mint",        name: "Sea Glass",    hex: "#a5d9c6", supplier: "Clean Mint" },
+  { key: "kelly-green", name: "Balsam",       hex: "#17a44c", supplier: "Kelly Green" },
+  { key: "lime",        name: "Sapling",      hex: "#a9d95f", supplier: "Lime" },
+  { key: "green-clay",  name: "Lichen",       hex: "#7ea69b", supplier: "Green Clay" },
+  { key: "gold",        name: "Goldenrod",    hex: "#d99a1c", supplier: "Gold" },
+  { key: "yellow",      name: "Sunflower",    hex: "#f0e64a", supplier: "Yellow" },
+  { key: "orange",      name: "Ember",        hex: "#e2551d", supplier: "Orange" },
+  { key: "pink",        name: "Rosehip",      hex: "#de3d79", supplier: "Wow Pink" },
+  { key: "deep-red",    name: "Cranberry",    hex: "#a81b28", supplier: "Deep Red" },
+  { key: "maroon",      name: "Chokecherry",  hex: "#6a1f2c", supplier: "Maroon" },
+  { key: "purple",      name: "Lupine",       hex: "#4b2d70", supplier: "Grape Smash" },
 ];
 
+// Colors that were on the site before the Beefy-T switch. Nothing new can be
+// ordered in them, but an old order or stock row still reads properly.
+export const RETIRED_COLORS: Record<string, string> = {
+  "cherry-red": "Antique cherry red",
+  azalea: "Azalea",
+  daisy: "Daisy",
+  "electric-green": "Electric green",
+  "forest-green": "Forest green",
+};
+
 export function colorName(key: string): string {
-  return COLORS.find((c) => c.key === key)?.name ?? key;
+  return COLORS.find((c) => c.key === key)?.name ?? RETIRED_COLORS[key] ?? key;
+}
+
+// The Hanes color to reorder, for the blanks screens
+export function supplierColor(key: string): string {
+  return COLORS.find((c) => c.key === key)?.supplier ?? "";
 }
 export function isColorKey(v: string): boolean {
   return COLORS.some((c) => c.key === v);
@@ -136,6 +236,7 @@ export function fmtPrice(cents: number) {
 
 const base = {
   line: "botanical" as ProductLine,
+  kind: "shirt" as ProductKind,
   priceCents: 3999,
   sizes: SIZES,
   trackStock: false,
@@ -181,5 +282,22 @@ export const DEFAULT_PRODUCTS: Product[] = [
     image: "/images/design-fern.jpg",
     card: "/images/design-fern.jpg",
     sort: 4,
+  },
+  {
+    ...base,
+    slug: "bandana",
+    name: "The Bandana",
+    kind: "bandana",
+    species: "One size · for dogs and people",
+    blurb: "The same leaves, sized for a good dog. Or your back pocket.",
+    story:
+      "Same blanks, same bleach, same leaves off the same back roads — cut square instead of sewn into a tee. It ties on a dog, folds into a pocket, and comes in every color the shirts do. Pick the design you want on it; it's made the same way, one at a time.",
+    image: "/images/bandana.jpg",
+    card: "/images/design-bandana.jpg",
+    priceCents: 2000,
+    sizes: BANDANA_SIZES,
+    active: true,
+    samplePhoto: true, // the photos show maple; the design on yours is the one you pick
+    sort: 10,
   },
 ];

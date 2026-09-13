@@ -13,6 +13,7 @@ type Row = Record<string, unknown>;
 export type QueueLine = {
   id: number | null;      // order_lines id (null for orders that predate lines)
   slug: string;
+  variant: string;        // the design on a bandana ("cedar")
   name: string;
   size: string;
   color: string;
@@ -58,6 +59,7 @@ export type QueueData = {
 };
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : v ? new Date(String(v)).toISOString() : "");
+const cap = (v: string) => (v ? v.charAt(0).toUpperCase() + v.slice(1) : v);
 const str = (v: unknown) => (v === null || v === undefined ? "" : String(v));
 const daysSince = (isoDate: string, now: number) => Math.max(0, Math.floor((now - new Date(isoDate).getTime()) / 86400000));
 
@@ -95,12 +97,23 @@ export async function loadQueue(sql: Sql): Promise<QueueData> {
       where archived_at is null and status in ('requested', 'paid', 'made')
       order by priority desc, queued_at asc, id asc
     `) as Row[];
-    const lineRows = (await sql`
-      select l.id, l.order_id, l.slug, l.name, l.size, l.color, l.qty, l.made_at
-      from order_lines l join orders o on o.id = l.order_id
-      where o.archived_at is null and o.status in ('requested', 'paid', 'made')
-      order by l.id
-    `) as Row[];
+    let lineRows: Row[];
+    try {
+      lineRows = (await sql`
+        select l.id, l.order_id, l.slug, l.name, l.size, l.color, l.qty, l.made_at, l.variant
+        from order_lines l join orders o on o.id = l.order_id
+        where o.archived_at is null and o.status in ('requested', 'paid', 'made')
+        order by l.id
+      `) as Row[];
+    } catch {
+      // database without the variant column yet (run the latest schema.sql)
+      lineRows = (await sql`
+        select l.id, l.order_id, l.slug, l.name, l.size, l.color, l.qty, l.made_at
+        from order_lines l join orders o on o.id = l.order_id
+        where o.archived_at is null and o.status in ('requested', 'paid', 'made')
+        order by l.id
+      `) as Row[];
+    }
     // lines filled from the shelf (Inventory), so the queue can say "from stock"
     const pulled = new Map<number, number>();
     try {
@@ -123,6 +136,7 @@ export async function loadQueue(sql: Sql): Promise<QueueData> {
       const l: QueueLine = {
         id: Number(r.id),
         slug: str(r.slug),
+        variant: str(r.variant),
         name: str(r.name) || str(r.slug),
         size: str(r.size),
         color: str(r.color),
@@ -142,6 +156,7 @@ export async function loadQueue(sql: Sql): Promise<QueueData> {
         lines = parseItemsMeta(str(o.items)).map((l) => ({
           id: null,
           slug: l.slug,
+          variant: l.variant ?? "",
           name: l.slug.charAt(0).toUpperCase() + l.slug.slice(1),
           size: l.size,
           color: l.color,
@@ -191,7 +206,9 @@ export async function loadQueue(sql: Sql): Promise<QueueData> {
       for (const l of o.lines) {
         if (l.madeAt) continue;
         shirtsLeft += l.qty;
-        byDesign.set(l.name, (byDesign.get(l.name) ?? 0) + l.qty);
+        // a bandana counts per design, so the design is part of the name here
+        const what = l.variant ? `${l.name} · ${cap(l.variant)}` : l.name;
+        byDesign.set(what, (byDesign.get(what) ?? 0) + l.qty);
         const k = `${l.color}|${l.size}`;
         byBlank.set(k, (byBlank.get(k) ?? 0) + l.qty);
       }

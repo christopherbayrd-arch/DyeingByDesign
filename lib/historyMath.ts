@@ -11,6 +11,7 @@ export type HistoryLine = {
   size: string;
   color: string;
   qty: number;
+  variant?: string;            // the design on a bandana
   unitPriceCents: number;
   unitCogsCents: number | null;   // null = not costed yet
   estimated: boolean;              // cost is an estimate (see reason)
