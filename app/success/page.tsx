@@ -37,10 +37,14 @@ export default async function SuccessPage({
       <ClearCart />
       <p className="kicker">Order received</p>
       <h1 className="mt-3 font-display text-4xl font-semibold sm:text-5xl">
-        The woods are on it.
+        It&apos;s already made.
       </h1>
+      {/* Every card order is for a piece that was on the shelf when it sold —
+          the site won't take a card for anything else — so this page never
+          promises making time it doesn't need. */}
       <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-faded">
-        Thank you — your shirt is officially in the queue.
+        Thank you. This one was bleached, washed, and waiting on the shelf, so
+        there&apos;s nothing to wait on now.
         {total != null && (
           <>
             {" "}
@@ -53,8 +57,8 @@ export default async function SuccessPage({
             A receipt is on its way to <strong className="text-bone">{email}</strong>.
           </>
         )}{" "}
-        We&apos;ll make it by hand over the next 1 to 2 weeks and email tracking the
-        moment it ships.
+        It goes in the mail in the next day or two, and we&apos;ll email you tracking
+        the moment it does.
       </p>
       <div className="mt-9 flex justify-center gap-3">
         <Link href="/shop" className="btn btn-ghost">

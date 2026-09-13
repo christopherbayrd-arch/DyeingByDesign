@@ -18,9 +18,10 @@ type Row = Record<string, unknown>;
 
 const STATUS: Record<string, string> = {
   requested: "Request received",
-  paid: "Paid",
-  made: "Made",
+  paid: "Paid — being made",
+  made: "Ready to ship",
   shipped: "Shipped",
+  cancelled: "Cancelled",
 };
 
 function when(v: unknown) {
@@ -53,7 +54,8 @@ export default async function AccountPage() {
       orders = (await sql`
         select id, created_at, status, items, amount_total, tracking_number, tracking_url, stripe_session_id
         from orders
-        where user_id = ${uid} or lower(email) = lower(${user.email})
+        where (user_id = ${uid} or lower(email) = lower(${user.email}))
+          and (to_jsonb(orders) ->> 'deleted_at') is null
         order by created_at desc limit 50
       `) as Row[];
       requests = (await sql`

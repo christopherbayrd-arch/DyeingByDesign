@@ -64,7 +64,7 @@ export async function POST(req: Request) {
     if (sql) {
       try {
         const inserted = (await sql`
-          insert into orders (stripe_session_id, email, name, amount_total, items, shipping, channel, shipping_cents, fee_cents, paid_at)
+          insert into orders (stripe_session_id, email, name, amount_total, items, shipping, channel, shipping_cents, fee_cents, paid_at, status)
           values (
             ${session.id},
             ${session.customer_details?.email ?? null},
@@ -75,7 +75,12 @@ export async function POST(req: Request) {
             'site',
             ${shippingCents},
             ${feeCents},
-            now()
+            now(),
+            -- A card only goes through for something that's on the shelf, so
+            -- by the time this runs the piece is already bleached, washed and
+            -- finished. It lands on the desk as Made, not Paid, and never
+            -- shows up in the make queue as something to bleach.
+            'made'
           )
           on conflict (stripe_session_id) do nothing
           returning id
@@ -83,12 +88,27 @@ export async function POST(req: Request) {
 
         isNew = inserted.length > 0;
 
+        // Stripe says whether this payment was real money or a test. Test
+        // orders get stamped so the desk can tag them and Sales history, COGS
+        // and the make queue can leave them out. Best effort on purpose: on a
+        // database without the column yet a test order just looks ordinary.
+        if (isNew && !event.livemode) {
+          try {
+            await sql`update orders set test_mode = true where id = ${inserted[0].id}`;
+          } catch {
+            // no test_mode column yet — run the newest schema.sql in Neon
+          }
+        }
+
         // One row per shirt with the cost frozen right now, for the sales
         // history. Never allowed to fail the order itself.
         if (isNew && itemsMeta) {
           try {
             await insertOrderLines(sql, inserted[0].id, await linesFromMeta(itemsMeta));
             await costOrder(sql, inserted[0].id);
+            // and every line is already made, so the per shirt ticks on the
+            // make queue match the order's status
+            await sql`update order_lines set made_at = now() where order_id = ${inserted[0].id}`;
           } catch (err) {
             console.error("order lines / costing failed:", err);
           }
@@ -139,8 +159,8 @@ export async function POST(req: Request) {
         const site = siteUrl();
 
         sendPush({
-          title: `Paid order · ${total}`,
-          message: `${customerName || customerEmail}\n${itemLines.join(", ")}`,
+          title: `Ready to ship · ${total}`,
+          message: `Off the shelf — pack and send.\n${customerName || customerEmail}\n${itemLines.join(", ")}`,
           url: `${site}/admin`,
           urlTitle: "Open the order desk",
           sound: "cashregister",
@@ -150,7 +170,7 @@ export async function POST(req: Request) {
         if (cfg.canNotifyOwner) {
           const res = await sendEmail({
             to: cfg.notify,
-            subject: `New order — ${total}${customerName ? ` from ${customerName}` : ""}`,
+            subject: `Ready to ship — ${total}${customerName ? ` for ${customerName}` : ""}`,
             replyTo: customerEmail || undefined,
             html: orderAlertHtml({
               itemLines,
@@ -159,6 +179,7 @@ export async function POST(req: Request) {
               total,
               shipTo: shipToLine(shipping),
               siteUrl: site,
+              ready: true,
             }),
           });
           if (!res.ok) console.error("owner order email failed:", res.error);
@@ -168,13 +189,14 @@ export async function POST(req: Request) {
         if (cfg.canEmailCustomers && customerEmail) {
           const res = await sendEmail({
             to: customerEmail,
-            subject: "We got your order — Dyeing By Design",
+            subject: "Your order is ready to ship — Dyeing By Design",
             replyTo: cfg.notify || undefined,
             html: customerOrderHtml({
               firstName: customerName.split(" ")[0] ?? "",
               itemLines,
               total,
               siteUrl: site,
+              ready: true,
             }),
           });
           if (!res.ok) console.error("customer order email failed:", res.error);

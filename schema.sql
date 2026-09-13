@@ -402,3 +402,36 @@ create table if not exists swaps (
 );
 create index if not exists swaps_status_idx on swaps (status, created_at desc);
 create index if not exists swaps_order_idx  on swaps (order_id);
+
+-- ============================================================
+--  v12 — CANCEL, DELETE, AND TEST ORDERS (2026-09-13)
+--
+--  Three different ways an order stops being a live order, and
+--  they are not the same thing:
+--
+--    Cancelled  the order was real and isn't happening any more.
+--               It keeps its number and stays on the desk; it just
+--               drops out of revenue and out of the make queue.
+--               The shirts can go back on the shelf and whatever
+--               money went back to the customer is written down.
+--    Deleted    it was never a real order — your own test, spam,
+--               a duplicate. Hidden everywhere and out of every
+--               number, but sitting in the bin and recoverable for
+--               30 days before it's really gone.
+--    Test       Stripe says the payment was made in test mode.
+--               Stamped automatically by the webhook, tagged on the
+--               desk, and kept out of Sales history, COGS and the
+--               make queue so a test never moves your real numbers.
+--
+--  Safe to run again: every line is "add column if not exists".
+-- ============================================================
+alter table orders add column if not exists cancelled_at  timestamptz;
+alter table orders add column if not exists cancel_reason text;
+alter table orders add column if not exists refund_cents  integer;      -- money actually sent back
+alter table orders add column if not exists restocked_at  timestamptz;  -- the shirts went back on the shelf
+alter table orders add column if not exists deleted_at    timestamptz;  -- in the bin; purged after 30 days
+alter table orders add column if not exists delete_reason text;
+alter table orders add column if not exists test_mode     boolean not null default false;
+
+create index if not exists orders_deleted_idx on orders (deleted_at);
+create index if not exists orders_live_idx    on orders (deleted_at, test_mode, status);
