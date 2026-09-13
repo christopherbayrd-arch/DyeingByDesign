@@ -16,11 +16,15 @@ import {
 import {
   emailConfig,
   sendEmail,
+  customerCancelledHtml,
   customerOrderHtml,
   customerOrderRequestHtml,
   customerShippedHtml,
 } from "@/lib/email";
 import { itemLinesFromMeta, money, shipToLine, siteUrl } from "@/lib/orderFormat";
+import { removeLine, restoreLine } from "@/lib/historyRemovals";
+import { serviceName } from "@/lib/shipping";
+import { fmtPrice } from "@/lib/products";
 import { BANDANA_SIZES, SIZES, isColorKey } from "@/lib/products";
 
 // Order edits from the admin. Owner only — middleware guards /api/admin.
@@ -105,6 +109,85 @@ async function resendCopy(sql: NonNullable<ReturnType<typeof getDb>>, id: number
   return res.ok ? { ok: true as const, to } : { ok: false as const, error: res.error ?? "The email didn't send." };
 }
 
+// Tell the customer their order was cancelled. The money line is never
+// guessed: refunded money is stated as sent, money that went through with no
+// refund recorded yet is stated as coming, and an unpaid request says plainly
+// that nothing was charged.
+async function sendCancelled(
+  sql: NonNullable<ReturnType<typeof getDb>>,
+  id: number,
+  opts: { message: string; refundCents: number | null; hadMoney: boolean }
+) {
+  const cfg = emailConfig();
+  if (!cfg.canEmailCustomers) {
+    return { ok: false as const, error: "Customer emails are off until a sending domain is verified in Resend (README step 7)." };
+  }
+  const rows = (await sql`
+    select email, name, items, stripe_session_id from orders where id = ${id}
+  `) as Record<string, unknown>[];
+  const o = rows[0];
+  const to = String(o?.email ?? "");
+  if (!to) return { ok: false as const, error: "That order has no email address on it." };
+  const sid = String(o.stripe_session_id ?? "");
+
+  const refund =
+    opts.refundCents && opts.refundCents > 0
+      ? ({ kind: "sent", amount: fmtPrice(opts.refundCents) } as const)
+      : opts.hadMoney
+        ? ({ kind: "coming" } as const)
+        : ({ kind: "none" } as const);
+
+  const res = await sendEmail({
+    to,
+    subject: "Your order has been cancelled — Dyeing By Design",
+    replyTo: cfg.notify,
+    html: customerCancelledHtml({
+      firstName: String(o.name ?? "").split(" ")[0],
+      orderRef: sid.startsWith("email_") ? sid.replace("email_", "") : `#${id}`,
+      itemLines: await itemLinesFromMeta(String(o.items ?? "")),
+      refund,
+      message: opts.message,
+      siteUrl: siteUrl(),
+    }),
+  });
+  return res.ok ? { ok: true as const, to } : { ok: false as const, error: res.error ?? "The email didn't send." };
+}
+
+// The tracking email, on demand. Buying a label sends this by itself, so this
+// is for when that send failed (no verified domain yet, say) or the customer
+// says it never turned up.
+async function sendTracking(sql: NonNullable<ReturnType<typeof getDb>>, id: number) {
+  const cfg = emailConfig();
+  if (!cfg.canEmailCustomers) {
+    return { ok: false as const, error: "Customer emails are off until a sending domain is verified in Resend (README step 7)." };
+  }
+  const rows = (await sql`
+    select email, name, items, tracking_number, tracking_url, carrier, service
+    from orders where id = ${id}
+  `) as Record<string, unknown>[];
+  const o = rows[0];
+  if (!o) return { ok: false as const, error: "Order not found." };
+  const to = String(o.email ?? "");
+  if (!to) return { ok: false as const, error: "That order has no email address on it." };
+  const tracking = String(o.tracking_number ?? "");
+  if (!tracking) return { ok: false as const, error: "There's no tracking number on this order yet — buy the label first." };
+
+  const res = await sendEmail({
+    to,
+    subject: "Your shirt is on its way — Dyeing By Design",
+    replyTo: cfg.notify,
+    html: customerShippedHtml({
+      firstName: String(o.name ?? "").split(" ")[0],
+      itemLines: await itemLinesFromMeta(String(o.items ?? "")),
+      service: serviceName(String(o.carrier ?? ""), String(o.service ?? "")),
+      tracking,
+      trackingUrl: String(o.tracking_url ?? ""),
+      siteUrl: siteUrl(),
+    }),
+  });
+  return res.ok ? { ok: true as const, to } : { ok: false as const, error: res.error ?? "The email didn't send." };
+}
+
 export async function POST(req: Request) {
   const sql = getDb();
   if (!sql) return NextResponse.json({ error: "No database connected." }, { status: 503 });
@@ -120,6 +203,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, cleared: gone });
     }
 
+    // Sales history removals work on a line, not an order, so they come
+    // before the order id check.
+    if (action === "remove-line") {
+      const lineId = Number(body?.lineId);
+      if (!Number.isInteger(lineId) || lineId <= 0) {
+        return NextResponse.json({ error: "Which line?" }, { status: 400 });
+      }
+      const out = await removeLine(sql, lineId, {
+        reason: String(body?.reason ?? "").slice(0, 300),
+        restock: Boolean(body?.restock),
+      });
+      return NextResponse.json({ ok: true, ...out });
+    }
+    if (action === "restore-line") {
+      const removalId = Number(body?.removalId);
+      if (!Number.isInteger(removalId) || removalId <= 0) {
+        return NextResponse.json({ error: "Which one?" }, { status: 400 });
+      }
+      return NextResponse.json({ ok: true, ...(await restoreLine(sql, removalId)) });
+    }
+
     if (!Number.isInteger(id) || id <= 0) {
       return NextResponse.json({ error: "Which order?" }, { status: 400 });
     }
@@ -131,8 +235,23 @@ export async function POST(req: Request) {
       const restock = Boolean(body?.restock);
 
       if (action === "cancel") {
-        const out = await cancelOrder(sql, id, { reason, restock, refundCents: dollarsToCents(body?.refund) });
-        return NextResponse.json({ ok: true, ...out });
+        const refundCents = dollarsToCents(body?.refund);
+        const hadMoney = moneyOnIt(order);
+        const out = await cancelOrder(sql, id, { reason, restock, refundCents });
+        // The order is cancelled either way — a failed email never undoes it,
+        // it just comes back so the desk can say so.
+        let emailed: string | null = null;
+        let emailError = "";
+        if (body?.notify !== false) {
+          const sent = await sendCancelled(sql, id, {
+            message: String(body?.message ?? "").slice(0, 600),
+            refundCents,
+            hadMoney,
+          }).catch((err) => ({ ok: false as const, error: String(err).slice(0, 160) }));
+          if (sent.ok) emailed = sent.to;
+          else emailError = sent.error;
+        }
+        return NextResponse.json({ ok: true, ...out, emailed, emailError });
       }
       if (action === "uncancel") {
         return NextResponse.json({ ok: true, ...(await uncancelOrder(sql, id)) });
@@ -168,6 +287,32 @@ export async function POST(req: Request) {
           ? NextResponse.json({ ok: true, sent: out.to })
           : NextResponse.json({ error: out.error }, { status: 400 });
       }
+      if (action === "resend-cancelled") {
+        if (!order.cancelledAt) {
+          return NextResponse.json({ error: "That order isn't cancelled." }, { status: 400 });
+        }
+        const stored = (await sql`
+          select (to_jsonb(orders) ->> 'refund_cents')::int as refund_cents,
+                 paid_at is not null as was_paid
+          from orders where id = ${id}
+        `) as Record<string, unknown>[];
+        const out = await sendCancelled(sql, id, {
+          message: String(body?.message ?? "").slice(0, 600),
+          refundCents: stored[0]?.refund_cents == null ? null : Number(stored[0].refund_cents),
+          // it's already cancelled, so its status can't say whether it was ever
+          // paid — paid_at can
+          hadMoney: Boolean(stored[0]?.was_paid) && (order.amountTotal ?? 0) > 0 && !order.testMode,
+        });
+        return out.ok
+          ? NextResponse.json({ ok: true, sent: out.to })
+          : NextResponse.json({ error: out.error }, { status: 400 });
+      }
+      if (action === "send-tracking") {
+        const out = await sendTracking(sql, id);
+        return out.ok
+          ? NextResponse.json({ ok: true, sent: out.to })
+          : NextResponse.json({ error: out.error }, { status: 400 });
+      }
       return NextResponse.json({ error: "That's not something an order can do." }, { status: 400 });
     }
     if (!(ORDER_STATUSES as readonly string[]).includes(status)) {
@@ -194,10 +339,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, status: rows[0].status, costed });
   } catch (err) {
     console.error("admin order status:", err);
+    // these carry wording meant for the person at the desk
     const msg = String((err as { message?: string })?.message ?? "");
+    const plain =
+      msg.startsWith("This needs the newest schema.sql") ||
+      msg.startsWith("That's the only thing in this sale") ||
+      msg.startsWith("That line is already gone") ||
+      msg.startsWith("That one has already been put back") ||
+      msg.startsWith("There's nothing saved for that one");
     return NextResponse.json(
-      { error: msg.startsWith("This needs the newest schema.sql") ? msg : "Could not update the order." },
-      { status: 500 }
+      { error: plain ? msg : "Could not update the order." },
+      { status: plain ? 400 : 500 }
     );
   }
 }

@@ -35,7 +35,7 @@ export async function GET(req: Request) {
       ctaUrl: `${site}/shop`,
       feature: {
         name: "Maple",
-        price: "$39.99",
+        price: "$45.00",
         image: `${site}/images/design-maple.jpg`,
         url: `${site}/shop/maple`,
       },

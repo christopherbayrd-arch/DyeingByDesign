@@ -50,7 +50,7 @@ create table if not exists products (
   story        text not null default '',
   image        text not null default '',   -- big photo on the design page
   card         text not null default '',   -- square photo in grids
-  price_cents  integer not null default 3999,
+  price_cents  integer not null default 4500,
   sizes        jsonb not null default '["S","M","L","XL","2XL"]',
   track_stock  boolean not null default false,
   stock        jsonb not null default '{}',
@@ -67,19 +67,19 @@ insert into products (slug, name, species, blurb, story, image, card, price_cent
   'sumac', 'Sumac', 'Staghorn sumac · Rhus typhina',
   'Feathered fronds, deep burn. The original.',
   'The one that started it all. Staghorn sumac grows wild along every back road in Maine, and its feathered fronds leave the cleanest shadow we print. We lay fronds across the chest and shoulders, mist the bleach by hand, and let the fabric burn to its lighter tone before the leaf ever moves.',
-  '/images/sumac-shirt.jpg', '/images/design-sumac.jpg', 3999, false, 'The original', 1
+  '/images/sumac-shirt.jpg', '/images/design-sumac.jpg', 4500, false, 'The original', 1
 ),
 (
   'cedar', 'Cedar', 'Northern white cedar · Thuja occidentalis',
   'Fanned sprays that branch like frost. The North Woods one.',
   'Northern white cedar grows thick along Maine''s lake shores and swamp edges. Its flat, fanned sprays lie tight to the cotton, so every branch and tiny scale comes through. We scatter sprigs across the front and sleeves, mist the bleach by hand, and the shirt keeps its color everywhere the cedar sat.',
-  '/images/cedar-shirt.jpg', '/images/design-cedar.jpg', 3999, false, 'New', 3
+  '/images/cedar-shirt.jpg', '/images/design-cedar.jpg', 4500, false, 'New', 3
 ),
 (
   'fern', 'Fern', 'Ostrich fern · Matteuccia struthiopteris',
   'Lacy, layered, almost too fine to believe it''s bleach.',
   'The same fern Mainers hunt for fiddleheads in May. Its fronds leave a shadow so detailed people assume it''s screen printed. It isn''t. It''s a leaf, a steady hand, and one pass of spray.',
-  '/images/design-fern.jpg', '/images/design-fern.jpg', 3999, false, null, 4
+  '/images/design-fern.jpg', '/images/design-fern.jpg', 4500, false, null, 4
 )
 on conflict (slug) do nothing;
 
@@ -358,7 +358,7 @@ values (
   'bandana', 'The Bandana', 'One size · for dogs and people', 'botanical', 'bandana',
   'The same leaves, sized for a good dog. Or your back pocket.',
   'Same blanks, same bleach, same leaves off the same back roads — cut square instead of sewn into a tee. It ties on a dog, folds into a pocket, and comes in every color the shirts do. Pick the design you want on it; it''s made the same way, one at a time.',
-  '/images/bandana.jpg', '/images/design-bandana.jpg', 2000, '["One size"]'::jsonb, true, true, 10
+  '/images/bandana.jpg', '/images/design-bandana.jpg', 1000, '["One size"]'::jsonb, true, true, 10
 )
 on conflict (slug) do nothing;
 
@@ -435,3 +435,38 @@ alter table orders add column if not exists test_mode     boolean not null defau
 
 create index if not exists orders_deleted_idx on orders (deleted_at);
 create index if not exists orders_live_idx    on orders (deleted_at, test_mode, status);
+
+-- ============================================================
+--  v13 — TAKING SOMETHING OUT OF SALES HISTORY (2026-09-13)
+--
+--  Two different removals, because they aren't the same thing:
+--
+--    a whole sale   uses the v12 bin (orders.deleted_at). It's
+--                   already filtered out of the history, the
+--                   queue and the desk, and it comes back with
+--                   Restore for 30 days.
+--    one line       really leaves order_lines, because a row
+--                   that's still there is a row some query will
+--                   eventually count. The whole row is copied
+--                   here first, so it can be put back exactly
+--                   and there's a record of what left and why.
+--
+--  Nothing reads removed_lines except the Removed panel on
+--  Sales history, so a row sitting here can never be counted
+--  as a sale by accident.
+-- ============================================================
+create table if not exists removed_lines (
+  id           serial primary key,
+  order_id     integer,
+  line_id      integer,                     -- the id it had before it left
+  snapshot     jsonb not null,              -- the whole order_lines row
+  label        text not null default '',    -- readable, for the Removed list
+  amount_cents integer not null default 0,  -- what it was worth (qty × price)
+  cogs_cents   integer,                     -- what it had cost, if it was costed
+  reason       text not null default '',
+  restocked    boolean not null default false,
+  removed_at   timestamptz not null default now(),
+  restored_at  timestamptz
+);
+create index if not exists removed_lines_order_idx on removed_lines (order_id);
+create index if not exists removed_lines_open_idx  on removed_lines (restored_at, removed_at desc);

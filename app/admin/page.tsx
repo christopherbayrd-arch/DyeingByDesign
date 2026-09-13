@@ -372,6 +372,7 @@ export default async function AdminPage({
                     ) : (
                     <ShipLabel
                       orderId={Number(o.id)}
+                      customerEmail={String(o.email ?? "")}
                       status={String(o.status ?? "paid")}
                       hasAddress={shipTo(o.shipping) !== "—"}
                       labelUrl={o.label_url ? String(o.label_url) : null}
