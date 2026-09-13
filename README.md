@@ -25,10 +25,13 @@ playbook.
   availability:
   - **Always available** = made to order, no limits. These order by request
     (you reply with a payment link).
-  - **Track stock by size** = you set a count per color and size. A size at 0
-    shows as sold out, checkout refuses quantities you don't have, and every
-    paid order subtracts automatically. These are the shirts that get the
-    **Buy now** card checkout once Stripe is connected.
+  - **Only sell what's on hand** = the site sells from the counts on the
+    **Inventory** tab. A color and size at 0 shows as sold out, checkout
+    refuses quantities you don't have, and every paid card order takes the
+    shirts off automatically. These are the shirts that get the **Buy now**
+    card checkout once Stripe is connected. (The counts used to be typed in
+    here; they live on the Inventory tab now, and running `schema.sql`
+    carries over anything you'd already entered.)
   - **Shown / Hidden** toggles whether a design appears on the site at all.
     New designs start hidden until you're ready.
 - **COGS** (`/admin/cogs`): what each kind of shirt costs you to make. Enter
@@ -59,6 +62,45 @@ playbook.
   design isn't linked to a shirt type on the COGS page — fix that, then
   **Cost the missing ones**. *recost* on a row re-freezes it with the sheet
   from its paid date. Needs the latest `schema.sql` run in Neon.
+- **Quick sale** (`/admin/sell`): the booth screen for craft fairs and any
+  cash sale. Tap the design, color, size, price, and how they paid, then
+  **Record sale**. A bandana asks which design goes on it and swaps the
+  price buttons for $20 / $15 — $15 is picked for you when there's already
+  a shirt in the sale, so a shirt and a bandana come to $55 like they do on
+  the site. Works on a phone, iPad, or laptop. Each sale goes into
+  Sales history with its cost frozen (marked *quick sale*, never cluttering
+  the order desk), and the top of the screen keeps today's total and the
+  cash taken so you can check the cash box at the end of the day. Weak
+  signal at the fair? The sale saves on that device and sends itself when
+  the signal comes back (a sale sent twice is only counted once).
+- **Inventory** (`/admin/inventory`): everything on the shelf. *Ready to
+  sell* is finished shirts by design, color, and size (and, once the
+  bandana is switched on, bandanas by design and color — they're one
+  size); *Blanks* is plain tees by color and size plus a **Band** column
+  for blank bandanas; *Other items* is tie dye, hoodies, one offs.
+  Tap any box, type the count, tap away. *Just made some?* adds finished
+  shirts (and takes the blanks off); *Bought blanks?* adds blanks. Counts
+  go down on their own: a Quick sale takes the shirt off, ticking a shirt
+  in the Make queue uses a blank, **Use one on hand** in the queue ships a
+  shirt you already made, and Record a sale can take one off too. Undoing
+  any of those puts it back. *History* lists every change and why.
+- **News & events** (`/admin/news`): write news posts and craft fair /
+  market events. An event gets a countdown card on the home page until
+  it's over, its own page with calendar and directions buttons, and the
+  data Google uses for event searches. Drafts stay private until Publish.
+- **Swaps** (`/admin/swaps`): the exchange board. Nothing comes back for a
+  refund — everything is made for one person — but each piece gets one free
+  size or color swap within 14 days. A customer asks from
+  `yoursite.com/swap` (signed in, they just tap the piece; otherwise they
+  describe it), you get an email, and the request lands here. **Approve**
+  emails them where to send it, **Replacement sent** marks the new one on
+  its way (tick *came off the shelf* and it comes off the Inventory count),
+  and **Theirs came back · done** puts the piece they returned back on the
+  shelf as ready to sell. That piece's one swap is then used up — asking
+  again gets a polite no. Set `RETURN_ADDRESS` in `lib/site.ts` and the
+  address fills itself into the approval email; leave it empty and you type
+  it once per swap. Untick *Email the customer on every change* to move one
+  along quietly.
 - **Announce a drop** (`/admin/drop`): write one email and send it to
   everyone on the drop list. Send yourself a test first — it's the exact
   email subscribers get. Everyone receives their own copy (nobody sees
@@ -302,23 +344,46 @@ clears it.) Retired designs are listed in `RETIRED_SLUGS` in
 database.
 
 **Run a limited drop:** create the design (or edit an existing one), switch
-it to "Track stock by size," enter the counts, flip it to Shown, and email
-the drop list (the emails are in `/admin`). Sizes sell down to 0 and show
-sold out on their own.
+it to "Only sell what's on hand," put the shirts on the Inventory tab, flip
+it to Shown, and email the drop list (the emails are in `/admin`). Sizes
+sell down to 0 and show sold out on their own.
+
+**Switch the bandana on:** it's already in the database (hidden), so:
+Products & stock → **The Bandana** → add a photo for the grid and one for
+its page → **Shown**. Everything else wakes up with it — the strip on the
+home and shop pages, the "add the matching bandana" card on every shirt
+page, the design picker on its own page, the bandana rows on Inventory, the
+Bandana column on Blanks and COGS, and the bandana price buttons on Quick
+sale. Leave it hidden and none of that shows anywhere. A bandana is one
+size, takes any design from the lineup, and is counted per design — four
+sumac bandanas in black is its own line on the shelf. Prices:
+`price_cents` on the product (or Products & stock) for the bandana alone,
+and `SET_PRICE_CENTS` in `lib/products.ts` for a shirt and a bandana
+together ($55). The cart works the saving out itself and takes it off the
+bandana, so what gets recorded is what was actually paid.
 
 **Change flat rate shipping:** `SHIPPING_CENTS` in `lib/products.ts` (700 = $7.00),
 then push to GitHub. Every price shown on the site and in the emails reads from it.
+
+**Swaps, start to finish:** a customer goes to `yoursite.com/swap` (it's in
+the footer, in the shipped email, and on their account page), picks the
+piece and the size or color they'd rather have, and sends it. You get an
+email and a line on `/admin/swaps`. Approve it and they get the return
+address; when their piece lands, hit **Theirs came back · done** and it
+goes back on the Inventory shelf as ready to sell. One swap per piece,
+14 days — both live in `lib/swapShared.ts` (`SWAP_DAYS`), and the policy
+wording is on `/swap` and in the About FAQ.
 
 **Instagram link:** the header, footer, and artist page all read the URL from
 `lib/site.ts` (`INSTAGRAM_URL`). Change it there once.
 
 **Search engines (SEO):** the site publishes `/sitemap.xml` (every public
-page plus every shown design, read from the database) and `/robots.txt`
+page plus every shown design and live news post, read from the database) and `/robots.txt`
 (keeps Google out of `/admin`, `/api`, the cart, and the order-received
 page). Every page also carries invisible schema.org data — `lib/seo.ts`
 builds it: who the business is (name, **DBD** as the short name, Brunswick,
-Maine, the Instagram profile), each shirt's price and shipping, and the
-about page FAQ. The town, state, short name, and Instagram profile all live
+Maine, the Instagram profile), each shirt's price and shipping, the
+about page FAQ, and each craft fair or market as an Event (date, place). The town, state, short name, and Instagram profile all live
 in `lib/site.ts`. "DBD" is deliberately in the page titles, the home page
 kicker, the footer, and the about page FAQ — search engines only learn a
 nickname if the site actually uses it. After a deploy, submit
@@ -365,6 +430,45 @@ by design) and the custom requests that aren't orders yet. **Print this**
 gives a black-on-white copy for the bench. The desk shows *#N in line*
 under each order and the customer sees the same number on their account
 page. Re-run `schema.sql` in Neon once for the queue columns.
+With Inventory set up, ticking a shirt takes one blank of its color and
+size off the shelf, and a shirt you already have made shows **Use one on
+hand (N)**: tap it to fill that line from stock instead (the line then
+says *from stock*). Unticking puts it back. The pick list shows how many
+blanks you need next to how many you have, in red when you're short.
+
+**Inventory:** log in → **Inventory**. First time: count what's on the
+shelf and type the numbers into the grids (Ready to sell shows only the
+colors you have; *Show every color* opens the full grid). After that it
+mostly runs itself. Before a fair, make the shirts and add them with
+*Just made some?*; at the fair, Quick sale shows how many of each you
+have left right on the buttons (and picks from Other items too). When a
+count looks wrong, *History* shows exactly what moved it, from which
+order. Running low on a blank shows in red on the Blanks tab and in the
+Make queue.
+
+**Doing a craft fair:** log in → **News** → **+ New event**. It starts
+you off with a craft fair post: fill in the fair's name, day, hours,
+place, town, and booth (the [bracketed] bits in the text fill themselves
+in when you tap out of the name and town, and it won't publish while any
+are left). **Publish** puts a countdown card on the home page ("In 36
+days", "This Saturday", "Today") that takes itself down the day after, a
+page at `/news/<name>` with Add to calendar, Directions, and Share, and
+tells Google about the event. From the post: **Copy the link** for the
+Instagram bio or stories, **Email it to the drop list** (opens Announce a
+drop with everything filled in), and **Open Quick sale for this event**.
+After the fair, the post shows how many shirts sold there; edit it into a
+recap with a photo if you like. News posts (a new design, a restock) work
+the same way without the date and place.
+
+**Quick sale at the booth:** open `/admin/sell` on the phone before you
+leave home (it remembers your login for 30 days; in Safari, Share → Add
+to Home Screen makes it one tap). On a fair day it picks that fair
+automatically. Two shirts in one sale: **+ Add another**. Cash shows the
+change for a $50, $60, or $100. **Remove** under a sale (or **Undo** on
+the pop up) takes it back out. The price buttons ($40 a shirt, and $20 /
+$15 for bandanas) and payment options live in `lib/booth.ts`; anything else —
+a bigger size, a deal, a custom piece — goes in *Other $*. Optional: type the buyer's email to add them to the
+drop list. Needs the latest `schema.sql` run in Neon (two new columns).
 
 **Announce a drop:** log in → **Announce a drop**. Write a subject,
 headline, and message, optionally feature one of your designs (it pulls
@@ -395,6 +499,19 @@ app/api/admin/*           login/logout, products, photo upload,
 lib/email.ts              Resend setup and the email templates
 lib/orderFormat.ts        order data → readable email lines
 app/admin/drop/           write and send a drop announcement
+app/admin/news/           write news posts and craft fair / market events
+app/admin/sell/           Quick sale: booth and cash sales (phone friendly)
+app/admin/inventory/      Inventory: finished shirts, blanks, other items, history
+lib/inventory.ts          on hand counts + the change log (server)
+lib/inventoryShared.ts    inventory shapes and labels (used in the browser too)
+app/swap/                 "ask for a swap" — the size / color exchange form
+app/admin/swaps/          the swaps board: approve, sent, done
+lib/swaps.ts              swaps in the database + what they do to inventory
+lib/swapShared.ts         swap statuses, reasons, the 14 day window
+app/news/                 News & events page, each post, and its .ics calendar file
+lib/news.ts               reads news posts from Neon (never breaks the home page)
+lib/newsFormat.ts         dates (Maine time), countdowns, calendar + map links
+lib/booth.ts              Quick sale price buttons and payment options
 app/unsubscribe/          one-click unsubscribe confirmation page
 components/               header, footer, cards, cart, forms, product manager
 lib/products.ts           types, shipping constant, fallback designs
