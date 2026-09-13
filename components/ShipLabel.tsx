@@ -24,6 +24,7 @@ type Quote = {
 
 type Props = {
   orderId: number;
+  customerEmail?: string;
   status: string;
   hasAddress: boolean;
   labelUrl: string | null;
@@ -48,6 +49,7 @@ export default function ShipLabel(p: Props) {
   const [addr, setAddr] = useState({ name: "", line1: "", line2: "", city: "", state: "", postal: "" });
   const [weightOz, setWeightOz] = useState("");
   const [done, setDone] = useState<{ labelUrl: string; tracking: string; trackingUrl: string; emailed: boolean } | null>(null);
+  const [sent, setSent] = useState("");
 
   async function post(url: string, body: unknown) {
     const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -111,6 +113,20 @@ export default function ShipLabel(p: Props) {
     setBusy("");
   }
 
+  // Send the tracking email again, on demand
+  async function emailTracking() {
+    setBusy("track");
+    setError("");
+    setSent("");
+    try {
+      const data = await post("/api/admin/orders", { id: p.orderId, action: "send-tracking" });
+      setSent(`Sent to ${String(data.sent ?? "the customer")}.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't send that.");
+    }
+    setBusy("");
+  }
+
   // ---- already shipped with a label ----
   const label = done?.labelUrl ?? p.labelUrl;
   const tracking = done?.tracking ?? p.tracking;
@@ -137,6 +153,19 @@ export default function ShipLabel(p: Props) {
         {done && (
           <div className="mt-1 text-goldlight">{done.emailed ? "Customer emailed the tracking." : "Bought. (No tracking email — customer emails need the verified domain.)"}</div>
         )}
+        {/* Buying the label emails tracking by itself. This is for when that
+            send failed — no verified sending domain yet, say — or the customer
+            says it never turned up. */}
+        <button
+          type="button"
+          onClick={emailTracking}
+          disabled={busy !== ""}
+          className="mt-1 block font-semibold text-goldlight underline underline-offset-2 hover:text-gold"
+          title={p.customerEmail ? `Send the tracking number to ${p.customerEmail}` : "Send the tracking number to the customer"}
+        >
+          {busy === "track" ? "sending…" : "email tracking"}
+        </button>
+        {sent && <p className="mt-1 text-goldlight">{sent}</p>}
         <button type="button" onClick={voidLabel} disabled={busy !== ""} className="mt-1 text-[0.65rem] text-faded underline underline-offset-2 hover:text-rust">
           {busy === "void" ? "voiding…" : "void label"}
         </button>
@@ -168,7 +197,7 @@ export default function ShipLabel(p: Props) {
   }
 
   return (
-    <div className="w-[19rem] rounded-xl border border-bone/10 bg-black/30 p-3 text-xs">
+    <div className="w-[19rem] whitespace-normal rounded-xl border border-bone/10 bg-black/30 p-3 text-xs">
       <div className="flex items-baseline justify-between">
         <p className="font-semibold text-bone">Shipping label</p>
         <button type="button" onClick={() => setOpen(false)} className="text-faded hover:text-goldlight">close</button>

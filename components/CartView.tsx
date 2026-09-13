@@ -8,7 +8,7 @@ import { useSession } from "next-auth/react";
 import { COLORS, SET_PRICE_CENTS, SHIPPING_CENTS, colorName, fmtPrice, setDiscount } from "@/lib/products";
 
 // what a bandana costs on its own, for the "add one and save" hint
-const BANDANA_HINT_CENTS = 2000;
+const BANDANA_HINT_CENTS = 1000;
 import { asset } from "@/lib/assets";
 
 type Done = { orderRef: string; mailto?: string; customerEmailed?: boolean; emailFailed?: boolean };
@@ -47,7 +47,7 @@ export default function CartView({
   const set = setDiscount(lines.map((l) => ({ kind: l.kind, qty: l.qty, unitPriceCents: l.priceCents })));
   const hasShirt = lines.some((l) => l.kind !== "bandana");
   const hasBandana = lines.some((l) => l.kind === "bandana");
-  const SET_FULL_HINT = (lines.find((l) => l.kind !== "bandana")?.priceCents ?? 4000) + BANDANA_HINT_CENTS;
+  const SET_FULL_HINT = (lines.find((l) => l.kind !== "bandana")?.priceCents ?? 4500) + BANDANA_HINT_CENTS;
   // Signed in customers get their name and email filled in (still editable)
   const { data: session } = useSession();
   const me = session?.user;

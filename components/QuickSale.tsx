@@ -352,7 +352,7 @@ export default function QuickSale({
   const thing = hasBandanas ? "piece" : "shirt";
   const things = hasBandanas ? "pieces" : "shirts";
   // the booth's version of the set price: a shirt already rung up on this
-  // sale means the next bandana is $15, not $20
+  // sale means the next bandana is $5, not $10
   const shirtsInCart = cart.filter((l) => l.slug !== OTHER_SLUG && !l.variant).reduce((n, l) => n + l.qty, 0);
   const bandanasInCart = cart.filter((l) => Boolean(l.variant)).reduce((n, l) => n + l.qty, 0);
   const priceFor = (d: QuickDesign | null) =>

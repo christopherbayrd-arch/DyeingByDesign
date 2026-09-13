@@ -94,7 +94,9 @@ export const BANDANA_SIZES = [ONE_SIZE];
 
 // A shirt and a bandana bought together: the pair costs this much, so the
 // saving is whatever the two would have been minus this.
-export const SET_PRICE_CENTS = 5500;
+// 2026-09-13: shirt $45, bandana $10, the pair $50 — a $5 saving, and since
+// the saving comes off the bandana the bundled bandana rings up at $5.
+export const SET_PRICE_CENTS = 5000;
 
 type PricedLine = { kind?: ProductKind; qty: number; unitPriceCents: number };
 
@@ -115,7 +117,7 @@ export function setDiscount(lines: PricedLine[]): { pairs: number; off: number }
 }
 
 // The same pairing, but as prices to charge: the saving comes off the
-// bandana, so a $40 shirt and a $20 bandana check out as $40 + $15. A line
+// bandana, so a $45 shirt and a $10 bandana check out as $45 + $5. A line
 // that's only half paired (two bandanas, one shirt) comes back split in two —
 // the set priced one first, then the rest at the usual price. Every unit is
 // still there, so stock and the sales history stay honest.
@@ -283,7 +285,7 @@ export function fmtPrice(cents: number) {
 const base = {
   line: "botanical" as ProductLine,
   kind: "shirt" as ProductKind,
-  priceCents: 3999,
+  priceCents: 4500,
   sizes: SIZES,
   trackStock: false,
   stock: {},
@@ -340,7 +342,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
       "Same blanks, same bleach, same leaves off the same back roads — cut square instead of sewn into a tee. It ties on a dog, folds into a pocket, and comes in every color the shirts do. Pick the design you want on it; it's made the same way, one at a time.",
     image: "/images/bandana.jpg",
     card: "/images/design-bandana.jpg",
-    priceCents: 2000,
+    priceCents: 1000,
     sizes: BANDANA_SIZES,
     active: true,
     samplePhoto: true, // the photos show maple; the design on yours is the one you pick

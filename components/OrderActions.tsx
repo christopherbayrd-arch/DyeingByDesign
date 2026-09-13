@@ -53,6 +53,8 @@ export default function OrderActions({
   const [reason, setReason] = useState("");
   const [restock, setRestock] = useState(status !== "requested" && !cancelled);
   const [refund, setRefund] = useState("");
+  const [notify, setNotify] = useState(true);
+  const [message, setMessage] = useState("");
   const [knowsAboutMoney, setKnowsAboutMoney] = useState(false);
 
   // money has actually gone through: a test never counts, nor does a request
@@ -73,7 +75,13 @@ export default function OrderActions({
     setSaid("");
   }
 
-  async function act(body: Record<string, unknown>, done?: string) {
+  // `describe` turns the answer into a line to show. Pass one when the panel
+  // should stay open and report what happened (a cancel that couldn't email,
+  // say); leave it off and the panel just closes.
+  async function act(
+    body: Record<string, unknown>,
+    describe?: (data: Record<string, unknown>) => string
+  ) {
     setBusy(true);
     setError("");
     setSaid("");
@@ -87,12 +95,11 @@ export default function OrderActions({
       if (!res.ok) {
         setError(data.error ?? "That didn't work.");
         if (data.needsMoneyConfirm) setKnowsAboutMoney(false);
-      } else if (done) {
-        setSaid(
-          done === "resent"
-            ? `Sent again to ${String(data.sent ?? customer.email)}.`
-            : done
-        );
+      } else if (describe) {
+        const line = describe(data);
+        // an email that didn't go is a warning, not a success line
+        if (data.emailError) setError(String(data.emailError));
+        setSaid(line);
         router.refresh();
       } else {
         close();
@@ -126,12 +133,12 @@ export default function OrderActions({
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto whitespace-normal bg-black/70 p-4 backdrop-blur-sm"
           onClick={close}
           role="presentation"
         >
           <div
-            className="card my-8 w-full max-w-lg p-6"
+            className="card my-8 w-full max-w-lg overflow-hidden whitespace-normal p-6"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -196,6 +203,17 @@ export default function OrderActions({
                     of the make queue.
                   </p>
                 </div>
+                {said && <p className="text-sm text-goldlight">{said}</p>}
+                {error && <p className="text-sm text-rust">{error}</p>}
+                <button
+                  className="btn btn-ghost w-full"
+                  disabled={busy}
+                  onClick={() =>
+                    act({ action: "resend-cancelled" }, (d) => `Sent again to ${String(d.sent ?? customer.email)}.`)
+                  }
+                >
+                  {busy ? "…" : "Email them the cancellation again"}
+                </button>
                 <button className="btn btn-ghost w-full" disabled={busy} onClick={() => act({ action: "uncancel" })}>
                   {busy ? "…" : "Un-cancel it"}
                 </button>
@@ -259,11 +277,50 @@ export default function OrderActions({
                     </span>
                   </label>
                 )}
+                <div className="rounded-xl bg-black/20 p-3">
+                  <label className="flex items-start gap-2 text-sm text-faded">
+                    <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="mt-1" />
+                    <span>
+                      <span className="font-medium text-bone">Email the customer</span>
+                      <span className="mt-0.5 block text-xs leading-relaxed">
+                        Tells them it&apos;s cancelled and nothing is being made. The money line
+                        follows what you put above:{" "}
+                        {refund.trim()
+                          ? "it says that amount is on its way back."
+                          : hasMoney
+                            ? "with no amount filled in it says you'll be in touch about the refund."
+                            : "it says nothing was ever charged."}
+                      </span>
+                    </span>
+                  </label>
+                  {notify && (
+                    <textarea
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      maxLength={600}
+                      rows={2}
+                      className="input mt-2 resize-y py-2 text-sm"
+                      placeholder="Anything to say to them? (optional, goes in the email)"
+                    />
+                  )}
+                  <p className="mt-2 text-xs leading-relaxed text-faded">
+                    Your reason above stays here on the desk — the customer never sees it.
+                  </p>
+                </div>
+                {said && <p className="text-sm text-goldlight">{said}</p>}
                 {error && <p className="text-sm text-rust">{error}</p>}
                 <button
                   className="btn btn-gold w-full"
                   disabled={busy}
-                  onClick={() => act({ action: "cancel", reason, restock, refund })}
+                  onClick={() =>
+                    act({ action: "cancel", reason, restock, refund, notify, message }, (d) => {
+                      const back = Number(d.restocked) > 0 ? `, ${d.restocked} back on the shelf` : "";
+                      if (!notify) return `Cancelled${back}. No email sent.`;
+                      return d.emailed
+                        ? `Cancelled${back}. Email sent to ${String(d.emailed)}.`
+                        : `Cancelled${back}, but the email didn't go.`;
+                    })
+                  }
                 >
                   {busy ? "…" : "Cancel this order"}
                 </button>
@@ -325,12 +382,14 @@ export default function OrderActions({
               </div>
             ) : (
               /* ---- the menu ---- */
-              <div className="mt-6 space-y-2">
+              <div className="mt-6 flex flex-col gap-2">
                 <Action label="Edit what's in it" hint="Size, color, quantity, price, or where it's going." onClick={() => setPane("edit")} />
                 <Action
                   label="Send the customer their copy again"
                   hint="The email that matches where this order has got to."
-                  onClick={() => act({ action: "resend" }, "resent")}
+                  onClick={() =>
+                    act({ action: "resend" }, (d) => `Sent again to ${String(d.sent ?? customer.email)}.`)
+                  }
                   busy={busy}
                 />
                 <Action

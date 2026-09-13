@@ -306,6 +306,46 @@ export function customerShippedHtml(o: {
   return shell("Your shirt shipped", body, "Questions? Just reply to this email — it reaches the person who made your shirt.");
 }
 
+// ---------- 3c. CANCELLED (customer) ----------
+// Sent when Corey cancels an order from the desk. The money line is the part
+// that matters, so it's never guessed: `refund` says exactly which of the
+// three true things to say, and nothing is promised that hasn't happened.
+export function customerCancelledHtml(o: {
+  firstName: string;
+  orderRef: string;
+  itemLines: string[];
+  refund: { kind: "sent"; amount: string } | { kind: "coming" } | { kind: "none" };
+  message: string;      // optional line from Corey, shown as his own words
+  siteUrl: string;
+}) {
+  const items = o.itemLines.map((l) => `<li style="margin:0 0 6px;">${escapeHtml(l)}</li>`).join("");
+  const hi = o.firstName ? `${escapeHtml(o.firstName)}, ` : "";
+  const money =
+    o.refund.kind === "sent"
+      ? `<p style="margin:0 0 12px;color:#f0e7d1;"><strong style="color:#e3b96e;">${escapeHtml(o.refund.amount)}</strong> is on its way back to the card you paid with. Banks usually take five to ten days to show it.</p>`
+      : o.refund.kind === "coming"
+        ? `<p style="margin:0 0 12px;color:#f0e7d1;">We'll be in touch shortly about getting your money back.</p>`
+        : `<p style="margin:0 0 12px;color:#f0e7d1;">Nothing was ever charged, so there's nothing to refund.</p>`;
+  const note = o.message
+    ? `<div style="background:rgba(0,0,0,.25);border-radius:12px;padding:16px 18px;margin-bottom:18px;">
+         <p style="margin:0;font:400 15px/1.6 Helvetica,Arial,sans-serif;color:#f0e7d1;">${escapeHtml(o.message)}</p>
+       </div>`
+    : "";
+  const body = `
+    <p style="margin:0 0 18px;color:#f0e7d1;">${hi}your order has been cancelled. Nothing is being made and nothing is shipping.</p>
+    ${note}
+    <div style="background:rgba(0,0,0,.25);border-radius:12px;padding:16px 18px;margin-bottom:18px;">
+      <p style="margin:0 0 8px;font:600 12px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#cf9440;">Cancelled${o.orderRef ? ` · ${escapeHtml(o.orderRef)}` : ""}</p>
+      <ul style="margin:0;padding-left:18px;font:400 15px/1.6 Helvetica,Arial,sans-serif;color:#f0e7d1;">${items}</ul>
+    </div>
+    ${money}
+    <p style="margin:0 0 12px;">If this isn't what you expected, or you'd like to put it back together, just reply to this email. It reaches the person who makes the shirts.</p>
+    <p style="margin:22px 0 0;">
+      <a href="${o.siteUrl}/shop" style="display:inline-block;border:1px solid rgba(240,231,209,.3);color:#f0e7d1;text-decoration:none;font:600 14px/1 Helvetica,Arial,sans-serif;padding:13px 22px;border-radius:999px;">See the lineup</a>
+    </p>`;
+  return shell("Your order has been cancelled", body, "Questions? Just reply to this email — it reaches the person who makes your shirt.");
+}
+
 // ---------- 3d. SWAP ASKED FOR → the shop ----------
 export function swapAlertHtml(o: {
   ref: string;

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ConfirmRemove from "@/components/ConfirmRemove";
 import { COLORS, ONE_SIZE, SIZES, colorName } from "@/lib/products";
 import {
   CHANNEL_LABELS,
@@ -25,12 +26,63 @@ import {
 
 type ProductOpt = { slug: string; name: string; priceCents: number; sizes: string[]; kind?: "shirt" | "bandana" };
 
+export type Removal = {
+  id: number;
+  orderId: number | null;
+  label: string;
+  amountCents: number;
+  cogsCents: number | null;
+  reason: string;
+  restocked: boolean;
+  removedAt: string;
+};
+
+export type BinnedOrder = {
+  id: number;
+  ref: string;
+  customer: string;
+  amountTotal: number | null;
+  reason: string;
+  deletedAt: string;
+  daysLeft: number | null;
+};
+
 type Props = {
   orders: HistoryOrder[];
   withoutLines: number;
   hasSheet: boolean;
   products: ProductOpt[];
+  removals?: Removal[];
+  binned?: BinnedOrder[];
 };
+
+// What has to be typed out by hand before anything leaves the books. The ref
+// when there is a real one, otherwise the order number — either way it's
+// specific to this row, which a checkbox never is.
+function confirmToken(o: { ref: string; id: number }): string {
+  return /^DBD-/i.test(o.ref) ? o.ref : `order-${o.id}`;
+}
+
+function monthOf(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  } catch {
+    return "that month";
+  }
+}
+
+// What one sale is worth, from its own lines — the same arithmetic the
+// totals above use, so the confirm panel can never disagree with them.
+function orderWorth(o: HistoryOrder): { amount: number; cogs: number | null } {
+  let amount = 0;
+  let cogs: number | null = 0;
+  for (const l of o.lines) {
+    amount += l.qty * l.unitPriceCents;
+    if (l.unitCogsCents === null) cogs = null;
+    else if (cogs !== null) cogs += l.qty * l.unitCogsCents;
+  }
+  return { amount, cogs };
+}
 
 const CHANNEL_OPTIONS = ["market", "instagram", "other"] as const;
 
@@ -60,8 +112,70 @@ function dollarsInput(cents: number | null) {
   return cents === null ? "" : (cents / 100).toFixed(2);
 }
 
-export default function SalesHistory({ orders, withoutLines, hasSheet, products }: Props) {
+export default function SalesHistory({
+  orders,
+  withoutLines,
+  hasSheet,
+  products,
+  removals = [],
+  binned = [],
+}: Props) {
   const router = useRouter();
+
+  // ---- taking something out of the books ----
+  // One piece of state for the gate, so only ever one thing is being
+  // removed and the panel always knows exactly what it's about to do.
+  type Pending =
+    | { kind: "order"; order: HistoryOrder }
+    | { kind: "line"; order: HistoryOrder; lineId: number; label: string; amount: number; cogs: number | null };
+  const [pending, setPending] = useState<Pending | null>(null);
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const [removeError, setRemoveError] = useState("");
+
+  async function confirmRemoval(reason: string, restock: boolean) {
+    if (!pending) return;
+    setRemoveBusy(true);
+    setRemoveError("");
+    const body =
+      pending.kind === "order"
+        ? // the whole sale goes to the same 30 day bin the order desk uses
+          { id: pending.order.id, action: "delete", reason, restock, confirmMoney: true }
+        : { action: "remove-line", lineId: pending.lineId, reason, restock };
+    try {
+      const res = await fetch("/api/admin/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) setRemoveError(data.error ?? "That didn't work.");
+      else {
+        setPending(null);
+        router.refresh();
+      }
+    } catch {
+      setRemoveError("That didn't work — check your connection.");
+    }
+    setRemoveBusy(false);
+  }
+
+  async function putBack(body: Record<string, unknown>) {
+    setRemoveBusy(true);
+    setRemoveError("");
+    try {
+      const res = await fetch("/api/admin/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) setRemoveError(data.error ?? "Couldn't put that back.");
+      else router.refresh();
+    } catch {
+      setRemoveError("Couldn't put that back — check your connection.");
+    }
+    setRemoveBusy(false);
+  }
 
   // ---- filters ----
   const [from, setFrom] = useState("");
@@ -635,6 +749,26 @@ export default function SalesHistory({ orders, withoutLines, hasSheet, products 
                             {l.priceSource === "catalog" && (
                               <span className="ml-1 text-[0.65rem] text-faded" title="This order didn't record its price; today's catalog price was used.">price est.</span>
                             )}
+                            {o.lines.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setRemoveError("");
+                                  setPending({
+                                    kind: "line",
+                                    order: o,
+                                    lineId: l.id,
+                                    label: `${l.qty} × ${l.name}${l.variant ? ` · ${l.variant.charAt(0).toUpperCase() + l.variant.slice(1)}` : ""}${l.color ? ` · ${colorName(l.color)}` : ""}${l.size ? ` · ${l.size === ONE_SIZE ? "one size" : l.size}` : ""}`,
+                                    amount: l.qty * l.unitPriceCents,
+                                    cogs: l.unitCogsCents === null ? null : l.qty * l.unitCogsCents,
+                                  });
+                                }}
+                                title="Take just this piece out of the sale"
+                                className="ml-2 text-[0.65rem] text-faded underline underline-offset-2 transition hover:text-rust"
+                              >
+                                remove
+                              </button>
+                            )}
                           </td>
                           <td className="p-3 text-right">{l.qty}</td>
                           <td className="p-3 text-right">{fmtMoney(l.unitPriceCents)}</td>
@@ -710,6 +844,14 @@ export default function SalesHistory({ orders, withoutLines, hasSheet, products 
                                 {busy === `recost-${o.id}` ? "…" : "recost"}
                               </button>
                             )}
+                            <button
+                              type="button"
+                              onClick={() => { setRemoveError(""); setPending({ kind: "order", order: o }); }}
+                              title="Take this whole sale out of the books"
+                              className="mt-1 block w-full text-right text-xs text-faded underline underline-offset-2 transition hover:text-rust"
+                            >
+                              remove sale
+                            </button>
                           </td>
                         </>
                       )}
@@ -721,6 +863,94 @@ export default function SalesHistory({ orders, withoutLines, hasSheet, products 
           </table>
         </div>
       </section>
+
+      {/* ---------- what's been taken out ---------- */}
+      {(removals.length > 0 || binned.length > 0) && (
+        <section>
+          <h2 className="font-display text-2xl font-semibold">Removed</h2>
+          <p className="mt-1 text-sm text-faded">
+            Out of every number above, and able to come back. A whole sale sits in the bin for 30
+            days and then empties itself; a single piece stays here until you put it back.
+          </p>
+          {removeError && <p className="mt-2 text-sm text-rust">{removeError}</p>}
+          <div className="card mt-3 divide-y divide-bone/5">
+            {binned.map((b) => (
+              <div key={`o-${b.id}`} className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
+                <div>
+                  <p className="font-medium text-bone">
+                    Whole sale · {b.customer || "no name"}{" "}
+                    <span className="text-faded">{b.ref}</span>
+                  </p>
+                  <p className="mt-0.5 text-xs text-faded">
+                    {b.reason || "no reason given"} ·{" "}
+                    {typeof b.amountTotal === "number" ? fmtMoney(b.amountTotal) : "—"} ·{" "}
+                    {b.daysLeft !== null && b.daysLeft > 0
+                      ? `gone for good in ${b.daysLeft} day${b.daysLeft === 1 ? "" : "s"}`
+                      : "empties on the next load"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={removeBusy}
+                  onClick={() => putBack({ id: b.id, action: "restore" })}
+                  className="text-xs text-goldlight underline underline-offset-2 hover:text-gold"
+                >
+                  put it back
+                </button>
+              </div>
+            ))}
+            {removals.map((r) => (
+              <div key={`l-${r.id}`} className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
+                <div>
+                  <p className="font-medium text-bone">{r.label}</p>
+                  <p className="mt-0.5 text-xs text-faded">
+                    {r.reason || "no reason given"} · {fmtMoney(r.amountCents)}
+                    {r.restocked ? " · went back on the shelf" : ""}
+                    {r.orderId ? ` · from order #${r.orderId}` : ""}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={removeBusy}
+                  onClick={() => putBack({ action: "restore-line", removalId: r.id })}
+                  className="text-xs text-goldlight underline underline-offset-2 hover:text-gold"
+                >
+                  put it back
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {pending && (
+        <ConfirmRemove
+          title={pending.kind === "order" ? "Remove this whole sale" : "Remove one piece"}
+          what={
+            pending.kind === "order"
+              ? pending.order.lines.length > 0
+                ? pending.order.lines.map(
+                    (l) =>
+                      `${l.qty} × ${l.name}${l.variant ? ` · ${l.variant.charAt(0).toUpperCase() + l.variant.slice(1)}` : ""}${l.color ? ` · ${colorName(l.color)}` : ""}${l.size ? ` · ${l.size === ONE_SIZE ? "one size" : l.size}` : ""}`
+                  )
+                : ["This sale has no line items recorded."]
+              : [pending.label]
+          }
+          reference={confirmToken(pending.order)}
+          amountCents={pending.kind === "order" ? orderWorth(pending.order).amount : pending.amount}
+          cogsCents={pending.kind === "order" ? orderWorth(pending.order).cogs : pending.cogs}
+          month={monthOf(pending.order.at)}
+          restockHint={
+            pending.kind === "order"
+              ? "Tick this if the pieces never actually left, so the shelf counts go back up."
+              : "Tick this if this piece never actually left, so the shelf count goes back up."
+          }
+          busy={removeBusy}
+          error={removeError}
+          onCancel={() => { setPending(null); setRemoveError(""); }}
+          onConfirm={confirmRemoval}
+        />
+      )}
     </div>
   );
 }
