@@ -45,6 +45,14 @@ playbook.
     queue. You say why, whether the shirts go back on the Inventory shelf,
     and how much money you sent back. Un-cancelling takes those shirts back
     off the shelf so the count still matches what's promised to someone.
+    **The customer gets an email** unless you untick the box — it says the
+    order is cancelled and nothing is being made, and the money line follows
+    what you entered: an amount means "it's on its way back", no amount on a
+    paid order means "we'll be in touch about the refund", and an order that
+    was never paid says nothing was charged. Your reason stays on the desk and
+    the customer never sees it; there's a separate box for anything you do
+    want to say to them. The cancelled order keeps an **Email them the
+    cancellation again** button.
   - **Delete** — it was never a real order (your own test, spam, a double
     click). It goes in the **Bin** for 30 days, where *manage* will put it
     back, and empties itself after that. **Deleting never refunds anybody** —
@@ -63,7 +71,34 @@ playbook.
   order does not move the shelf and does not charge or refund anyone.
 - **Send the copy again** (*manage → Send the customer their copy again*):
   re-sends whichever email matches where the order has got to — the request
-  confirmation, the paid confirmation, or the shipped one with tracking.
+  confirmation, the ready-to-ship confirmation, or the shipped one with
+  tracking.
+- **Email tracking**: buying a label already emails the customer their
+  tracking number. If that send failed (no verified sending domain at the
+  time, say) or the customer says it never arrived, there's an **email
+  tracking** link right under the tracking number on the order row that sends
+  it again.
+- **Taking something out of Sales history** (`/admin/history`): every sale row
+  has **remove sale**, and a sale with more than one piece in it has a
+  **remove** next to each piece. Both open the same gate, which is deliberately
+  slow:
+  1. it names exactly what leaves,
+  2. it shows what your numbers change by — revenue, cost, margin, and which
+     month they come out of. **If those figures aren't what you expected,
+     you're on the wrong row. Close it and check.**
+  3. it wants a reason in your own words, and
+  4. it wants the order reference typed out by hand. A checkbox loses to
+     muscle memory; typing `DBD-0042` doesn't.
+
+  The button stays dead until the reason and the typed reference are both
+  there. Nothing is refunded by any of this — it's a correction to your
+  records, not a change to money that moved.
+
+  Everything taken out lands in **Removed** at the bottom of that page with
+  what it was worth and why it went, and **put it back** restores it exactly,
+  including the cost that was frozen the day it sold. A whole sale goes to the
+  same 30 day bin as the order desk; a single piece stays in Removed until you
+  put it back.
 - **COGS** (`/admin/cogs`): what each kind of shirt costs you to make. Enter
   what you pay for blanks (per color and size), list your materials with the
   bulk price and how many shirts a unit covers, and build product types
