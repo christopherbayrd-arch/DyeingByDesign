@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { getDb } from "@/lib/db";
 import { getProduct, getProducts } from "@/lib/catalog";
-import { variantOnHand } from "@/lib/inventory";
 import {
   ORDER_MODE,
   SHIPPING_CENTS,
-  availableQty,
   colorName,
   isColorKey,
+  onHand,
   setPricedLines,
   type ProductKind,
 } from "@/lib/products";
@@ -16,7 +14,9 @@ import { metaLine } from "@/lib/orderFormat";
 
 // Creates a Stripe Checkout session from the cart.
 // Prices AND availability always come from the database on the server —
-// never from the browser.
+// never from the browser. Card checkout only ever covers pieces that are
+// finished and on the Inventory shelf right now; everything else goes in as
+// an order request (see the cart).
 export async function POST(req: Request) {
   try {
     const key = process.env.STRIPE_SECRET_KEY;
@@ -59,57 +59,34 @@ export async function POST(req: Request) {
       const product = await getProduct(String(it.slug));
       if (!product || !product.sizes.includes(size)) continue;
 
-      const combo = `${product.name} in ${colorName(color)} / ${size}`;
-
-      // In split mode only counted stock checks out by card; made to order
-      // shirts go in as an order request (the cart already routes them there,
-      // this just makes sure nobody gets around it).
-      if (ORDER_MODE === "split" && !product.trackStock) {
-        return NextResponse.json(
-          { error: `${product.name} is made to order — send it as an order request from your cart and we'll reply with a payment link.` },
-          { status: 400 }
-        );
-      }
-
-      // stock check (Infinity when the product is made to order)
-      const avail = availableQty(product, size, color);
-      if (avail <= 0) {
-        return NextResponse.json(
-          { error: `${combo} just sold out. Remove it from your cart to continue.` },
-          { status: 409 }
-        );
-      }
-      if (qty > avail) {
-        return NextResponse.json(
-          { error: `Only ${avail} left of ${combo} — lower the quantity to continue.` },
-          { status: 409 }
-        );
-      }
-
       const wanted = String(it?.variant ?? "").trim();
       const design = product.kind === "bandana" ? designs.find((d) => d.slug === wanted) : undefined;
       if (product.kind === "bandana" && !design) {
         return NextResponse.json({ error: "Pick which design goes on the bandana." }, { status: 400 });
       }
-      // the shelf count is per design, so check this exact one before charging
-      if (design && product.trackStock) {
-        const have = await variantOnHand(getDb(), {
-          slug: product.slug,
-          variant: design.slug,
-          color,
-          size,
-        });
-        if (have !== null && have < qty) {
-          return NextResponse.json(
-            {
-              error:
-                have === 0
-                  ? `The ${design.name} bandana in ${colorName(color)} just sold out. Pick another design or color to continue.`
-                  : `Only ${have} left of the ${design.name} bandana in ${colorName(color)} — lower the quantity to continue.`,
-            },
-            { status: 409 }
-          );
-        }
+      const piece = design
+        ? `The ${design.name} bandana in ${colorName(color)}`
+        : `${product.name} in ${colorName(color)} / ${size}`;
+
+      // The one rule for card checkout: this exact piece — design, color,
+      // size, and on a bandana the design bleached onto it — is on the shelf
+      // right now, so it can go out in a day or two. Made to order, sold out,
+      // or more than there is: all of it goes in as an order request instead,
+      // which the cart already does. This is what stops anyone getting round
+      // it by posting straight at the API. (A bandana's count is per design,
+      // which onHand() reads from the per design shelf counts.)
+      const have = onHand(product, size, color, design?.slug ?? "");
+      if (have <= 0) {
+        return NextResponse.json(
+          { error: `${piece} isn't on the shelf right now — send it as an order request from your cart and we'll reply with a payment link.` },
+          { status: 409 }
+        );
+      }
+      if (qty > have) {
+        return NextResponse.json(
+          { error: `${piece} — only ${have} ready to ship. Lower the quantity, or send it as an order request from your cart.` },
+          { status: 409 }
+        );
       }
 
       priced.push({

@@ -101,8 +101,6 @@ export async function POST(req: Request) {
           for (const l of parseItemsMeta(itemsMeta)) {
             const { slug, size, color, qty, variant } = l;
             if (!slug || !size || !color || !(qty >= 1)) continue;
-            const tracked = (await sql`select 1 from products where slug = ${slug} and track_stock = true`) as Row[];
-            if (tracked.length === 0) continue;
             try {
               // a bandana's count is per design, so the design rides along
               await takeStock(sql, { kind: "shirt", slug, name: variant ?? "", color, size }, qty, "sold", {
@@ -118,7 +116,7 @@ export async function POST(req: Request) {
                   array[${key}],
                   to_jsonb(greatest(coalesce((stock->>${key})::int, 0) - ${qty}, 0))
                 )
-                where slug = ${slug} and track_stock = true
+                where slug = ${slug}
               `;
             }
           }

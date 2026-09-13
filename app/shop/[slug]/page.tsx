@@ -6,7 +6,7 @@ import AddToCart, { type DesignChoice } from "@/components/AddToCart";
 import ProductCard from "@/components/ProductCard";
 import { getProduct, getProducts } from "@/lib/catalog";
 import { fmtPrice, lineInfo, SET_PRICE_CENTS } from "@/lib/products";
-import { cardCheckout } from "@/lib/orderMode";
+import { stripeReady } from "@/lib/orderMode";
 import { asset } from "@/lib/assets";
 import { absoluteImage, productJsonLd } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
@@ -123,7 +123,7 @@ export default async function DesignPage({
           <div className="mt-8 border-t border-bone/10 pt-8">
             <AddToCart
               product={product}
-              card={cardCheckout(product)}
+              stripeReady={stripeReady()}
               designs={isBandana ? designs : []}
             />
           </div>
