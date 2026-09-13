@@ -36,6 +36,34 @@ playbook.
     carries over anything you'd already entered.)
   - **Shown / Hidden** toggles whether a design appears on the site at all.
     New designs start hidden until you're ready.
+- **Getting rid of an order**: three different things, and they are not the
+  same. Open **manage** under any order's status.
+  - **Archive** — done with. Off the desk, still a sale in your history. Get
+    it back from *Archived* at the top of the orders list.
+  - **Cancel** — a real order that isn't happening. It keeps its number and
+    stays on the desk, but drops out of your revenue and out of the make
+    queue. You say why, whether the shirts go back on the Inventory shelf,
+    and how much money you sent back. Un-cancelling takes those shirts back
+    off the shelf so the count still matches what's promised to someone.
+  - **Delete** — it was never a real order (your own test, spam, a double
+    click). It goes in the **Bin** for 30 days, where *manage* will put it
+    back, and empties itself after that. **Deleting never refunds anybody** —
+    Stripe still has the money and the customer still has the charge — so an
+    order with money on it makes you tick a box saying you know that. Refund
+    it in Stripe, or cancel it instead.
+- **Stripe test orders**: when you pay with a test card, Stripe tells the site
+  it was a test. Those orders are tagged **Stripe test** on the desk and are
+  already left out of Sales history, your costs and the make queue, so a test
+  never moves your real numbers. One button above the orders table clears them
+  all out when you're done testing.
+- **Edit an order** (*manage → Edit what's in it*): change size, color,
+  quantity, price, the customer's name and email, or the shipping address.
+  The item list and the order total are rebuilt from the lines, so the desk,
+  the queue, the emails and Sales history all stay in step. Editing a paid
+  order does not move the shelf and does not charge or refund anyone.
+- **Send the copy again** (*manage → Send the customer their copy again*):
+  re-sends whichever email matches where the order has got to — the request
+  confirmation, the paid confirmation, or the shipped one with tracking.
 - **COGS** (`/admin/cogs`): what each kind of shirt costs you to make. Enter
   what you pay for blanks (per color and size), list your materials with the
   bulk price and how many shirts a unit covers, and build product types
@@ -165,8 +193,12 @@ Deploy. Every push/upload to GitHub redeploys automatically.
 > `lib/products.ts`):
 >
 > - **On the Inventory shelf right now → Buy now.** The customer pays by
->   card there and then, and the piece comes off the shelf the moment the
->   payment clears. "On the shelf" means this exact piece — design, color,
+>   card there and then, the piece comes off the shelf the moment the payment
+>   clears, and because it was already bleached, washed and finished, the
+>   order lands on the desk as **Made** — not Paid — and never appears in the
+>   make queue as something to bleach. Everything the customer sees says the
+>   same thing: it's already made, in the mail in a day or two. All you
+>   do is pack it. "On the shelf" means this exact piece — design, color,
 >   size, and for a bandana the design bleached onto it — has a count above
 >   zero on the **Inventory** tab. The **Track stock** setting doesn't decide
 >   this; what's actually on the shelf does. Put three Sumac tees in Black /
@@ -235,6 +267,13 @@ Resend's test one, verify the domain:
    nameservers point there).
 3. Once Resend marks the domain verified, set
    `EMAIL_FROM=Dyeing By Design <hello@dyeingbydesign.com>` and redeploy.
+
+The records are usually a **DKIM** TXT, an **SPF** TXT and an **MX**, all on
+a `send.` subdomain — or, for domains added from late 2026 on, a couple of
+CNAMEs instead. Resend shows you the exact values; copy them across as given.
+Vercel's DNS picks them up in minutes, though Resend can take up to an hour
+to flip the domain to Verified. The badge at the top of `/admin` tells you
+when customer emails are live.
 
 Until `EMAIL_FROM` is set, customer confirmations are simply skipped —
 buyers still get Stripe's payment receipt, and you still get your alerts.
