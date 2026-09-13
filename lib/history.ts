@@ -35,14 +35,21 @@ export async function loadHistory(sql: Sql): Promise<HistoryData> {
       select id, created_at, paid_at, sold_at, status, channel, name, email, stripe_session_id,
              amount_total, shipping_cents, fee_cents, postage_cents, note
       from orders
-      where status <> 'requested'
+      -- A cancelled order isn't a sale, a deleted one was never real, and a
+      -- Stripe test must never touch the numbers. The to_jsonb reads keep
+      -- this working before the v12 columns exist.
+      where status <> 'requested' and status <> 'cancelled'
+        and (to_jsonb(orders) ->> 'deleted_at') is null
+        and coalesce((to_jsonb(orders) ->> 'test_mode')::boolean, false) = false
       order by coalesce(sold_at, paid_at, created_at) desc, id desc
       limit 2000
     `) as Row[];
     const lineRows = (await sql`
       select l.* from order_lines l
       join orders o on o.id = l.order_id
-      where o.status <> 'requested'
+      where o.status <> 'requested' and o.status <> 'cancelled'
+        and (to_jsonb(o) ->> 'deleted_at') is null
+        and coalesce((to_jsonb(o) ->> 'test_mode')::boolean, false) = false
       order by l.id
     `) as Row[];
 

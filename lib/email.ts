@@ -98,6 +98,9 @@ export function escapeHtml(s: string) {
 }
 
 // ---------- 1. NEW ORDER → the shop ----------
+// `ready` = it came off the Inventory shelf, so it's already made and there's
+// nothing to bleach — just pack it. Every card order is one of these now: the
+// site only lets a card through for something that's on the shelf.
 export function orderAlertHtml(o: {
   itemLines: string[];
   customerName: string;
@@ -105,12 +108,17 @@ export function orderAlertHtml(o: {
   total: string;
   shipTo: string;
   siteUrl: string;
+  ready?: boolean;
 }) {
   const items = o.itemLines.map((l) => `<li style="margin:0 0 6px;">${escapeHtml(l)}</li>`).join("");
   const body = `
-    <p style="margin:0 0 18px;color:#f0e7d1;">Someone just bought a shirt. Time to pick some leaves — or cut a stencil.</p>
+    <p style="margin:0 0 18px;color:#f0e7d1;">${
+      o.ready
+        ? "Someone just bought something straight off the shelf. Nothing to make — pull it, pack it, get it out."
+        : "Someone just bought a shirt. Time to pick some leaves — or cut a stencil."
+    }</p>
     <div style="background:rgba(0,0,0,.25);border-radius:12px;padding:16px 18px;margin-bottom:18px;">
-      <p style="margin:0 0 8px;font:600 12px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#cf9440;">To make</p>
+      <p style="margin:0 0 8px;font:600 12px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#cf9440;">${o.ready ? "To pack" : "To make"}</p>
       <ul style="margin:0;padding-left:18px;font:400 15px/1.6 Helvetica,Arial,sans-serif;color:#f0e7d1;">${items}</ul>
     </div>
     <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
@@ -122,7 +130,13 @@ export function orderAlertHtml(o: {
     <p style="margin:22px 0 0;">
       <a href="${o.siteUrl}/admin" style="display:inline-block;background:#cf9440;color:#110d05;text-decoration:none;font:700 14px/1 Helvetica,Arial,sans-serif;padding:13px 22px;border-radius:999px;">Open the order desk</a>
     </p>`;
-  return shell("New order", body, "Sent automatically by your website when a payment clears.");
+  return shell(
+    o.ready ? "New order — ready to ship" : "New order",
+    body,
+    o.ready
+      ? "Already marked Made on the desk, because it came off the shelf. Sent automatically when a payment clears."
+      : "Sent automatically by your website when a payment clears."
+  );
 }
 
 // ---------- 1b. ORDER REQUEST (email ordering, no card) → the shop ----------
@@ -222,27 +236,44 @@ export function requestAlertHtml(r: {
 }
 
 // ---------- 3. ORDER CONFIRMATION → the customer ----------
+// `ready` = this piece was already made and on the shelf when they bought it,
+// which is true of every card order. Telling someone their finished shirt is
+// "being made over the next 1 to 2 weeks" is the wrong promise in both
+// directions — it reads as a delay and it buries the good news.
 export function customerOrderHtml(o: {
   firstName: string;
   itemLines: string[];
   total: string;
   siteUrl: string;
+  ready?: boolean;
 }) {
   const items = o.itemLines.map((l) => `<li style="margin:0 0 6px;">${escapeHtml(l)}</li>`).join("");
   const hi = o.firstName ? `${escapeHtml(o.firstName)}, thank you.` : "Thank you.";
   const body = `
-    <p style="margin:0 0 18px;color:#f0e7d1;">${hi} Your order is in the queue, and it gets made by hand — real leaves or a hand-cut stencil, real bleach, no two alike.</p>
+    <p style="margin:0 0 18px;color:#f0e7d1;">${hi} ${
+      o.ready
+        ? "Good news — this one is already made. It was bleached by hand, washed, and sitting on the shelf waiting for someone, and now it has your name on it."
+        : "Your order is in the queue, and it gets made by hand — real leaves or a hand-cut stencil, real bleach, no two alike."
+    }</p>
     <div style="background:rgba(0,0,0,.25);border-radius:12px;padding:16px 18px;margin-bottom:18px;">
-      <p style="margin:0 0 8px;font:600 12px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#cf9440;">Your order</p>
+      <p style="margin:0 0 8px;font:600 12px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#cf9440;">${o.ready ? "Packing now" : "Your order"}</p>
       <ul style="margin:0;padding-left:18px;font:400 15px/1.6 Helvetica,Arial,sans-serif;color:#f0e7d1;">${items}</ul>
       <p style="margin:12px 0 0;color:#e3b96e;font-weight:700;">Total ${escapeHtml(o.total)}</p>
     </div>
-    <p style="margin:0 0 8px;">Allow 1 to 2 weeks of making time depending on how many orders are ahead of yours. We'll email tracking the moment it ships.</p>
+    <p style="margin:0 0 8px;">${
+      o.ready
+        ? "It goes in the mail in the next day or two, and we'll email you tracking the moment it does. Nothing left to wait on."
+        : "Allow 1 to 2 weeks of making time depending on how many orders are ahead of yours. We'll email tracking the moment it ships."
+    }</p>
     <p style="margin:0;">Wash it cold and inside out, hang dry or tumble low, and it'll keep that burn for years.</p>
     <p style="margin:22px 0 0;">
       <a href="${o.siteUrl}" style="display:inline-block;border:1px solid rgba(240,231,209,.3);color:#f0e7d1;text-decoration:none;font:600 14px/1 Helvetica,Arial,sans-serif;padding:13px 22px;border-radius:999px;">Back to the shop</a>
     </p>`;
-  return shell("We got your order", body, "Questions? Just reply to this email — it reaches the person who makes your shirt.");
+  return shell(
+    o.ready ? "Your order is ready to ship" : "We got your order",
+    body,
+    "Questions? Just reply to this email — it reaches the person who makes your shirt."
+  );
 }
 
 // ---------- 3b. SHIPPED (customer) ----------

@@ -94,7 +94,11 @@ export async function loadQueue(sql: Sql): Promise<QueueData> {
     const orders = (await sql`
       select id, status, priority, created_at, queued_at, name, email, stripe_session_id, channel, items, note, shipping
       from orders
+      -- cancelled drops out by not being in the list; deleted and test orders
+      -- are filtered here (to_jsonb so it still runs on the older schema)
       where archived_at is null and status in ('requested', 'paid', 'made')
+        and (to_jsonb(orders) ->> 'deleted_at') is null
+        and coalesce((to_jsonb(orders) ->> 'test_mode')::boolean, false) = false
       order by priority desc, queued_at asc, id asc
     `) as Row[];
     let lineRows: Row[];
@@ -103,6 +107,8 @@ export async function loadQueue(sql: Sql): Promise<QueueData> {
         select l.id, l.order_id, l.slug, l.name, l.size, l.color, l.qty, l.made_at, l.variant
         from order_lines l join orders o on o.id = l.order_id
         where o.archived_at is null and o.status in ('requested', 'paid', 'made')
+          and (to_jsonb(o) ->> 'deleted_at') is null
+          and coalesce((to_jsonb(o) ->> 'test_mode')::boolean, false) = false
         order by l.id
       `) as Row[];
     } catch {
@@ -111,6 +117,8 @@ export async function loadQueue(sql: Sql): Promise<QueueData> {
         select l.id, l.order_id, l.slug, l.name, l.size, l.color, l.qty, l.made_at
         from order_lines l join orders o on o.id = l.order_id
         where o.archived_at is null and o.status in ('requested', 'paid', 'made')
+          and (to_jsonb(o) ->> 'deleted_at') is null
+          and coalesce((to_jsonb(o) ->> 'test_mode')::boolean, false) = false
         order by l.id
       `) as Row[];
     }
@@ -123,6 +131,8 @@ export async function loadQueue(sql: Sql): Promise<QueueData> {
         join order_lines l on l.id = m.line_id
         join orders o on o.id = l.order_id
         where o.archived_at is null and o.status in ('requested', 'paid', 'made')
+          and (to_jsonb(o) ->> 'deleted_at') is null
+          and coalesce((to_jsonb(o) ->> 'test_mode')::boolean, false) = false
           and m.reason = 'pulled' and m.reversed_at is null
         group by m.line_id
       `) as Row[];
