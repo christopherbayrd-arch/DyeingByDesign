@@ -23,6 +23,7 @@ export default async function QuickSalePage({ searchParams }: { searchParams: Pr
     slug: p.slug,
     name: p.name,
     image: p.card ? (/^https?:\/\//.test(p.card) ? p.card : asset(p.card)) : "",
+    kind: p.kind,
   }));
 
   const sql = getDb();
@@ -63,7 +64,7 @@ export default async function QuickSalePage({ searchParams }: { searchParams: Pr
       <h1 className="mt-2 font-display text-3xl font-semibold sm:text-4xl">Quick sale</h1>
       <AdminNav active="sell" />
       <p className="mt-5 max-w-2xl text-sm leading-relaxed text-faded">
-        Tap the shirt, the price, how they paid, then Record.{" "}
+        Tap what they&apos;re buying, the price, how they paid, then Record.{" "}
         <span className="hidden sm:inline">
           It lands in Sales history with its cost, comes off the Inventory count, and the cash is totaled
           up top so you can check the box at the end of the day.{" "}

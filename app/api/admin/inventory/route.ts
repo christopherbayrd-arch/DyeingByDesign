@@ -42,10 +42,13 @@ function keyFrom(b: Record<string, unknown>): { key?: InvKey; error?: string } {
   if (kind === "shirt") {
     const slug = clean(b.slug, 60).toLowerCase();
     const color = clean(b.color, 40);
+    // a bandana counts per design: slug "bandana", design in `name`
+    const name = clean(b.name, 60).toLowerCase();
     if (!/^[a-z0-9-]+$/.test(slug)) return { error: "Pick a design." };
+    if (name && !/^[a-z0-9-]+$/.test(name)) return { error: "Pick which design goes on it." };
     if (!isColorKey(color)) return { error: "Pick a color." };
     if (!size) return { error: "Pick a size." };
-    return { key: { kind, slug, color, size } };
+    return { key: { kind, slug, name, color, size } };
   }
   if (kind === "blank") {
     const color = clean(b.color, 40);

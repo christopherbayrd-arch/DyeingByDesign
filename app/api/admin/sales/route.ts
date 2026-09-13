@@ -6,7 +6,7 @@ import { isColorKey } from "@/lib/products";
 import { metaLine } from "@/lib/orderFormat";
 import { costOrder, insertOrderLines } from "@/lib/costing";
 import { takeStock } from "@/lib/inventory";
-import { colorName } from "@/lib/products";
+import { itemLabel } from "@/lib/inventoryShared";
 
 // Records a sale that never touched the site — a market table, an
 // Instagram DM, Tap to Pay — so the sales history is complete.
@@ -38,6 +38,7 @@ export async function POST(req: Request) {
     const note = String(body?.note ?? "").trim().slice(0, 500);
     const soldAtRaw = String(body?.soldAt ?? "").trim();
     const fromStock = body?.fromStock !== false; // take it off the Inventory shelf (default yes)
+    const variant = String(body?.variant ?? "").trim(); // the design, when it's a bandana
 
     if (!slug) return NextResponse.json({ error: "Pick a design." }, { status: 400 });
     if (!(qty >= 1 && qty <= 50)) return NextResponse.json({ error: "How many shirts?" }, { status: 400 });
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
 
     const product = await getProduct(slug);
     const name = product?.name ?? slug.charAt(0).toUpperCase() + slug.slice(1);
-    const items = metaLine({ slug, size, color, qty, priceCents: unit }) + (note ? ` | note: ${note}` : "");
+    const items = metaLine({ slug, size, color, qty, priceCents: unit, variant }) + (note ? ` | note: ${note}` : "");
     const total = unit * qty + shipping;
     const ref = "manual_" + randomBytes(4).toString("hex");
 
@@ -69,7 +70,9 @@ export async function POST(req: Request) {
       returning id
     `) as { id: number }[];
     const id = inserted[0].id;
-    await insertOrderLines(sql, id, [{ slug, name, size, color, qty, unitPriceCents: unit, priceSource: "order" }]);
+    await insertOrderLines(sql, id, [
+      { slug, name, size, color, qty, unitPriceCents: unit, priceSource: "order", variant },
+    ]);
     const result = await costOrder(sql, id);
 
     // A shirt that was sitting on the shelf comes off the Inventory count
@@ -77,10 +80,10 @@ export async function POST(req: Request) {
     if (fromStock && slug !== "custom" && color && size) {
       try {
         const line = (await sql`select id from order_lines where order_id = ${id} order by id limit 1`) as { id: number }[];
-        const r = await takeStock(sql, { kind: "shirt", slug, color, size }, qty, "sold", {
+        const r = await takeStock(sql, { kind: "shirt", slug, name: variant, color, size }, qty, "sold", {
           orderId: id,
           lineId: Number(line[0]?.id) || null,
-          label: `${name} · ${colorName(color)} · ${size}`,
+          label: itemLabel({ kind: "shirt", slug, name: variant, color, size }, variant ? undefined : name),
           note: note || "Recorded sale",
         });
         fromShelf = r.moved;

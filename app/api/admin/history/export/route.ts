@@ -41,7 +41,7 @@ export async function GET(req: Request) {
         CHANNEL_LABELS[o.channel] ?? o.channel,
         o.status,
         o.customer,
-        l.name,
+        l.variant ? `${l.name} · ${l.variant.charAt(0).toUpperCase()}${l.variant.slice(1)}` : l.name,
         l.color ? colorName(l.color) : "",
         l.size,
         String(l.qty),

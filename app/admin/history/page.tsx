@@ -30,13 +30,14 @@ export default async function AdminHistoryPage() {
   }
 
   const data = await loadHistory(sql);
-  let products: { slug: string; name: string; priceCents: number; sizes: string[] }[] = [];
+  let products: { slug: string; name: string; priceCents: number; sizes: string[]; kind: "shirt" | "bandana" }[] = [];
   try {
     products = ((await getAllProducts()) ?? []).map((p) => ({
       slug: p.slug,
       name: p.name,
       priceCents: p.priceCents,
       sizes: p.sizes,
+      kind: p.kind,
     }));
   } catch {
     products = [];

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import Lineup from "@/components/Lineup";
+import BandanaBanner from "@/components/BandanaBanner";
 import { RECENT } from "@/lib/recent";
 import SignupForm from "@/components/SignupForm";
 import EventCard from "@/components/EventCard";
@@ -19,6 +20,9 @@ export const revalidate = 60;
 
 export default async function HomePage() {
   const products = await getProducts();
+  // The bandana, once it's switched on in /admin — everything about it on this
+  // page hides itself until then.
+  const bandana = products.find((p) => p.kind === "bandana") ?? null;
   // The next craft fair / market (from /admin/news). Hides itself once it's over.
   const event = await getHomeEvent();
   return (
@@ -44,6 +48,7 @@ export default async function HomePage() {
           <p className="rise rise-2 mt-6 max-w-xl text-lg leading-relaxed text-bone/90">
             Real botanicals, custom stencils, and hand-cut graphics on heavyweight cotton.
             Bleached by hand — never printed, never duplicated.
+            {bandana ? " Shirts, and now bandanas for the dog too." : ""}
           </p>
           <div className="rise rise-3 mt-9 flex flex-wrap gap-3">
             <Link href="/shop" className="btn btn-gold">
@@ -74,13 +79,14 @@ export default async function HomePage() {
           </div>
           <p className="max-w-sm text-sm leading-relaxed text-faded">
             Nine blank colors, every design. $7 flat rate shipping anywhere in the US.
-            Made to order, one shirt at a time — can take 1 to 2 weeks depending on how
+            Made to order, one piece at a time — can take 1 to 2 weeks depending on how
             many orders are ahead of you.
           </p>
         </div>
         <div className="mt-10">
           <Lineup products={products} columns={4} compact />
         </div>
+        <BandanaBanner product={bandana} className="mt-12" />
       </section>
 
       {/* ---------- RECENT WORK ---------- */}
@@ -99,7 +105,7 @@ export default async function HomePage() {
         {/* The blanks, so people can see the whole color range at a glance */}
         <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
           <span className="basis-full text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-gold sm:mr-1 sm:basis-auto">
-            Now in nine blanks
+            Now in seventeen blanks
           </span>
           {COLORS.map((c) => (
             <span key={c.key} className="flex items-center gap-1.5 text-xs text-faded">
@@ -172,7 +178,7 @@ export default async function HomePage() {
                 <span className="font-display text-2xl font-semibold text-goldlight">2</span>
                 <span>
                   <strong className="text-bone">Lay and spray.</strong> Everything is
-                  arranged on a heavyweight cotton tee — stencils held flat for crisp
+                  arranged on heavyweight cotton — stencils held flat for crisp
                   edges, leaves laid flat for soft organic shadows — then carefully misted
                   with bleach. The exposed fabric lightens to whatever that blank burns to;
                   the design keeps its ground.
@@ -182,7 +188,7 @@ export default async function HomePage() {
                 <span className="font-display text-2xl font-semibold text-goldlight">3</span>
                 <span>
                   <strong className="text-bone">Fix, wash, and wear.</strong> The bleach is
-                  neutralized, the shirt washed and dried. What&apos;s left is burned into
+                  neutralized, the piece washed and dried. What&apos;s left is burned into
                   the fibers — permanent, soft, and yours alone. It will never crack,
                   peel, or fade.
                 </span>

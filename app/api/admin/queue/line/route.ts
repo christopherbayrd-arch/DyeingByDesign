@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { insertOrderLines, linesFromMeta } from "@/lib/costing";
 import { reverseMoves, takeStock } from "@/lib/inventory";
-import { colorName } from "@/lib/products";
+import { itemLabel } from "@/lib/inventoryShared";
 
 // Ticking shirts off in the make queue. Owner only — middleware guards /api/admin.
 //   POST { lineId, made }              one line of an order is made (or un-made)
@@ -31,10 +31,25 @@ async function useShelf(sql: Sql, orderId: number, l: Row, fromStock: boolean) {
     const size = String(l.size ?? "");
     const qty = Number(l.qty) || 1;
     if (!color || !size || NOT_A_SHIRT.has(slug)) return;
-    const label = `${String(l.name || slug)} · ${colorName(color)} · ${size}`;
+    // a bandana's count is per design — the design is on the order line
+    let variant = "";
+    try {
+      const v = (await sql`select variant from order_lines where id = ${lineId}`) as Row[];
+      variant = String(v[0]?.variant ?? "");
+    } catch {
+      // database without the variant column yet
+    }
+    const label = itemLabel(
+      { kind: "shirt", slug, name: variant, color, size },
+      variant ? undefined : String(l.name || slug)
+    );
     let pulled = 0;
     if (fromStock && slug !== "custom") {
-      const r = await takeStock(sql, { kind: "shirt", slug, color, size }, qty, "pulled", { orderId, lineId, label });
+      const r = await takeStock(sql, { kind: "shirt", slug, name: variant, color, size }, qty, "pulled", {
+        orderId,
+        lineId,
+        label,
+      });
       pulled = r.moved;
     }
     if (qty - pulled > 0) {

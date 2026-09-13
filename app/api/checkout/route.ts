@@ -1,7 +1,17 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { getProduct } from "@/lib/catalog";
-import { ORDER_MODE, SHIPPING_CENTS, availableQty, colorName, isColorKey } from "@/lib/products";
+import { getDb } from "@/lib/db";
+import { getProduct, getProducts } from "@/lib/catalog";
+import { variantOnHand } from "@/lib/inventory";
+import {
+  ORDER_MODE,
+  SHIPPING_CENTS,
+  availableQty,
+  colorName,
+  isColorKey,
+  setPricedLines,
+  type ProductKind,
+} from "@/lib/products";
 import { metaLine } from "@/lib/orderFormat";
 
 // Creates a Stripe Checkout session from the cart.
@@ -32,11 +42,15 @@ export async function POST(req: Request) {
     const absoluteImage = (path: string) =>
       path.startsWith("http") ? path : `${site}${path}`;
 
-    const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
-    const metaParts: string[] = [];
+    // a bandana carries the design that goes on it — it has to be a real design
+    const designs = (await getProducts()).filter((p) => p.kind !== "bandana");
+    const priced: {
+      slug: string; name: string; size: string; color: string; qty: number; unitPriceCents: number;
+      kind: ProductKind; variant: string; variantName: string; species: string; card: string;
+    }[] = [];
 
     for (const raw of items.slice(0, 20)) {
-      const it = raw as { slug?: string; size?: string; color?: string; qty?: number };
+      const it = raw as { slug?: string; size?: string; color?: string; qty?: number; variant?: string };
       const qty = Math.floor(Number(it?.qty));
       const size = String(it?.size ?? "");
       const color = String(it?.color ?? "");
@@ -72,23 +86,83 @@ export async function POST(req: Request) {
         );
       }
 
+      const wanted = String(it?.variant ?? "").trim();
+      const design = product.kind === "bandana" ? designs.find((d) => d.slug === wanted) : undefined;
+      if (product.kind === "bandana" && !design) {
+        return NextResponse.json({ error: "Pick which design goes on the bandana." }, { status: 400 });
+      }
+      // the shelf count is per design, so check this exact one before charging
+      if (design && product.trackStock) {
+        const have = await variantOnHand(getDb(), {
+          slug: product.slug,
+          variant: design.slug,
+          color,
+          size,
+        });
+        if (have !== null && have < qty) {
+          return NextResponse.json(
+            {
+              error:
+                have === 0
+                  ? `The ${design.name} bandana in ${colorName(color)} just sold out. Pick another design or color to continue.`
+                  : `Only ${have} left of the ${design.name} bandana in ${colorName(color)} — lower the quantity to continue.`,
+            },
+            { status: 409 }
+          );
+        }
+      }
+
+      priced.push({
+        slug: product.slug,
+        name: product.name,
+        size,
+        color,
+        qty,
+        unitPriceCents: product.priceCents,
+        kind: product.kind,
+        variant: design?.slug ?? "",
+        variantName: design?.name ?? "",
+        species: product.species,
+        card: product.card,
+      });
+    }
+
+    // A shirt and a bandana together come to the set price. The saving comes
+    // off the bandana, so what Stripe charges per line is what the sales
+    // history records — no discount hiding at the order level.
+    const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+    const metaParts: string[] = [];
+    for (const part of setPricedLines(priced)) {
+      const l = part.line;
+      const bandana = l.kind === "bandana";
       line_items.push({
-        quantity: qty,
+        quantity: part.qty,
         price_data: {
           currency: "usd",
-          unit_amount: product.priceCents,
+          unit_amount: part.unitPriceCents,
           product_data: {
-            name: `${product.name} — hand bleached tee`,
-            description: `${colorName(color)} · Size ${size}${product.species ? ` · ${product.species}` : ""}`,
-            ...(canSendImages && product.card
-              ? { images: [absoluteImage(product.card)] }
-              : {}),
+            name:
+              (bandana ? `${l.name} — hand bleached` : `${l.name} — hand bleached tee`) +
+              (part.setPriced ? " (set price)" : ""),
+            description: bandana
+              ? `${l.variantName} · ${colorName(l.color)} · one size${part.setPriced ? " · bought with a shirt" : ""}`
+              : `${colorName(l.color)} · Size ${l.size}${l.species ? ` · ${l.species}` : ""}`,
+            ...(canSendImages && l.card ? { images: [absoluteImage(l.card)] } : {}),
           },
         },
       });
-      // slug|size|color|xQTY|unit price — the price rides along so the
+      // slug|size|color|xQTY|unit price|design — the price rides along so the
       // sales history knows what was actually paid, even after a price change
-      metaParts.push(metaLine({ slug: product.slug, size, color, qty, priceCents: product.priceCents }));
+      metaParts.push(
+        metaLine({
+          slug: l.slug,
+          size: l.size,
+          color: l.color,
+          qty: part.qty,
+          priceCents: part.unitPriceCents,
+          variant: l.variant,
+        })
+      );
     }
 
     if (line_items.length === 0) {

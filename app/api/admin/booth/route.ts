@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { getProduct } from "@/lib/catalog";
-import { colorName, isColorKey } from "@/lib/products";
+import { isColorKey } from "@/lib/products";
+import { itemLabel } from "@/lib/inventoryShared";
 import { metaLine } from "@/lib/orderFormat";
 import { costOrder, insertOrderLines, type LineInput } from "@/lib/costing";
 import { BOOTH_REF_PREFIX, CUSTOM_SLUG, OTHER_SLUG, isPayMethod, payLabel } from "@/lib/booth";
@@ -112,6 +113,7 @@ type LineBody = {
   qty?: unknown;
   unitCents?: unknown;
   itemId?: unknown; // an "other" item from the Inventory shelf
+  variant?: unknown; // the design on a bandana
 };
 
 // POST — record one sale (one or more shirts, one payment)
@@ -145,13 +147,14 @@ export async function POST(req: Request) {
     if (color && !isColorKey(color)) return NextResponse.json({ error: "That's not one of the blank colors." }, { status: 400 });
 
     let name = String(l.name ?? "").trim().slice(0, 80);
+    const variant = String(l.variant ?? "").trim().toLowerCase().slice(0, 60);
     if (slug === CUSTOM_SLUG) name = name || "Custom piece";
     else if (slug === OTHER_SLUG) name = name || "Other";
     else {
       const p = await getProduct(slug).catch(() => null);
       name = p?.name ?? (name || slug.charAt(0).toUpperCase() + slug.slice(1));
     }
-    lines.push({ slug, name, size, color, qty, unitPriceCents: unit, priceSource: "order" });
+    lines.push({ slug, name, size, color, qty, unitPriceCents: unit, priceSource: "order", variant });
     itemIds.push(slug === OTHER_SLUG ? Number(l.itemId) || 0 : 0);
   }
 
@@ -178,7 +181,18 @@ export async function POST(req: Request) {
     }
 
     const ref = BOOTH_REF_PREFIX + clientId;
-    const items = lines.map((l) => metaLine({ slug: l.slug, size: l.size, color: l.color, qty: l.qty, priceCents: l.unitPriceCents })).join("; ");
+    const items = lines
+      .map((l) =>
+        metaLine({
+          slug: l.slug,
+          size: l.size,
+          color: l.color,
+          qty: l.qty,
+          priceCents: l.unitPriceCents,
+          variant: l.variant,
+        })
+      )
+      .join("; ");
     const total = lines.reduce((n, l) => n + l.unitPriceCents * l.qty, 0);
     const note = [eventTitle, payLabel(pay), extra].filter(Boolean).join(" · ");
     const at = soldAt.toISOString();
@@ -215,9 +229,10 @@ export async function POST(req: Request) {
           note: eventTitle || "Quick sale",
         };
         if (l.slug !== CUSTOM_SLUG && l.slug !== OTHER_SLUG && l.color && l.size) {
-          const r = await takeStock(sql, { kind: "shirt", slug: l.slug, color: l.color, size: l.size }, l.qty, "sold", {
+          const key = { kind: "shirt" as const, slug: l.slug, name: l.variant ?? "", color: l.color, size: l.size };
+          const r = await takeStock(sql, key, l.qty, "sold", {
             ...ctx,
-            label: `${l.name} · ${colorName(l.color)} · ${l.size}`,
+            label: itemLabel(key, l.variant ? undefined : l.name),
           });
           fromShelf += r.moved;
         } else if (l.slug === OTHER_SLUG && itemIds[i]) {

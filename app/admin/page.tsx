@@ -12,6 +12,7 @@ import { getDb } from "@/lib/db";
 import { colorName, fmtPrice } from "@/lib/products";
 import { orderNote, parseItemsMeta } from "@/lib/orderFormat";
 import { queuePositions } from "@/lib/queue";
+import { openSwapCount } from "@/lib/swaps";
 
 export const metadata: Metadata = {
   title: "Admin",
@@ -95,6 +96,8 @@ export default async function AdminPage({
   let archivedRequests = 0;
   let dbError = "";
   let inLine = new Map<number, { position: number; of: number }>();
+  // swaps still waiting on a yes or no (0 until schema.sql is re-run)
+  const openSwaps = await openSwapCount(sql);
 
   try {
     orders = (showArchived
@@ -145,6 +148,18 @@ export default async function AdminPage({
       />
 
       {dbError && <p className="mt-6 rounded-xl border border-rust/50 bg-rust/10 p-4 text-sm">{dbError}</p>}
+
+      {openSwaps > 0 && (
+        <p className="mt-6 rounded-xl border border-gold/40 bg-gold/10 p-4 text-sm">
+          <strong className="text-bone">
+            {openSwaps} swap{openSwaps === 1 ? "" : "s"}
+          </strong>{" "}
+          <span className="text-faded">waiting for a yes or no.</span>{" "}
+          <a href="/admin/swaps" className="text-goldlight underline underline-offset-2">
+            Open the swaps board
+          </a>
+        </p>
+      )}
 
       <section className="mt-10">
         <div className="flex flex-wrap items-baseline justify-between gap-2">

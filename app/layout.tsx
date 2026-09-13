@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     template: "%s · Dyeing By Design (DBD)",
   },
   description:
-    "DBD makes one of a kind reverse bleach shirts in Brunswick, Maine — real leaves and hand-cut stencils on heavyweight cotton, bleached by hand one shirt at a time. No two alike.",
+    "DBD makes one of a kind reverse bleach shirts and bandanas in Brunswick, Maine — real leaves and hand-cut stencils on heavyweight cotton, bleached by hand one piece at a time. No two alike.",
   applicationName: "Dyeing By Design",
   keywords: [
     "DBD",
@@ -26,6 +26,8 @@ export const metadata: Metadata = {
     "reverse bleach t-shirt",
     "botanical bleach shirt",
     "custom stencil shirt",
+    "bleach dyed bandana",
+    "dog bandana Maine",
     "Brunswick Maine",
   ],
   openGraph: {
@@ -34,13 +36,13 @@ export const metadata: Metadata = {
     locale: "en_US",
     title: "Dyeing By Design (DBD)",
     description:
-      "Hand bleached botanical and stencil shirts made one at a time in Brunswick, Maine. One of a kind. By design.",
+      "Hand bleached botanical and stencil shirts — and bandanas for dogs and people — made one at a time in Brunswick, Maine. One of a kind. By design.",
     images: [asset("/images/design-sumac.jpg")],
   },
   twitter: {
     card: "summary_large_image",
     title: "Dyeing By Design (DBD)",
-    description: "Hand bleached one of a kind shirts, made in Brunswick, Maine.",
+    description: "Hand bleached one of a kind shirts and bandanas, made in Brunswick, Maine.",
     images: [asset("/images/design-sumac.jpg")],
   },
   robots: { index: true, follow: true },

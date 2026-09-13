@@ -99,12 +99,13 @@ export async function POST(req: Request) {
         // Designs sold from what's on hand come off the Inventory shelf.
         if (isNew && itemsMeta) {
           for (const l of parseItemsMeta(itemsMeta)) {
-            const { slug, size, color, qty } = l;
+            const { slug, size, color, qty, variant } = l;
             if (!slug || !size || !color || !(qty >= 1)) continue;
             const tracked = (await sql`select 1 from products where slug = ${slug} and track_stock = true`) as Row[];
             if (tracked.length === 0) continue;
             try {
-              await takeStock(sql, { kind: "shirt", slug, color, size }, qty, "sold", {
+              // a bandana's count is per design, so the design rides along
+              await takeStock(sql, { kind: "shirt", slug, name: variant ?? "", color, size }, qty, "sold", {
                 orderId: inserted[0].id,
                 note: "Card order",
               });

@@ -340,3 +340,65 @@ from (
 ) c
 where c.n > 0 and position(':' in c.key) > 0
 on conflict (kind, slug, name, color, size) do nothing;
+
+-- ============================================================
+--  Bandanas (v10). A second thing to sell: a bleach dyed handkerchief,
+--  one size, for a dog or anyone else. products.kind says what a row is;
+--  order_lines.variant remembers which design went on a bandana.
+-- ============================================================
+alter table products add column if not exists kind text not null default 'shirt';  -- shirt | bandana
+alter table order_lines add column if not exists variant text not null default '';  -- the design on a bandana
+
+-- The bandana itself. sample_photo = true because the photos show maple, and
+-- the design that goes on yours is the one you pick on the page.
+-- To take it off the site: Products & stock → The Bandana → Hidden.
+insert into products (slug, name, species, line, kind, blurb, story, image, card,
+                      price_cents, sizes, active, sample_photo, sort)
+values (
+  'bandana', 'The Bandana', 'One size · for dogs and people', 'botanical', 'bandana',
+  'The same leaves, sized for a good dog. Or your back pocket.',
+  'Same blanks, same bleach, same leaves off the same back roads — cut square instead of sewn into a tee. It ties on a dog, folds into a pocket, and comes in every color the shirts do. Pick the design you want on it; it''s made the same way, one at a time.',
+  '/images/bandana.jpg', '/images/design-bandana.jpg', 2000, '["One size"]'::jsonb, true, true, 10
+)
+on conflict (slug) do nothing;
+
+-- Re-running this fills in the photos on a bandana row that was made before
+-- they existed, without touching anything you've edited in the admin.
+update products
+set image = '/images/bandana.jpg', card = '/images/design-bandana.jpg'
+where slug = 'bandana' and (image = '' or card = '');
+
+-- ============================================================
+--  Swaps (v11). No returns — every piece is made to order — but one
+--  free size or color swap per item. A customer asks from /swap, the
+--  request lands in /admin/swaps, and marking it Done puts the piece
+--  that came back on the Inventory shelf.
+-- ============================================================
+alter table order_lines add column if not exists swapped_at timestamptz;  -- this one's swap has been used
+
+create table if not exists swaps (
+  id            serial primary key,
+  ref           text unique,                 -- SW-XXXX, what the customer sees
+  order_id      integer references orders(id) on delete set null,
+  line_id       integer references order_lines(id) on delete set null,
+  email         text not null,
+  name          text not null default '',
+  slug          text not null default '',    -- the design they have
+  variant       text not null default '',    -- the design on it, when it's a bandana
+  color         text not null default '',
+  size          text not null default '',
+  want_color    text not null default '',
+  want_size     text not null default '',
+  reason        text not null default '',    -- too-small | too-big | color | other
+  note          text not null default '',
+  address       jsonb,                       -- where the replacement goes
+  status        text not null default 'requested',  -- requested | approved | sent | done | declined
+  owner_note    text not null default '',    -- what Corey said back
+  from_stock    boolean not null default false, -- the replacement came off the shelf
+  decided_at    timestamptz,
+  sent_at       timestamptz,
+  done_at       timestamptz,
+  created_at    timestamptz not null default now()
+);
+create index if not exists swaps_status_idx on swaps (status, created_at desc);
+create index if not exists swaps_order_idx  on swaps (order_id);

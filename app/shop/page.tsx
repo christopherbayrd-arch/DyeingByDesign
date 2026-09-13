@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Lineup from "@/components/Lineup";
+import BandanaBanner from "@/components/BandanaBanner";
 import { getProducts } from "@/lib/catalog";
 
 export const metadata: Metadata = {
   title: "The lineup",
   description:
-    "Every DBD design — hand bleached shirts made to order in Brunswick, Maine. Real botanicals and hand-cut stencils on heavyweight cotton, nine blank colors, $7 flat rate shipping.",
+    "Every DBD design — hand bleached shirts and bandanas made to order in Brunswick, Maine. Real botanicals and hand-cut stencils on heavyweight cotton, seventeen blank colors, $7 flat rate shipping.",
   alternates: { canonical: "/shop" },
 };
 
@@ -14,6 +15,7 @@ export const revalidate = 60;
 
 export default async function ShopPage() {
   const products = await getProducts();
+  const bandana = products.find((p) => p.kind === "bandana") ?? null;
 
   return (
     <div className="mx-auto max-w-6xl px-5 pt-14">
@@ -22,9 +24,10 @@ export default async function ShopPage() {
         Botanicals &amp; stencils.
       </h1>
       <p className="mt-4 max-w-xl text-sm leading-relaxed text-faded sm:text-base">
-        Every shirt is bleached by hand, one at a time — a real leaf or a hand-cut
+        Every piece is bleached by hand, one at a time — a real leaf or a hand-cut
         stencil laid on heavyweight cotton. Yours will not look exactly like the photo,
-        and that&apos;s the point. $7 flat rate shipping in the US.
+        and that&apos;s the point. {bandana ? "Any design also comes as a bandana. " : ""}$7
+        flat rate shipping in the US.
       </p>
       {products.length === 0 ? (
         <p className="card mt-10 p-8 text-faded">
@@ -36,6 +39,7 @@ export default async function ShopPage() {
           <Lineup products={products} columns={4} />
         </div>
       )}
+      <BandanaBanner product={bandana} className="mt-14" />
       <p className="mt-8 text-xs text-faded">
         Want a leaf, logo, or shape you don&apos;t see here? That&apos;s what{" "}
         <a href="/custom" className="underline underline-offset-2 hover:text-goldlight">

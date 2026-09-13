@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { asset } from "@/lib/assets";
+import { getProducts } from "@/lib/catalog";
+import { fmtPrice, SET_PRICE_CENTS } from "@/lib/products";
 import { faqJsonLd } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
 
@@ -11,6 +13,10 @@ export const metadata: Metadata = {
     "The reverse-bleach process behind Dyeing By Design (DBD) — real leaves and hand-cut stencils — plus how to care for your one of a kind shirt.",
   alternates: { canonical: "/about" },
 };
+
+// Checked against the catalog every 60 seconds, so the bandana question
+// appears the moment the bandana is switched on in /admin.
+export const revalidate = 60;
 
 const FAQ = [
   {
@@ -35,7 +41,7 @@ const FAQ = [
   },
   {
     q: "What shirts do you print on?",
-    a: "Heavyweight 100% cotton tees with a true to size unisex fit, in nine blank colors: black, antique cherry red, azalea, daisy, electric green, forest green, sky blue, royal blue, and purple. The bleach burns each color differently — black goes gold, reds go peach, greens go tan, blues go pale, and the lighter blanks go softer still — so the same design reads differently on every shirt. If you're between sizes, most people size up.",
+    a: "Heavyweight ring spun cotton tees — soft, with a relaxed fit — in seventeen blank colors: Black Spruce, Granite, Deep Harbor, Blueberry, Sea Smoke, Tide Pool, Sea Glass, Balsam, Sapling, Lichen, Goldenrod, Sunflower, Ember, Rosehip, Cranberry, Chokecherry, and Lupine. The bleach burns each color differently — black goes gold, reds go peach, greens go tan, blues go pale, and the lighter blanks go softer still — so the same design reads differently on every shirt. They run roomy, so if you like a closer fit, take your usual size rather than sizing up.",
   },
   {
     q: "How do I pay?",
@@ -47,7 +53,7 @@ const FAQ = [
   },
   {
     q: "Returns?",
-    a: "Every shirt is one of a kind, so instead of returns we do size exchanges — reach out within 14 days of delivery and we'll sort it out.",
+    a: "Every piece is bleached by hand for one person, so nothing comes back for a refund. What you get instead is a swap: one free exchange per piece for a different size or color, within 14 days of it landing. Ask for one at dyeingbydesign.com/swap — you cover postage back, we make the new one and ship it free.",
   },
   {
     q: "Do you ship outside the US?",
@@ -55,10 +61,29 @@ const FAQ = [
   },
 ];
 
-export default function AboutPage() {
+// The bandana question sits right after the blanks question
+const BANDANA_AT = FAQ.findIndex((f) => f.q === "What shirts do you print on?") + 1;
+
+export default async function AboutPage() {
+  const bandana = (await getProducts()).find((p) => p.kind === "bandana") ?? null;
+  const faq = bandana
+    ? [
+        ...FAQ.slice(0, BANDANA_AT),
+        {
+          q: "Do you make anything besides shirts?",
+          a:
+            `Bandanas. Same bleach, same designs, about 22 inches square — one size that folds ` +
+            `down for a small dog's collar, a big dog's neck, your hair, or your back pocket. ` +
+            `Pick any design in the lineup. ${fmtPrice(bandana.priceCents)} on its own, or ` +
+            `${fmtPrice(SET_PRICE_CENTS)} for a bandana and a shirt together — the cart takes ` +
+            `that off for you.`,
+        },
+        ...FAQ.slice(BANDANA_AT),
+      ]
+    : FAQ;
   return (
     <div className="mx-auto max-w-4xl px-5 pt-14">
-      <JsonLd data={faqJsonLd(FAQ)} />
+      <JsonLd data={faqJsonLd(faq)} />
       <p className="kicker">The process</p>
       <h1 className="mt-2 font-display text-4xl font-semibold sm:text-5xl">
         A leaf or a blade does the design. We hold the sprayer.
@@ -104,7 +129,7 @@ export default function AboutPage() {
 
       <h2 className="mt-16 font-display text-3xl font-semibold">Good to know</h2>
       <div className="mt-6 space-y-4">
-        {FAQ.map((item) => (
+        {faq.map((item) => (
           <div key={item.q} className="card p-5">
             <p className="font-semibold text-bone">{item.q}</p>
             <p className="mt-1.5 text-sm leading-relaxed text-faded">{item.a}</p>

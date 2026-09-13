@@ -34,7 +34,13 @@ export default async function InventoryPage() {
   // Designs you can put on the shelf: everything in the lineup, plus any
   // retired or hidden design that still has shirts sitting on hand.
   const products = (await getAllProducts().catch(() => null)) ?? [];
-  const stocked = new Set(items.filter((i) => i.kind === "shirt" && i.qty > 0).map((i) => i.slug));
+  // a bandana row keeps the design that's on it in `name`, so that design
+  // needs a column even if it's been retired from the lineup
+  const stocked = new Set(
+    items
+      .filter((i) => i.kind === "shirt" && i.qty > 0)
+      .flatMap((i) => (i.name ? [i.slug, i.name] : [i.slug]))
+  );
   const designs: InvDesign[] = products
     .filter((p) => (p.active && !RETIRED_SLUGS.includes(p.slug)) || stocked.has(p.slug))
     .map((p) => ({
@@ -42,11 +48,12 @@ export default async function InventoryPage() {
       name: p.name,
       image: p.card ? (/^https?:\/\//.test(p.card) ? p.card : asset(p.card)) : "",
       inLineup: p.active && !RETIRED_SLUGS.includes(p.slug),
+      kind: p.kind,
     }));
   // shirts on the shelf for a design that no longer exists at all
   for (const slug of stocked) {
     if (!designs.some((d) => d.slug === slug)) {
-      designs.push({ slug, name: slug.charAt(0).toUpperCase() + slug.slice(1), image: "", inLineup: false });
+      designs.push({ slug, name: slug.charAt(0).toUpperCase() + slug.slice(1), image: "", inLineup: false, kind: "shirt" });
     }
   }
 
@@ -56,7 +63,7 @@ export default async function InventoryPage() {
       <h1 className="mt-2 font-display text-3xl font-semibold sm:text-4xl">Inventory</h1>
       <AdminNav active="inventory" />
       <p className="mt-5 max-w-2xl text-sm leading-relaxed text-faded">
-        What&apos;s on the shelf. Sales on Quick sale take shirts off by themselves, making a shirt in the
+        What&apos;s on the shelf. Sales on Quick sale take pieces off by themselves, making one in the
         Make queue uses a blank, and every change is written down under History.
       </p>
       <InventoryManager initialItems={items} initialMoves={moves} designs={designs} error={error} />

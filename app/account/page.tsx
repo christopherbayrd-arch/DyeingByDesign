@@ -129,6 +129,15 @@ export default async function AccountPage() {
                     </span>
                     {typeof o.amount_total === "number" && <span className="font-semibold text-goldlight">{fmtPrice(o.amount_total)}</span>}
                   </div>
+                  {(status === "shipped" || status === "made") && (
+                    <p className="mt-2 text-xs text-faded">
+                      Wrong size?{" "}
+                      <Link href="/swap" className="text-goldlight underline underline-offset-2">
+                        Ask for a swap
+                      </Link>{" "}
+                      — one free size or color change per piece.
+                    </p>
+                  )}
                 </div>
               );
             })}
