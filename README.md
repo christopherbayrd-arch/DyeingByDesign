@@ -23,13 +23,15 @@ playbook.
 - **Products & stock** (`/admin/products`): add designs, edit names, prices,
   stories, upload photos from your phone or computer, and control
   availability:
-  - **Always available** = made to order, no limits. These order by request
-    (you reply with a payment link).
+  - **Always available** = made to order, no limits. Someone can always
+    order one, however empty the shelf is.
   - **Only sell what's on hand** = the site sells from the counts on the
-    **Inventory** tab. A color and size at 0 shows as sold out, checkout
-    refuses quantities you don't have, and every paid card order takes the
-    shirts off automatically. These are the shirts that get the **Buy now**
-    card checkout once Stripe is connected. (The counts used to be typed in
+    **Inventory** tab. A color and size at 0 shows as sold out and the site
+    won't take an order for it at all.
+  - Either way, **what's on the Inventory tab is what gets a Buy now
+    button**. A finished piece on the shelf is paid for by card on the spot;
+    anything not on the shelf is an order request you answer with a payment
+    link. See *Step 4 — Stripe* below. (The counts used to be typed in
     here; they live on the Inventory tab now, and running `schema.sql`
     carries over anything you'd already entered.)
   - **Shown / Hidden** toggles whether a design appears on the site at all.
@@ -158,27 +160,36 @@ Deploy. Every push/upload to GitHub redeploys automatically.
 
 ### Step 4 — Stripe (payments) — **optional for now**
 
-> **Ordering is set to split mode** (`ORDER_MODE = "split"` at the top of
-> `lib/products.ts`), which works like this:
+> **The card only comes out for something that's already made.** One rule
+> runs the whole shop (`ORDER_MODE = "split"` at the top of
+> `lib/products.ts`):
 >
-> - A design with **Track stock** switched on in the admin (counted shirts,
->   ready to ship — drops, for example) gets a **Buy now** button and a card
->   checkout through Stripe. Stock is subtracted automatically when the
->   payment clears.
-> - A design that is **always available** (made to order) gets **Order this
->   one**. The customer fills in name, email, and shipping address and hits
->   *Send the order*. You get an email (reply-to is the customer, so just hit
->   Reply with a Stripe payment link or invoice) and a phone push, the order
->   lands on `/admin` as **Awaiting payment**, and the customer gets a copy
->   once your sending domain is verified. When they've paid, change the
->   status on `/admin` to **Paid**.
-> - A cart that mixes both kinds goes in as one order request, so the
->   customer pays once.
+> - **On the Inventory shelf right now → Buy now.** The customer pays by
+>   card there and then, and the piece comes off the shelf the moment the
+>   payment clears. "On the shelf" means this exact piece — design, color,
+>   size, and for a bandana the design bleached onto it — has a count above
+>   zero on the **Inventory** tab. The **Track stock** setting doesn't decide
+>   this; what's actually on the shelf does. Put three Sumac tees in Black /
+>   L on the Inventory tab and those three sell themselves overnight.
+> - **Not on the shelf → Order this one.** Made to order, sold out, or they
+>   want more than you have: the customer fills in name, email, and shipping
+>   address and hits *Send the order*. You get an email (reply-to is the
+>   customer, so just hit Reply with a Stripe payment link or invoice) and a
+>   phone push, the order lands on `/admin` as **Awaiting payment**, and the
+>   customer gets a copy once your sending domain is verified. When they've
+>   paid, change the status on `/admin` to **Paid**.
+> - **A cart holding both doesn't get mashed together.** It shows which
+>   pieces are ready and offers to check those out first by card, leaving the
+>   made to order ones in the cart to send right after. The customer can also
+>   choose to send the whole cart as one order request instead — one payment
+>   link, one shipping charge, everything shipped together.
+> - The API enforces the same rule, so nobody can pay by card for something
+>   that isn't on the shelf even if they post straight at it.
 > - **Until the Stripe keys below are in place, everything takes the order
 >   request route** — the site notices on its own, nothing to flip.
 >
-> The other two settings: `"email"` = no card checkout anywhere, `"stripe"` =
-> everything checks out by card, made to order included.
+> The other two settings: `"email"` = no card checkout anywhere; `"stripe"`
+> is reserved for "card checkout on everything" and behaves like split today.
 
 
 1. stripe.com → create and activate an account.
