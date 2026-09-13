@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useCart } from "@/components/CartContext";
+import { lineKey, markPaid, useCart, type CartLine } from "@/components/CartContext";
 import { useSession } from "next-auth/react";
 import { COLORS, SET_PRICE_CENTS, SHIPPING_CENTS, colorName, fmtPrice, setDiscount } from "@/lib/products";
 
@@ -13,12 +13,36 @@ import { asset } from "@/lib/assets";
 
 type Done = { orderRef: string; mailto?: string; customerEmailed?: boolean; emailFailed?: boolean };
 
-// `cardSlugs` = designs that check out by card right now (counted stock with
-// Stripe connected — worked out server side in app/cart/page.tsx). A cart
-// made only of those goes to Stripe Checkout; anything else goes in as an
-// order request and Corey replies with one payment link for the lot.
-export default function CartView({ cardSlugs = [] }: { cardSlugs?: string[] }) {
-  const { lines, ready, remove, setQty, subtotalCents, clear } = useCart();
+// `shelf` = how many of each exact piece (design · color · size · the design
+// on a bandana) are finished and on the shelf right now; `stripeReady` = the
+// shop's Stripe keys are in. A line that's on the shelf can be paid for here
+// and ships in a day or two. Everything else is made to order and goes in as
+// a request Corey answers with a payment link. A cart holding both doesn't
+// get mashed together: the ready ones check out first and the rest stay in
+// the cart, or the whole lot goes as one order — the customer picks.
+export default function CartView({
+  shelf = {},
+  stripeReady = false,
+}: {
+  shelf?: Record<string, number>;
+  stripeReady?: boolean;
+}) {
+  const { lines, ready, remove, removeKeys, setQty, subtotalCents } = useCart();
+  const onShelf = (l: CartLine) => (shelf[lineKey(l)] ?? 0) >= l.qty;
+  const canCard = (l: CartLine) => stripeReady && onShelf(l);
+  const indexed = lines.map((line, i) => ({ line, i }));
+  const payNow = indexed.filter(({ line }) => canCard(line));
+  const payLater = indexed.filter(({ line }) => !canCard(line));
+  const nNow = payNow.reduce((s, { line }) => s + line.qty, 0);
+  const nLater = payLater.reduce((s, { line }) => s + line.qty, 0);
+  const allCard = lines.length > 0 && payLater.length === 0;
+  const mixed = payNow.length > 0 && payLater.length > 0;
+  // what a group costs on its own: its own pairing, its own flat rate shipping
+  const groupTotal = (g: typeof indexed) => {
+    const sub = g.reduce((s, { line }) => s + line.priceCents * line.qty, 0);
+    const d = setDiscount(g.map(({ line }) => ({ kind: line.kind, qty: line.qty, unitPriceCents: line.priceCents })));
+    return sub - d.off + SHIPPING_CENTS;
+  };
   // shirt + bandana together = the set price
   const set = setDiscount(lines.map((l) => ({ kind: l.kind, qty: l.qty, unitPriceCents: l.priceCents })));
   const hasShirt = lines.some((l) => l.kind !== "bandana");
@@ -27,8 +51,7 @@ export default function CartView({ cardSlugs = [] }: { cardSlugs?: string[] }) {
   // Signed in customers get their name and email filled in (still editable)
   const { data: session } = useSession();
   const me = session?.user;
-  const allCard = lines.length > 0 && lines.every((l) => cardSlugs.includes(l.slug));
-  const someCard = !allCard && lines.some((l) => cardSlugs.includes(l.slug));
+  const [oneOrder, setOneOrder] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState<Done | null>(null);
@@ -38,19 +61,22 @@ export default function CartView({ cardSlugs = [] }: { cardSlugs?: string[] }) {
     setBusy(true);
     setError("");
     const data = Object.fromEntries(new FormData(e.currentTarget).entries());
+    // mixed cart, "send it all as one order" → everything; otherwise whatever
+    // isn't being paid for by card
+    const sending = oneOrder ? indexed : payLater;
     try {
       const res = await fetch("/api/email-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
-          items: lines.map(({ slug, size, color, qty, variant }) => ({ slug, size, color, qty, variant })),
+          items: sending.map(({ line: { slug, size, color, qty, variant } }) => ({ slug, size, color, qty, variant })),
         }),
       });
       const body = await res.json().catch(() => ({}));
       if (res.ok && body.orderRef) {
         setDone(body);
-        clear();
+        removeKeys(sending.map(({ line }) => lineKey(line)));
       } else {
         setError(body.error ?? "That didn't go through. Try again in a minute.");
       }
@@ -60,7 +86,7 @@ export default function CartView({ cardSlugs = [] }: { cardSlugs?: string[] }) {
     setBusy(false);
   }
 
-  async function checkout() {
+  async function checkout(group: typeof indexed) {
     setBusy(true);
     setError("");
     try {
@@ -68,11 +94,13 @@ export default function CartView({ cardSlugs = [] }: { cardSlugs?: string[] }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: lines.map(({ slug, size, color, qty, variant }) => ({ slug, size, color, qty, variant })),
+          items: group.map(({ line: { slug, size, color, qty, variant } }) => ({ slug, size, color, qty, variant })),
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.url) {
+        // only these come out of the cart when the customer lands on /success
+        markPaid(group.map(({ line }) => lineKey(line)));
         window.location.href = data.url;
         return;
       }
@@ -133,6 +161,34 @@ export default function CartView({ cardSlugs = [] }: { cardSlugs?: string[] }) {
     );
   }
 
+  // The order request form. Used on its own when nothing in the cart is ready
+  // to ship, and as the "send it all as one order" option on a mixed cart.
+  const orderForm = (intro: string) => (
+    <form onSubmit={sendOrder} className="mt-5 space-y-3">
+      <p className="text-xs leading-relaxed text-faded">{intro}</p>
+      <input key={`n-${me?.name ?? ""}`} name="name" required maxLength={120} className="input" placeholder="Your name" autoComplete="name" defaultValue={me?.name ?? ""} />
+      <input key={`e-${me?.email ?? ""}`} name="email" type="email" required maxLength={200} className="input" placeholder="Email" autoComplete="email" defaultValue={me?.email ?? ""} />
+      <input name="line1" required maxLength={200} className="input" placeholder="Street address" autoComplete="address-line1" />
+      <input name="line2" maxLength={200} className="input" placeholder="Apt, unit (optional)" autoComplete="address-line2" />
+      <div className="grid grid-cols-[1fr_64px_84px] gap-2">
+        <input name="city" required maxLength={120} className="input" placeholder="City" autoComplete="address-level2" />
+        <input name="state" required maxLength={2} className="input px-2 text-center uppercase" placeholder="ME" autoComplete="address-level1" />
+        <input name="postal" required maxLength={10} className="input px-2" placeholder="ZIP" autoComplete="postal-code" inputMode="numeric" />
+      </div>
+      <textarea name="note" maxLength={2000} rows={2} className="input resize-y" placeholder="Anything we should know? (optional)" />
+      {/* honeypot */}
+      <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
+      <button className="btn btn-gold w-full" disabled={busy}>
+        {busy ? "Sending…" : "Send the order"}
+      </button>
+      {error && <p className="text-sm text-rust">{error}</p>}
+      <p className="text-xs leading-relaxed text-faded">
+        US shipping only for now. You&apos;ll get a copy of the order by email, and
+        nothing is charged until you hear from us.
+      </p>
+    </form>
+  );
+
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
       <ul className="space-y-4">
@@ -157,6 +213,13 @@ export default function CartView({ cardSlugs = [] }: { cardSlugs?: string[] }) {
                     style={{ background: COLORS.find((c) => c.key === line.color)?.hex }}
                   />
                   {colorName(line.color)}{line.size ? ` · ${line.size === "One size" ? line.size : `Size ${line.size}`}` : ""}
+                </p>
+                <p className="mt-1.5 text-xs">
+                  {onShelf(line) ? (
+                    <span className="font-medium text-goldlight">Ready to ship · 1 to 2 days</span>
+                  ) : (
+                    <span className="text-faded">Made for you · 1 to 2 weeks</span>
+                  )}
                 </p>
                 <button
                   onClick={() => remove(i)}
@@ -221,47 +284,63 @@ export default function CartView({ cardSlugs = [] }: { cardSlugs?: string[] }) {
           </p>
         )}
 
-        {!allCard ? (
-          <form onSubmit={sendOrder} className="mt-6 space-y-3">
-            <p className="text-xs leading-relaxed text-faded">
-              {someCard
-                ? "Something in your cart is made to order, so the whole order goes in as a request — one payment link for everything. "
-                : "No card needed here. "}
-              Send us the order and we reply within a day with a secure payment link and a
-              ship date.
-            </p>
-            <input key={`n-${me?.name ?? ""}`} name="name" required maxLength={120} className="input" placeholder="Your name" autoComplete="name" defaultValue={me?.name ?? ""} />
-            <input key={`e-${me?.email ?? ""}`} name="email" type="email" required maxLength={200} className="input" placeholder="Email" autoComplete="email" defaultValue={me?.email ?? ""} />
-            <input name="line1" required maxLength={200} className="input" placeholder="Street address" autoComplete="address-line1" />
-            <input name="line2" maxLength={200} className="input" placeholder="Apt, unit (optional)" autoComplete="address-line2" />
-            <div className="grid grid-cols-[1fr_64px_84px] gap-2">
-              <input name="city" required maxLength={120} className="input" placeholder="City" autoComplete="address-level2" />
-              <input name="state" required maxLength={2} className="input px-2 text-center uppercase" placeholder="ME" autoComplete="address-level1" />
-              <input name="postal" required maxLength={10} className="input px-2" placeholder="ZIP" autoComplete="postal-code" inputMode="numeric" />
-            </div>
-            <textarea name="note" maxLength={2000} rows={2} className="input resize-y" placeholder="Anything we should know? (optional)" />
-            {/* honeypot */}
-            <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
-            <button className="btn btn-gold w-full" disabled={busy}>
-              {busy ? "Sending…" : "Send the order"}
-            </button>
-            {error && <p className="text-sm text-rust">{error}</p>}
-            <p className="text-xs leading-relaxed text-faded">
-              US shipping only for now. You&apos;ll get a copy of the order by email, and
-              nothing is charged until you hear from us.
-            </p>
-          </form>
-        ) : (
+        {allCard ? (
           <>
-            <button className="btn btn-gold mt-6 w-full" onClick={checkout} disabled={busy}>
+            <button className="btn btn-gold mt-6 w-full" onClick={() => checkout(payNow)} disabled={busy}>
               {busy ? "One sec…" : "Check out"}
             </button>
             {error && <p className="mt-3 text-sm text-rust">{error}</p>}
             <p className="mt-4 text-xs leading-relaxed text-faded">
-              Secure card, Apple Pay, and Google Pay checkout by Stripe. Prices and
+              Everything here is bleached, washed, and on the shelf — out the door in 1 to 2
+              days. Secure card, Apple Pay, and Google Pay checkout by Stripe. Prices and
               availability are double checked at checkout.
             </p>
           </>
+        ) : mixed ? (
+          <>
+            <div className="mt-6 rounded-xl border border-gold/25 bg-black/20 p-4">
+              <p className="kicker text-goldlight">{nNow} ready to ship</p>
+              <p className="mt-2 text-xs leading-relaxed text-faded">
+                {nNow === 1 ? "One piece" : `${nNow} pieces`} in your cart{" "}
+                {nNow === 1 ? "is" : "are"} already made and on the shelf. Pay for{" "}
+                {nNow === 1 ? "it" : "them"} now and {nNow === 1 ? "it ships" : "they ship"} in
+                1 to 2 days — the {nLater} made to order{" "}
+                {nLater === 1 ? "one stays" : "ones stay"} in your cart to send right after.
+              </p>
+              <button className="btn btn-gold mt-3 w-full" onClick={() => checkout(payNow)} disabled={busy}>
+                {busy
+                  ? "One sec…"
+                  : `Check out the ready ${nNow === 1 ? "one" : "ones"} · ${fmtPrice(groupTotal(payNow))}`}
+              </button>
+              {error && !oneOrder && <p className="mt-3 text-sm text-rust">{error}</p>}
+              <p className="mt-2 text-[0.7rem] leading-relaxed text-faded">
+                Two orders, so the flat rate lands on each one.
+              </p>
+            </div>
+
+            {!oneOrder ? (
+              <>
+                <p className="mt-5 text-xs leading-relaxed text-faded">
+                  Rather have it all in one box? Send the whole cart as one order instead —
+                  nothing is charged, we reply with a single payment link, and it all ships
+                  together once the made to order {nLater === 1 ? "piece is" : "pieces are"} done.
+                </p>
+                <button className="btn btn-ghost mt-3 w-full" onClick={() => setOneOrder(true)}>
+                  Send all {nNow + nLater} as one order · {fmtPrice(subtotalCents - set.off + SHIPPING_CENTS)}
+                </button>
+              </>
+            ) : (
+              orderForm(
+                `All ${nNow + nLater} pieces go in as one order — one payment link, one shipping charge, shipped together. Send it over and we reply within a day with a secure link and a ship date.`
+              )
+            )}
+          </>
+        ) : (
+          orderForm(
+            stripeReady
+              ? "Every piece here is made for you after you order, so nothing is charged now. Send us the order and we reply within a day with a secure payment link and a ship date."
+              : "No card needed here. Send us the order and we reply within a day with a secure payment link and a ship date."
+          )
         )}
       </aside>
     </div>

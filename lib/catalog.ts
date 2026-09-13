@@ -48,16 +48,31 @@ export function rowToProduct(r: Row): Product {
 type Sql = NonNullable<ReturnType<typeof getDb>>;
 export async function withShelfCounts(sql: Sql, products: Product[], slug?: string): Promise<Product[]> {
   try {
+    // `name` holds the design on a bandana, so counts stay per design
     const rows = (slug
-      ? await sql`select slug, color, size, sum(qty)::int as qty from inventory where kind = 'shirt' and slug = ${slug} group by slug, color, size`
-      : await sql`select slug, color, size, sum(qty)::int as qty from inventory where kind = 'shirt' group by slug, color, size`) as Row[];
+      ? await sql`select slug, name, color, size, sum(qty)::int as qty from inventory where kind = 'shirt' and slug = ${slug} group by slug, name, color, size`
+      : await sql`select slug, name, color, size, sum(qty)::int as qty from inventory where kind = 'shirt' group by slug, name, color, size`) as Row[];
     const bySlug = new Map<string, Record<string, number>>();
+    const byVariant = new Map<string, Record<string, number>>();
     for (const r of rows) {
-      const m = bySlug.get(String(r.slug)) ?? {};
-      m[stockKey(String(r.color), String(r.size))] = Math.max(0, Number(r.qty) || 0);
-      bySlug.set(String(r.slug), m);
+      const s = String(r.slug);
+      const key = stockKey(String(r.color), String(r.size));
+      const n = Math.max(0, Number(r.qty) || 0);
+      // the plain map totals every design, which is what the storefront shows
+      const m = bySlug.get(s) ?? {};
+      m[key] = (m[key] ?? 0) + n;
+      bySlug.set(s, m);
+      if (r.name) {
+        const v = byVariant.get(s) ?? {};
+        v[`${String(r.name)}:${key}`] = n;
+        byVariant.set(s, v);
+      }
     }
-    return products.map((p) => ({ ...p, stock: bySlug.get(p.slug) ?? {} }));
+    return products.map((p) => ({
+      ...p,
+      stock: bySlug.get(p.slug) ?? {},
+      variantStock: byVariant.get(p.slug) ?? {},
+    }));
   } catch {
     return products;
   }

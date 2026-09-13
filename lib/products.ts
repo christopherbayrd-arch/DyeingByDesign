@@ -51,30 +51,36 @@ export type Product = {
   sizes: string[];
   trackStock: boolean;  // false = always available (made to order)
   stock: Record<string, number>; // per "color:SIZE" counts when trackStock is true
+  variantStock?: Record<string, number>; // bandanas: "design:color:SIZE" counts
   active: boolean;
   samplePhoto?: boolean;
   badge?: string | null;
   sort?: number;
 };
 
-// How people order.
-//   "split"  → per shirt: designs with "Track stock" on (counted, ready to
-//              ship) get a Buy now button that goes to Stripe Checkout;
-//              made to order designs get "Order this one", which sends the
-//              order to the shop by email and Corey replies with a payment
-//              link. If the Stripe keys aren't set yet, everything falls back
-//              to the email route automatically.
+// How people order (2026-09-13, Chris: "if there's inventory available for
+// the product the customer is trying to buy, let it go through stripe and
+// charge the customer at that point — but only allow stripe for that").
+//   "split"  → the piece the customer picked (design + color + size, and the
+//              design on a bandana) is ON THE INVENTORY SHELF right now, so
+//              it can ship today: Buy now, paid by card, stock comes off when
+//              the payment clears. Anything not on the shelf — made to order,
+//              sold out, a bigger quantity than there is — goes in as an
+//              order request and Corey replies with a payment link. The
+//              "Track stock" setting doesn't decide this any more; what's
+//              actually on the shelf does. No Stripe keys = everything is a
+//              request, automatically.
 //   "email"  → no card on the site at all, every order goes by email.
-//   "stripe" → everything goes to Stripe Checkout, made to order included.
+//   "stripe" → same as split for now; kept so there's a name for "card
+//              checkout everywhere" if that's ever wanted.
 export const ORDER_MODE: "split" | "email" | "stripe" = "split";
 
-// Does this design check out by card? (stripeReady = STRIPE_SECRET_KEY is set,
-// which only the server knows — see lib/orderMode.ts)
-export function paysByCard(p: { trackStock: boolean }, stripeReady: boolean): boolean {
+// Can this exact piece be paid for by card right now? (stripeReady =
+// STRIPE_SECRET_KEY is set, which only the server knows — lib/orderMode.ts)
+export function paysByCard(stripeReady: boolean, onHandQty: number, qty = 1): boolean {
   if (!stripeReady) return false;
   if (ORDER_MODE === "email") return false;
-  if (ORDER_MODE === "stripe") return true;
-  return p.trackStock;
+  return onHandQty >= Math.max(1, qty);
 }
 
 // Flat rate shipping for the whole order, in cents ($7.00)
@@ -218,6 +224,46 @@ export function availableQty(p: Product, size: string, color?: string): number {
   if (color) return Math.max(0, Number(p.stock?.[stockKey(color, size)] ?? 0));
   // no color given: total across colors for that size
   return COLORS.reduce((n, c) => n + Math.max(0, Number(p.stock?.[stockKey(c.key, size)] ?? 0)), 0);
+}
+
+// What's physically on the shelf for this exact piece, whatever the product's
+// "Track stock" setting says. availableQty() answers "may this be ordered"
+// (made to order is unlimited); this answers "can it ship today", which is
+// what decides whether the customer pays by card now or sends a request.
+export function onHand(p: Product, size: string, color: string, variant = ""): number {
+  if (!size || !color) return 0;
+  if (p.kind === "bandana") {
+    // bandanas are counted per design, so an unpicked design is zero
+    if (!variant) return 0;
+    return Math.max(0, Number(p.variantStock?.[`${variant}:${stockKey(color, size)}`] ?? 0));
+  }
+  return Math.max(0, Number(p.stock?.[stockKey(color, size)] ?? 0));
+}
+
+// One name for one exact piece — design, the design bleached onto it (blank
+// for shirts), color, size. The cart, the shelf map and the order all use
+// this shape, so a line can be matched to the shelf without another lookup.
+export function pieceKey(slug: string, color: string, size: string, variant = ""): string {
+  return `${slug}|${variant}|${color}|${size}`;
+}
+
+// Everything that can ship today, keyed by pieceKey. Built on the server from
+// the Inventory shelf and handed to the browser, so the cart can tell a ready
+// line from a made to order one without asking the server line by line.
+export function shelfMap(products: Product[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const p of products) {
+    const entries = p.kind === "bandana" ? p.variantStock ?? {} : p.stock ?? {};
+    for (const [k, raw] of Object.entries(entries)) {
+      // shirts: "color:SIZE" · bandanas: "design:color:SIZE"
+      const parts = k.split(":");
+      const [variant, color, size] =
+        p.kind === "bandana" ? parts : ["", parts[0], parts[1]];
+      const n = Math.max(0, Math.floor(Number(raw) || 0));
+      if (color && size && n > 0) out[pieceKey(p.slug, color, size, variant)] = n;
+    }
+  }
+  return out;
 }
 
 export function isSoldOut(p: Product): boolean {

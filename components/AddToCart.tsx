@@ -3,23 +3,33 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCart } from "@/components/CartContext";
+import { markPaid, useCart } from "@/components/CartContext";
 import ShirtPreview from "@/components/ShirtPreview";
-import { COLORS, availableQty, fmtPrice, isSoldOut, type Product } from "@/lib/products";
+import {
+  COLORS,
+  availableQty,
+  fmtPrice,
+  isSoldOut,
+  onHand,
+  paysByCard,
+  pieceKey,
+  type Product,
+} from "@/lib/products";
 
 export type DesignChoice = { slug: string; name: string; card: string };
 
-// `card` = this design checks out by card through Stripe (counted stock with
-// Stripe connected). Otherwise the button sends the shirt to the cart's order
-// request form and Corey replies with a payment link. Decided server side in
-// lib/orderMode.ts.
+// `stripeReady` = the shop's Stripe keys are in (only the server can see them,
+// so the page hands the answer down). Whether THIS piece is paid for by card
+// is worked out below from what's on the shelf for the exact color, size and
+// design picked: on the shelf means Buy now and paid today; anything else is
+// made to order and goes in as a request Corey replies to with a payment link.
 export default function AddToCart({
   product,
-  card = false,
+  stripeReady = false,
   designs = [],
 }: {
   product: Product;
-  card?: boolean;
+  stripeReady?: boolean;
   designs?: DesignChoice[];   // bandanas: which design goes on it
 }) {
   const { add } = useCart();
@@ -64,6 +74,10 @@ export default function AddToCart({
     clampQty(size, c);
   }
   const ready = Boolean(size && color && (!bandana || variant));
+  // What's on the shelf for exactly what's been picked, and so whether this
+  // one can be paid for now instead of ordered
+  const shelf = ready ? onHand(product, size!, color!, variant ?? "") : 0;
+  const cardNow = ready && paysByCard(stripeReady, shelf, qty);
   const missing = bandana && !variant
     ? "Pick a design first."
     : !color && !size
@@ -100,8 +114,9 @@ export default function AddToCart({
       return;
     }
     setError("");
-    if (!card) {
-      // No card checkout for this one — put it in the cart and go straight to the order form
+    if (!cardNow) {
+      // Not on the shelf (or more wanted than there is) — this one is made to
+      // order, so it goes in the cart and on to the order form
       add(line());
       router.push("/cart");
       return;
@@ -115,6 +130,8 @@ export default function AddToCart({
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.url) {
+        // so coming back to /success only empties what was actually bought
+        markPaid([pieceKey(product.slug, color!, size!, variant ?? "")]);
         window.location.href = data.url;
         return;
       }
@@ -237,9 +254,24 @@ export default function AddToCart({
           );
         })}
       </div>
-      {product.trackStock && size && availableQty(product, size) <= 3 && (
-        <p className="mt-2 text-xs font-medium text-goldlight">
-          Only {availableQty(product, size)} left in {size}.
+      {ready && (
+        <p className="mt-3 text-sm leading-relaxed">
+          {shelf >= qty ? (
+            <span className="font-medium text-goldlight">
+              Ready to ship — {shelf === 1 ? "this one is" : `${shelf} of these are`} finished and
+              on the shelf, out the door in 1 to 2 days.
+            </span>
+          ) : shelf > 0 ? (
+            <span className="text-faded">
+              <span className="font-medium text-goldlight">{shelf} ready to ship</span> in this
+              color and size. Ask for more than that and the whole lot gets made for you — allow
+              1 to 2 weeks.
+            </span>
+          ) : (
+            <span className="text-faded">
+              Made for you after you order — allow 1 to 2 weeks, depending on the queue.
+            </span>
+          )}
         </p>
       )}
 
@@ -260,7 +292,7 @@ export default function AddToCart({
           </select>
         </label>
         <button className="btn btn-gold grow sm:grow-0" onClick={handleBuyNow} disabled={buying}>
-          {buying ? "Heading to checkout…" : `${card ? "Buy now" : "Order this one"} · ${fmtPrice(product.priceCents * qty)}`}
+          {buying ? "Heading to checkout…" : `${cardNow ? "Buy now" : "Order this one"} · ${fmtPrice(product.priceCents * qty)}`}
         </button>
         <button className="btn btn-ghost grow sm:grow-0" onClick={handleAdd} disabled={buying}>
           {added ? "Added ✓" : "Add to cart"}
@@ -280,12 +312,9 @@ export default function AddToCart({
 
       <p className="mt-5 text-xs leading-relaxed text-faded">
         {fmtPrice(product.priceCents)} + $7 flat rate shipping (US).{" "}
-        {product.trackStock
-          ? "In stock and ready to ship in 1 to 2 days."
-          : "Made for you after you order — allow 1 to 2 weeks before it ships, depending on the queue."}{" "}
-        {card
-          ? "Card, Apple Pay, and Google Pay checkout by Stripe."
-          : "No card needed up front — send the order and we reply with a secure payment link."}
+        {cardNow
+          ? "Card, Apple Pay, and Google Pay checkout by Stripe — paid now, packed and shipped from Brunswick, Maine."
+          : "No card needed up front — send the order and we reply with a secure payment link and a ship date."}
       </p>
     </div>
   );
