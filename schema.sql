@@ -122,6 +122,16 @@ create table if not exists cogs (
   updated_at  timestamptz not null default now()
 );
 
+-- ============ Operating expenses — one JSON document, edited in /admin/expenses ============
+-- The standing costs of running the business (hosting, insurance, booth
+-- fees) plus one off purchases and any hand typed month. Nothing per shirt
+-- lives here — that's the cogs table above.
+create table if not exists opex (
+  id          integer primary key default 1 check (id = 1),
+  data        jsonb not null default '{}',
+  updated_at  timestamptz not null default now()
+);
+
 -- ============================================================
 --  Sales history (v4). Every shirt sold gets its own row, with the
 --  cost frozen at the moment it was paid for, so changing prices on
