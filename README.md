@@ -36,6 +36,11 @@ playbook.
     carries over anything you'd already entered.)
   - **Shown / Hidden** toggles whether a design appears on the site at all.
     New designs start hidden until you're ready.
+- **Light or dark desk**: the toggle at the right of the admin tabs switches
+  the whole order desk between the dark look and a daylight one, and it
+  remembers which you picked on that device. It only applies to `/admin` —
+  the shop itself stays dark, because that's the brand. If you use the desk
+  on a phone at a sunny craft fair, light is the one you want.
 - **Getting rid of an order**: three different things, and they are not the
   same. Open **manage** under any order's status.
   - **Archive** — done with. Off the desk, still a sale in your history. Get
@@ -103,7 +108,10 @@ playbook.
   what you pay for blanks (per color and size), list your materials with the
   bulk price and how many shirts a unit covers, and build product types
   (bleach shirt, tie dye shirt…) from them. It shows cost per shirt and
-  profit at your sale price. Hit **Save** when you're done — it's stored in
+  gross profit at your sale price. Tick **Shipped only** on materials only a posted
+  order uses (shipping labels, mailers): a booth or Quick sale shirt is costed
+  without them, and if one of those sales later gets a label, postage, or an
+  address, its shirts pick them up. Hit **Save** when you're done — it's stored in
   the database, and every save also files a dated copy so old sales keep
   their old costs (the little "what changed" box next to Save is a note on
   that copy). The **History** button at the top of the page opens those
@@ -118,9 +126,9 @@ playbook.
   cost in the webhook (plus the exact Stripe fee); order requests freeze it
   the moment you flip them to **Paid**. Totals by month and by design, then
   every sale with price, cost, and margin; type a postage or card fee on a
-  row and click away to save it. **Record a sale** is for anything that
-  didn't go through the site (market table, a DM, Tap to Pay) — pick the
-  design, price, date, and where it sold. **Download CSV** gives you one row
+  row and click away to save it. **Record a sale** here just takes you to
+  **Quick sale**, which is the one place a sale that didn't go through the
+  site gets recorded. **Download CSV** gives you one row
   per shirt for a spreadsheet or the accountant. Orders from before this
   existed show a **Backfill** button: it builds their lines and costs them
   with today's sheet, marked *est.* A shirt shows *not costed* when its
@@ -128,16 +136,28 @@ playbook.
   **Cost the missing ones**. *recost* on a row re-freezes it with the sheet
   from its paid date. Needs the latest `schema.sql` run in Neon.
 - **Quick sale** (`/admin/sell`): the booth screen for craft fairs and any
-  cash sale. Tap the design, color, size, price, and how they paid, then
-  **Record sale**. A bandana asks which design goes on it and swaps the
-  price buttons for $20 / $15 — $15 is picked for you when there's already
-  a shirt in the sale, so a shirt and a bandana come to $55 like they do on
-  the site. Works on a phone, iPad, or laptop. Each sale goes into
-  Sales history with its cost frozen (marked *quick sale*, never cluttering
-  the order desk), and the top of the screen keeps today's total and the
-  cash taken so you can check the cash box at the end of the day. Weak
-  signal at the fair? The sale saves on that device and sends itself when
-  the signal comes back (a sale sent twice is only counted once).
+  cash sale, **and the one place you record any sale that didn't go through
+  the site** — a market table, an Instagram DM, Tap to Pay, one you forgot
+  to ring up last week. Tap the design, color, size, price, and how they
+  paid, then **Record sale**. A bandana asks which design goes on it and
+  swaps the price buttons for $10 / $5 — $5 is picked for you when there's
+  already a shirt in the sale, so a shirt and a bandana come to $50 like
+  they do on the site. Several pieces can go in one sale. Works on a phone,
+  iPad, or laptop. Each sale goes into Sales history with its cost frozen,
+  and the top of the screen keeps today's total and the cash taken so you
+  can check the cash box at the end of the day. Weak signal at the fair?
+  The sale saves on that device and sends itself when the signal comes back
+  (a sale sent twice is only counted once).
+
+  **Not at the table?** There's a link under the total that opens the rest
+  of it: the date it was sold, where it sold (market / Instagram / other),
+  who bought it, shipping you charged, the card fee and postage you paid,
+  and a note. It stays shut by default, because at a booth an extra tap
+  between a customer and their shirt is the wrong trade. Two things to know:
+  **put a date in and the cost is frozen with the COGS sheet that was true
+  that day**, not today's; and a sale recorded this way **stays on the order
+  desk** instead of being filed away, because it might still need posting
+  and that's where **Buy label** is.
 - **Inventory** (`/admin/inventory`): everything on the shelf. *Ready to
   sell* is finished shirts by design, color, and size (and, once the
   bandana is switched on, bandanas by design and color — they're one
@@ -146,9 +166,8 @@ playbook.
   Tap any box, type the count, tap away. *Just made some?* adds finished
   shirts (and takes the blanks off); *Bought blanks?* adds blanks. Counts
   go down on their own: a Quick sale takes the shirt off, ticking a shirt
-  in the Make queue uses a blank, **Use one on hand** in the queue ships a
-  shirt you already made, and Record a sale can take one off too. Undoing
-  any of those puts it back. *History* lists every change and why.
+  in the Make queue uses a blank, and **Use one on hand** in the queue ships
+  a shirt you already made. Undoing any of those puts it back. *History* lists every change and why.
 - **News & events** (`/admin/news`): write news posts and craft fair /
   market events. An event gets a countdown card on the home page until
   it's over, its own page with calendar and directions buttons, and the
