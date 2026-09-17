@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { amount, normalizeOpex, planPerMonth, starterOpex, type OpexDoc } from "@/lib/opex";
+import { amount, belowLinePlan, normalizeOpex, planPerMonth, starterOpex, type OpexDoc } from "@/lib/opex";
 import {
   curve as buildCurve,
   normalizeAssumptions,
@@ -10,6 +10,7 @@ import {
   seededState,
   type Assumptions,
   type Dials,
+  type Overhead,
   type Seed,
 } from "@/lib/forecast";
 
@@ -100,8 +101,9 @@ export default function Forecaster({ seed }: { seed: Seed }) {
   if (!doc || !dials || !assumptions) return <p className="text-sm text-faded">Loading…</p>;
 
   const operating = planPerMonth(doc, { operatingOnly: true });
-  const belowLine = planPerMonth(doc) - operating;
-  const overhead = { operating, belowLine };
+  const below = belowLinePlan(doc);
+  const overhead: Overhead = { operating, ...below };
+  const belowLine = below.da + below.interest + below.tax;
   const r = run(dials, assumptions, overhead);
   const noCost = !assumptions.shirtCost || Number(assumptions.shirtCost) <= 0;
 
@@ -233,7 +235,7 @@ export default function Forecaster({ seed }: { seed: Seed }) {
         <p className="kicker">2 · At {Math.round(dials.shirts)} shirts a month</p>
         <h2 className="mt-1 font-display text-2xl font-semibold">Where the money lands</h2>
 
-        <div className="mt-5 grid gap-4 sm:grid-cols-3">
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Stat
             label="Gross margin"
             value={r.grossMargin === null ? "—" : `${r.grossMargin.toFixed(0)}%`}
@@ -245,6 +247,16 @@ export default function Forecaster({ seed }: { seed: Seed }) {
             value={amount(r.ebitda.month)}
             note={`${amount(r.ebitda.year)} a year${r.ebitdaMargin === null ? "" : ` · ${r.ebitdaMargin.toFixed(0)}% of sales`}`}
             tone={r.ebitda.month >= 0 ? "gold" : "rust"}
+          />
+          <Stat
+            label="Net income"
+            value={amount(r.net.month)}
+            note={
+              belowLine > 0
+                ? `${amount(r.net.year)} a year, after ${amount(belowLine)} a month of interest, taxes and depreciation`
+                : "Same as EBITDA — nothing below the line on the Expenses page yet"
+            }
+            tone={r.net.month >= 0 ? "gold" : "rust"}
           />
           <Stat
             label="Covers itself at"
@@ -294,19 +306,36 @@ export default function Forecaster({ seed }: { seed: Seed }) {
                 gold
                 suffix={r.ebitdaMargin === null ? "" : `${r.ebitdaMargin.toFixed(0)}%`}
               />
-              {belowLine > 0 && (
+              {below.da > 0 && (
                 <>
-                  <Row label="Interest, taxes and depreciation" v={r.belowLine} negative />
-                  <Row label="Profit after those" v={r.net} strong />
+                  <Row label="Depreciation and amortization" v={r.da} negative />
+                  <Row label="Operating profit (EBIT)" v={r.ebit} strong />
                 </>
               )}
+              {below.interest > 0 && (
+                <>
+                  <Row label="Interest" v={r.interest} negative />
+                  <Row label="Profit before tax" v={r.preTax} strong />
+                </>
+              )}
+              {below.tax > 0 && <Row label="Taxes" v={r.tax} negative />}
+              <Row
+                label="Net income"
+                v={r.net}
+                strong
+                gold
+                suffix={r.netMargin === null ? "" : `${r.netMargin.toFixed(0)}%`}
+              />
             </tbody>
           </table>
           <p className="mt-3 text-xs leading-relaxed text-faded">
             Per shirt: {amount(r.perShirt.revenue)} in, {amount(r.perShirt.cogs)} of that is cost,{" "}
             {amount(r.perShirt.contribution)} left over to put against the{" "}
             {amount(operating)} of overhead a month. Nothing here pays anyone for their time —
-            owner labour isn&apos;t a cost on this page or the COGS one.
+            owner labour isn&apos;t a cost on this page or the COGS one, and what the owner draws
+            out comes after net income, not before it.
+            {belowLine === 0 &&
+              " Net income matches EBITDA because nothing is filed under interest, taxes or depreciation yet."}
           </p>
         </div>
       </section>
@@ -566,7 +595,7 @@ function Curve({
 }: {
   dials: Dials;
   assumptions: Assumptions;
-  overhead: { operating: number; belowLine: number };
+  overhead: Overhead;
   onPick: (shirts: number) => void;
 }) {
   const svgRef = useRef<SVGSVGElement | null>(null);

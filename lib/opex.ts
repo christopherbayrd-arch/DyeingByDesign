@@ -92,7 +92,7 @@ export const CATEGORIES: OpexCategory[] = [
     key: "finance",
     name: "Interest, taxes and depreciation",
     blurb:
-      "Real money out, but it sits below the EBITDA line — that's the whole point of EBITDA, so these get added back there.",
+      "Real money out, but it sits below the EBITDA line — that's the whole point of EBITDA. Each row says which one it is, and they come off in that order to give net income.",
     ebitda: false,
   },
   { key: "other", name: "Other", blurb: "Everything that doesn't fit above.", ebitda: true },
@@ -100,6 +100,24 @@ export const CATEGORIES: OpexCategory[] = [
 
 export function categoryInfo(key: string): OpexCategory {
   return CATEGORIES.find((c) => c.key === key) ?? CATEGORIES[CATEGORIES.length - 1];
+}
+
+// Below the EBITDA line, the three things get subtracted in a fixed
+// order: depreciation, then interest, then tax. A row in the finance
+// category says which one it is.
+export type BelowSlot = "da" | "interest" | "tax";
+
+export const BELOW_SLOTS: { key: BelowSlot; label: string; short: string }[] = [
+  { key: "da", label: "Depreciation and amortization", short: "Depreciation" },
+  { key: "interest", label: "Interest", short: "Interest" },
+  { key: "tax", label: "Taxes", short: "Taxes" },
+];
+
+export function guessSlot(name: string): BelowSlot {
+  const n = name.toLowerCase();
+  if (/depreciat|amorti/.test(n)) return "da";
+  if (/interest|loan|finance charge/.test(n)) return "interest";
+  return "tax";
 }
 
 export type Recurring = {
@@ -111,6 +129,7 @@ export type Recurring = {
   month: number;    // 1-12: which month a yearly bill lands, or the first of a quarterly cycle
   active: boolean;
   note: string;
+  slot?: BelowSlot;   // only read for rows in the finance category
 };
 
 export type OneOff = {
@@ -120,6 +139,7 @@ export type OneOff = {
   category: string;
   cost: string;
   note: string;
+  slot?: BelowSlot;
 };
 
 export type OpexDoc = {
@@ -179,6 +199,7 @@ export type MonthLine = {
   id: string;
   name: string;
   category: string;
+  slot: BelowSlot;
   amount: number;
   planned: number;
   overridden: boolean;
@@ -200,6 +221,7 @@ export function monthLines(doc: OpexDoc, year: number, month: number): MonthLine
       id: r.id,
       name: r.name || "Untitled",
       category: r.category,
+      slot: r.slot ?? guessSlot(r.name),
       amount,
       planned,
       overridden,
@@ -212,6 +234,7 @@ export function monthLines(doc: OpexDoc, year: number, month: number): MonthLine
       id: o.id,
       name: o.name || "Untitled",
       category: o.category,
+      slot: o.slot ?? guessSlot(o.name),
       amount: num(o.cost),
       planned: num(o.cost),
       overridden: false,
@@ -221,16 +244,27 @@ export function monthLines(doc: OpexDoc, year: number, month: number): MonthLine
   return lines;
 }
 
-export type MonthTotals = { total: number; operating: number; belowLine: number };
+export type Slots = { da: number; interest: number; tax: number };
+export type MonthTotals = { total: number; operating: number; belowLine: number; slots: Slots };
+
+export function emptySlots(): Slots {
+  return { da: 0, interest: 0, tax: 0 };
+}
+
+export function addSlots(a: Slots, b: Slots): Slots {
+  return { da: a.da + b.da, interest: a.interest + b.interest, tax: a.tax + b.tax };
+}
 
 export function monthTotals(doc: OpexDoc, year: number, month: number): MonthTotals {
   let total = 0;
   let operating = 0;
+  const slots = emptySlots();
   for (const l of monthLines(doc, year, month)) {
     total += l.amount;
     if (categoryInfo(l.category).ebitda) operating += l.amount;
+    else slots[l.slot] += l.amount;
   }
-  return { total, operating, belowLine: total - operating };
+  return { total, operating, belowLine: total - operating, slots };
 }
 
 export function yearMonths(doc: OpexDoc, year: number): (MonthTotals & { month: number; ym: string })[] {
@@ -238,10 +272,22 @@ export function yearMonths(doc: OpexDoc, year: number): (MonthTotals & { month: 
 }
 
 export function yearTotals(doc: OpexDoc, year: number): MonthTotals {
-  return yearMonths(doc, year).reduce(
-    (a, m) => ({ total: a.total + m.total, operating: a.operating + m.operating, belowLine: a.belowLine + m.belowLine }),
-    { total: 0, operating: 0, belowLine: 0 }
-  );
+  return yearMonths(doc, year).reduce(sumTotals, {
+    total: 0,
+    operating: 0,
+    belowLine: 0,
+    slots: emptySlots(),
+  });
+}
+
+// Adds two months (or a running total and a month) together
+export function sumTotals(a: MonthTotals, b: MonthTotals): MonthTotals {
+  return {
+    total: a.total + b.total,
+    operating: a.operating + b.operating,
+    belowLine: a.belowLine + b.belowLine,
+    slots: addSlots(a.slots, b.slots),
+  };
 }
 
 // The steady state: every recurring line averaged to a month, by category
@@ -254,6 +300,17 @@ export function planByCategory(doc: OpexDoc): { category: OpexCategory; perMonth
       lines: rows.filter((r) => r.active && num(r.cost) > 0).length,
     };
   }).filter((g) => g.lines > 0 || g.perMonth > 0);
+}
+
+// The standing costs below the EBITDA line, averaged per month and
+// split the way a P&L subtracts them.
+export function belowLinePlan(doc: OpexDoc): Slots {
+  const out = emptySlots();
+  for (const r of doc.recurring) {
+    if (categoryInfo(r.category).ebitda) continue;
+    out[r.slot ?? guessSlot(r.name)] += monthlyAverage(r);
+  }
+  return out;
 }
 
 export function planPerMonth(doc: OpexDoc, opts?: { operatingOnly?: boolean }): number {
@@ -372,15 +429,19 @@ export function starterOpex(): OpexDoc {
       row("Dues and memberships", "admin", "yearly", 1, "Maine Made, Chamber, craft guilds", false),
       row("Trademark and legal", "admin", "yearly", 1, "Name or logo filings", false),
       row("Booth help", "people", "monthly", 1, "Anyone paid to work a table. Owner draws are not an expense", false),
-      row("Loan interest", "finance", "monthly", 1, "Below the EBITDA line", false),
-      row("Income tax set aside", "finance", "quarterly", 1, "Estimated payments. Below the EBITDA line", false),
-      row("Equipment depreciation", "finance", "yearly", 12, "Spread the cost of gear over its life. Below the EBITDA line", false),
+      { ...row("Loan interest", "finance", "monthly", 1, "Below the EBITDA line", false), slot: "interest" as BelowSlot },
+      { ...row("Income tax set aside", "finance", "quarterly", 1, "Estimated payments. Below the EBITDA line", false), slot: "tax" as BelowSlot },
+      { ...row("Equipment depreciation", "finance", "yearly", 12, "Spread the cost of gear over its life. Below the EBITDA line", false), slot: "da" as BelowSlot },
     ],
     oneOffs: [],
     actuals: {},
     profitPerShirt: "",
     shirtsPerMonth: "",
   };
+}
+
+function normSlot(v: unknown): BelowSlot | null {
+  return v === "da" || v === "interest" || v === "tax" ? v : null;
 }
 
 function normFreq(v: unknown): Freq {
@@ -400,6 +461,7 @@ export function normalizeOpex(raw: unknown): OpexDoc | null {
         month: Math.min(12, Math.max(1, Math.round(Number(x?.month) || 1))),
         active: x?.active !== false,
         note: String(x?.note ?? ""),
+        slot: normSlot(x?.slot) ?? guessSlot(String(x?.name ?? "")),
       }))
     : [];
   const oneOffs = Array.isArray(r.oneOffs)
@@ -410,6 +472,7 @@ export function normalizeOpex(raw: unknown): OpexDoc | null {
         category: String(x?.category ?? "other"),
         cost: String(x?.cost ?? ""),
         note: String(x?.note ?? ""),
+        slot: normSlot(x?.slot) ?? guessSlot(String(x?.name ?? "")),
       }))
     : [];
   const actuals: Record<string, string> = {};

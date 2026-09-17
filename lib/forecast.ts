@@ -55,8 +55,14 @@ export type ForecastResult = {
   opex: Periods;
   ebitda: Periods;
   ebitdaMargin: number | null;
+  da: Periods;
+  ebit: Periods;
+  interest: Periods;
+  preTax: Periods;
+  tax: Periods;
   belowLine: Periods;
-  net: Periods;
+  net: Periods;         // net income: what's left after all of it
+  netMargin: number | null;
   perShirt: { revenue: number; cogs: number; contribution: number };
   breakEven: number | null;   // shirts a month where EBITDA hits zero
   breakEvenNet: number | null; // …and where net profit hits zero
@@ -87,7 +93,18 @@ export function defaultDials(): Dials {
   return { shirts: 12, onlinePct: 70, price: 45, bandanaPct: 0 };
 }
 
-export type Overhead = { operating: number; belowLine: number };
+// Overhead a month: what runs against EBITDA, then the three things a
+// P&L subtracts after it, in order.
+export type Overhead = {
+  operating: number;
+  da: number;        // depreciation and amortization
+  interest: number;
+  tax: number;
+};
+
+export function emptyOverhead(): Overhead {
+  return { operating: 0, da: 0, interest: 0, tax: 0 };
+}
 
 // The whole month, worked out at `shirts` shirts. Everything scales
 // linearly, so the same function gives the per shirt numbers (shirts = 1)
@@ -140,7 +157,10 @@ export function run(dials: Dials, a: Assumptions, overhead: Overhead): ForecastR
   const postage = orders * postagePer;
   const contribution = gross - fees - postage;
   const ebitda = contribution - overhead.operating;
-  const net = ebitda - overhead.belowLine;
+  const ebit = ebitda - overhead.da;
+  const preTax = ebit - overhead.interest;
+  const net = preTax - overhead.tax;
+  const belowLine = overhead.da + overhead.interest + overhead.tax;
 
   // Per shirt: the same month run at one shirt, same mix
   const unit =
@@ -150,7 +170,7 @@ export function run(dials: Dials, a: Assumptions, overhead: Overhead): ForecastR
 
   const breakEven = unit.contribution > 0 ? overhead.operating / unit.contribution : null;
   const breakEvenNet =
-    unit.contribution > 0 ? (overhead.operating + overhead.belowLine) / unit.contribution : null;
+    unit.contribution > 0 ? (overhead.operating + belowLine) / unit.contribution : null;
 
   return {
     shirts,
@@ -171,8 +191,14 @@ export function run(dials: Dials, a: Assumptions, overhead: Overhead): ForecastR
     opex: p(overhead.operating),
     ebitda: p(ebitda),
     ebitdaMargin: revenue > 0 ? (ebitda / revenue) * 100 : null,
-    belowLine: p(overhead.belowLine),
+    da: p(overhead.da),
+    ebit: p(ebit),
+    interest: p(overhead.interest),
+    preTax: p(preTax),
+    tax: p(overhead.tax),
+    belowLine: p(belowLine),
     net: p(net),
+    netMargin: revenue > 0 ? (net / revenue) * 100 : null,
     perShirt: unit,
     breakEven,
     breakEvenNet,
@@ -181,7 +207,7 @@ export function run(dials: Dials, a: Assumptions, overhead: Overhead): ForecastR
 
 // One shirt at the same mix, used when the dial is at zero
 function unitRun(dials: Dials, a: Assumptions) {
-  const one = run({ ...dials, shirts: 1 }, a, { operating: 0, belowLine: 0 });
+  const one = run({ ...dials, shirts: 1 }, a, emptyOverhead());
   return { revenue: one.revenue.month, cogs: one.cogs.month, contribution: one.contribution.month };
 }
 

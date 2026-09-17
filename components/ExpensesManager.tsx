@@ -2,11 +2,15 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
+  BELOW_SLOTS,
   CATEGORIES,
   FREQS,
   MONTHS,
   actualKey,
   categoryInfo,
+  emptySlots,
+  guessSlot,
+  sumTotals,
   ebitdaFor,
   amount,
   monthLines,
@@ -20,6 +24,7 @@ import {
   yearMonths,
   yearTotals,
   ymKey,
+  type BelowSlot,
   type Freq,
   type OneOff,
   type OpexDoc,
@@ -151,13 +156,19 @@ export default function ExpensesManager({ sales }: { sales: SalesMonth[] }) {
   // December shouldn't be weighed against sales that haven't happened yet.
   const through = year === thisYear ? now.getMonth() + 1 : 12;
   const partYear = through < 12;
-  const ytd = months.slice(0, through).reduce(
-    (a, m) => ({ total: a.total + m.total, operating: a.operating + m.operating, belowLine: a.belowLine + m.belowLine }),
-    { total: 0, operating: 0, belowLine: 0 }
-  );
+  const ytd = months.slice(0, through).reduce(sumTotals, {
+    total: 0,
+    operating: 0,
+    belowLine: 0,
+    slots: emptySlots(),
+  });
   const salesToDate = salesThisYear.filter((s) => Number(s.key.slice(5)) <= through);
   const eb = ebitdaFor(salesToDate, ytd.operating);
   const throughLabel = partYear ? `${year} through ${MONTHS[through - 1]}` : `${year}`;
+  // EBITDA, then the three subtractions a P&L makes after it
+  const ebit = eb.ebitda - ytd.slots.da;
+  const preTax = ebit - ytd.slots.interest;
+  const netIncome = preTax - ytd.slots.tax;
   const pps = profitPerShirt(doc, salesThisYear.length > 0 ? salesThisYear : sales);
   const spm = shirtsPerMonth(doc, salesThisYear.length > 0 ? salesThisYear : sales);
   const breakEven = pps.value > 0 ? planOperating / pps.value : null;
@@ -243,7 +254,7 @@ export default function ExpensesManager({ sales }: { sales: SalesMonth[] }) {
             <p className="mt-1 text-xs leading-relaxed text-faded">
               {salesToDate.length === 0
                 ? `No sales recorded in ${year} yet.`
-                : `${eb.margin === null ? "—" : `${eb.margin.toFixed(0)}%`} of ${amount(eb.revenue)} in sales${partYear ? `, through ${MONTHS[through - 1]}` : ""}. Before the owner takes anything out.`}
+                : `${eb.margin === null ? "—" : `${eb.margin.toFixed(0)}%`} of ${amount(eb.revenue)} in sales${partYear ? `, through ${MONTHS[through - 1]}` : ""}.${ytd.belowLine > 0 ? ` Net income ${amount(netIncome)}.` : ""} Before the owner takes anything out.`}
             </p>
           </div>
         </div>
@@ -259,13 +270,31 @@ export default function ExpensesManager({ sales }: { sales: SalesMonth[] }) {
               <Line label="Card fees and postage, less shipping charged" value={`− ${amount(eb.sellingCosts)}`} />
               <Line label={`Operating expenses (${throughLabel})`} value={`− ${amount(eb.opex)}`} />
               <Line label="EBITDA" value={amount(eb.ebitda)} strong gold />
+              {ytd.slots.da > 0 && (
+                <>
+                  <Line label="Depreciation and amortization" value={`− ${amount(ytd.slots.da)}`} />
+                  <Line label="Operating profit (EBIT)" value={amount(ebit)} strong />
+                </>
+              )}
+              {ytd.slots.interest > 0 && (
+                <>
+                  <Line label="Interest" value={`− ${amount(ytd.slots.interest)}`} />
+                  <Line label="Profit before tax" value={amount(preTax)} strong />
+                </>
+              )}
+              {ytd.slots.tax > 0 && <Line label="Taxes" value={`− ${amount(ytd.slots.tax)}`} />}
+              <Line label="Net income" value={amount(netIncome)} strong gold />
             </dl>
             <p className="mt-3 max-w-2xl text-xs leading-relaxed text-faded">
-              Earnings before interest, taxes, depreciation and amortization — what the business
-              itself earns before financing and the tax bill. Anything filed under{" "}
-              <em>Interest, taxes and depreciation</em> below is left out of it on purpose
-              {ytd.belowLine > 0 ? ` (${amount(ytd.belowLine)} so far)` : ""}. Money the owner
-              draws out isn&apos;t an expense, so it isn&apos;t in here either.
+              EBITDA is what the business itself earns before financing and the tax bill. Net
+              income is what&apos;s actually left: EBITDA less depreciation, then interest, then
+              tax, in that order — the three things filed under{" "}
+              <em>Interest, taxes and depreciation</em> below
+              {ytd.belowLine > 0
+                ? `, ${amount(ytd.belowLine)} of it so far`
+                : ", which is empty so far, so the two numbers match"}
+              . Money the owner draws out isn&apos;t an expense — it comes out of net income, so it
+              isn&apos;t in here either.
               {eb.uncosted > 0 &&
                 ` Heads up: ${eb.uncosted} shirt${eb.uncosted === 1 ? "" : "s"} sold this year ${eb.uncosted === 1 ? "has" : "have"} no cost frozen yet, so COGS is light until the Sales history is costed.`}
             </p>
@@ -511,6 +540,18 @@ export default function ExpensesManager({ sales }: { sales: SalesMonth[] }) {
                                 value={r.name}
                                 onChange={(e) => setRow(r.id, { name: e.target.value })}
                               />
+                              {!cat.ebitda && (
+                                <select
+                                  className="input mt-1 w-full py-1 text-xs"
+                                  value={r.slot ?? guessSlot(r.name)}
+                                  onChange={(e) => setRow(r.id, { slot: e.target.value as BelowSlot })}
+                                  aria-label={`Where ${r.name || "this"} sits below EBITDA`}
+                                >
+                                  {BELOW_SLOTS.map((b) => (
+                                    <option key={b.key} value={b.key}>{b.short}</option>
+                                  ))}
+                                </select>
+                              )}
                               {r.note && <p className="mt-0.5 text-[0.7rem] leading-snug text-faded">{r.note}</p>}
                             </td>
                             <td className="py-1 pr-2">
