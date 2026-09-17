@@ -4,6 +4,7 @@ import { buyShipment, serviceName, shippingConfig } from "@/lib/shipping";
 import { emailConfig, sendEmail, customerShippedHtml } from "@/lib/email";
 import { itemLinesFromMeta, siteUrl } from "@/lib/orderFormat";
 import { loadOrder, resolveAddress } from "../_shared";
+import { refreshShippingCost } from "@/lib/costing";
 
 // Step 2: buy the chosen rate. Saves the label + tracking on the order,
 // writes the postage into the sales history, marks it Shipped, and emails
@@ -48,6 +49,8 @@ export async function POST(req: Request) {
           paid_at = coalesce(paid_at, now())
       where id = ${id}
     `;
+    // a sale that was costed as in person now uses a label and a mailer
+    await refreshShippingCost(sql, id);
 
     // Tell the customer (never allowed to fail the purchase)
     let emailed = false;

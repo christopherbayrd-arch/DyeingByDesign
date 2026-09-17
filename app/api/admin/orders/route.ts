@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { costOrder } from "@/lib/costing";
+import { costOrder, refreshShippingCost } from "@/lib/costing";
 import {
   cancelOrder,
   clearTestOrders,
@@ -386,6 +386,7 @@ export async function PUT(req: Request) {
         },
       };
       await sql`update orders set shipping = ${JSON.stringify(clean)}::jsonb where id = ${id}`;
+      await refreshShippingCost(sql, id);
     }
     if (body?.name !== undefined) {
       await sql`update orders set name = ${String(body.name).slice(0, 120) || null} where id = ${id}`;
@@ -487,7 +488,11 @@ export async function PATCH(req: Request) {
 
     if (archived === true) await sql`update orders set archived_at = now() where id = ${id}`;
     if (archived === false) await sql`update orders set archived_at = null where id = ${id}`;
-    if (postage !== undefined) await sql`update orders set postage_cents = ${postage} where id = ${id}`;
+    if (postage !== undefined) {
+      await sql`update orders set postage_cents = ${postage} where id = ${id}`;
+      // postage means it got posted: the label and mailer belong on its cost
+      await refreshShippingCost(sql, id);
+    }
     if (fee !== undefined) await sql`update orders set fee_cents = ${fee} where id = ${id}`;
     if (note !== undefined) await sql`update orders set note = ${note || null} where id = ${id}`;
     if (priority !== undefined) await sql`update orders set priority = ${priority} where id = ${id}`;

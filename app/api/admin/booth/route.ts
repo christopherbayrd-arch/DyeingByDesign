@@ -158,16 +158,41 @@ export async function POST(req: Request) {
     itemIds.push(slug === OTHER_SLUG ? Number(l.itemId) || 0 : 0);
   }
 
+  // The "Not at the table" panel on the Quick sale screen sends a channel;
+  // a plain booth sale doesn't. That's what tells a desk sale (a DM, one you
+  // forgot to ring up) from a live one at a market table.
+  const CHANNELS = ["market", "instagram", "other"];
+  const deskSale = b.channel !== undefined;
+  const channel = CHANNELS.includes(String(b.channel ?? "")) ? String(b.channel) : "market";
+
   // When it happened: the phone's clock (a sale saved offline keeps its real
-  // time), unless that's nonsense — then now.
+  // time), unless that's nonsense — then now. A date typed by hand is trusted,
+  // because that's the whole point of recording an old sale.
   const now = new Date();
   let soldAt = when(String(b.soldAt ?? ""), now);
-  if (soldAt.getTime() > now.getTime() + 10 * 60000 || soldAt.getTime() < now.getTime() - 45 * 86400000) soldAt = now;
+  const backdated = b.backdated === true;
+  if (!backdated && (soldAt.getTime() > now.getTime() + 10 * 60000 || soldAt.getTime() < now.getTime() - 45 * 86400000)) {
+    soldAt = now;
+  }
+  if (soldAt.getTime() > now.getTime() + 10 * 60000) soldAt = now;   // never the future, typed or not
 
   const email = String(b.email ?? "").trim().toLowerCase().slice(0, 200);
   const validEmail = email.includes("@") && email.length >= 5 ? email : "";
   const extra = String(b.note ?? "").trim().slice(0, 300);
   const eventIdIn = Number(b.eventId) || 0;
+
+  // money that only a desk sale has: shipping charged to them, and what the
+  // card and the stamp cost you
+  const asCents = (v: unknown): number | null => {
+    const t = String(v ?? "").replace(/[$,\s]/g, "");
+    if (t === "") return null;
+    const n = Math.round(parseFloat(t) * 100);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  };
+  const shippingCents = asCents(b.shipping) ?? 0;
+  const feeCents = asCents(b.fee);
+  const postageCents = asCents(b.postage);
+  const buyer = String(b.buyer ?? "").trim().slice(0, 120);
 
   try {
     let eventId: number | null = null;
@@ -193,15 +218,21 @@ export async function POST(req: Request) {
         })
       )
       .join("; ");
-    const total = lines.reduce((n, l) => n + l.unitPriceCents * l.qty, 0);
+    const total = lines.reduce((n, l) => n + l.unitPriceCents * l.qty, 0) + shippingCents;
     const note = [eventTitle, payLabel(pay), extra].filter(Boolean).join(" · ");
     const at = soldAt.toISOString();
+    // A sale rung up at a table is finished business — it goes straight off
+    // the desk. One recorded from the back office might still need posting,
+    // so it stays on the desk where Buy label is.
+    const archivedAt = deskSale ? null : new Date().toISOString();
 
     const inserted = (await sql`
       insert into orders (stripe_session_id, email, name, amount_total, items, shipping, status, channel,
-                          shipping_cents, paid_at, sold_at, note, created_at, archived_at, pay_method, event_id)
-      values (${ref}, ${validEmail || null}, null, ${total}, ${items}, null, 'shipped', 'market',
-              0, ${at}, ${at}, ${note}, ${at}, now(), ${pay}, ${eventId})
+                          shipping_cents, fee_cents, postage_cents, paid_at, sold_at, note, created_at,
+                          archived_at, pay_method, event_id)
+      values (${ref}, ${validEmail || null}, ${buyer || null}, ${total}, ${items}, null, 'shipped', ${channel},
+              ${shippingCents}, ${feeCents}, ${postageCents}, ${at}, ${at}, ${note}, ${at},
+              ${archivedAt}::timestamptz, ${pay}, ${eventId})
       on conflict (stripe_session_id) do nothing
       returning id
     `) as { id: number }[];

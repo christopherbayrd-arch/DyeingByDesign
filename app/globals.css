@@ -11,7 +11,14 @@
   --color-faded: #b3a689;
   --color-gold: #cf9440;
   --color-goldlight: #e3b96e;
-  --color-rust: #a8622a;
+  --color-rust: #c47a3f;   /* 4.9:1 on a card — the old #a8622a was 3.5:1 */
+
+  /* Sunken panels and form fields. Tokens rather than literal blacks, so
+     the admin's daylight mode can flip them — a black tint over paper
+     just looks like a smudge. */
+  --color-inset: rgb(0 0 0 / 0.22);
+  --color-insethi: rgb(0 0 0 / 0.4);
+  --color-field: rgb(0 0 0 / 0.28);
 
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -110,7 +117,7 @@ body::after {
     width: 100%;
     border-radius: 0.8rem;
     border: 1px solid color-mix(in srgb, var(--color-bone) 18%, transparent);
-    background: rgba(0, 0, 0, 0.28);
+    background: var(--color-field);
     padding: 0.72rem 1rem;
     color: var(--color-bone);
     font-size: 1rem;
@@ -237,3 +244,48 @@ body::after {
     text-decoration: none;
   }
 }
+
+/* ============================================================
+   The order desk in daylight.
+
+   Every colour utility in this app compiles to var(--color-*), so
+   redefining the palette here flips the whole admin in one go — no light
+   variants on individual components, no duplicated classes. The attribute
+   is set on <html> by components/AdminTheme.tsx and only ever on /admin
+   pages: the shop itself stays dark, because that's Corey's brand.
+
+   Two tokens deliberately do NOT invert:
+     --color-inkdeep means "the text sitting on a gold surface", so on
+       paper it becomes near white rather than dark.
+     --color-gold gets DARKER rather than lighter, because it has to work
+       both as accent text on paper and as a button background.
+   ============================================================ */
+html[data-admin-theme="light"] {
+  color-scheme: light;
+  --color-ink: #f7f3ea;        /* the page */
+  --color-inkdeep: #fffdf8;    /* text on gold */
+  --color-bark: #ffffff;       /* card, top of the gradient */
+  --color-panel: #f8f3e8;      /* card, bottom */
+  --color-bone: #2a2213;       /* body text */
+  --color-faded: #6a6153;      /* secondary text — 5.2:1 on the page */
+  --color-gold: #8a5b0e;       /* accent text AND button fill — 5.6:1 */
+  --color-goldlight: #744c08;  /* emphasis, so darker than gold here */
+  --color-rust: #9c3412;
+  --color-inset: rgb(42 34 19 / 0.055);
+  --color-insethi: rgb(42 34 19 / 0.1);
+  --color-field: #ffffff;
+}
+
+/* the fabric grain reads as dirt on paper */
+html[data-admin-theme="light"] body::after {
+  opacity: 0.022;
+}
+
+/* a white field needs a real edge, not an 18% tint of the text colour */
+html[data-admin-theme="light"] .input {
+  border-color: color-mix(in srgb, var(--color-bone) 30%, transparent);
+}
+html[data-admin-theme="light"] .btn-ghost {
+  border-color: color-mix(in srgb, var(--color-bone) 35%, transparent);
+}
+

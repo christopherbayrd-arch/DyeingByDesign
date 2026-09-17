@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { refundShipment, shippingConfig } from "@/lib/shipping";
 import { loadOrder } from "../_shared";
+import { refreshShippingCost } from "@/lib/costing";
 
 // Printed the wrong thing? Ask EasyPost/USPS for the postage back and
 // clear the label off the order so a new one can be bought.
@@ -33,6 +34,8 @@ export async function POST(req: Request) {
           note = concat_ws(' · ', note, ${"label voided (" + refund + ")"}::text)
       where id = ${id}
     `;
+    // without the label a desk sale may be back to in person
+    await refreshShippingCost(sql, id);
     return NextResponse.json({ ok: true, refund });
   } catch (err) {
     console.error("label void:", err);

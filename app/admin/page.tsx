@@ -295,7 +295,7 @@ export default async function AdminPage({
                   id={`order-${String(o.id)}`}
                   className={
                     "border-b border-bone/5 align-top " +
-                    (o.deleted_at || String(o.status) === "cancelled" || o.test_mode ? "opacity-60" : "")
+                    (o.deleted_at || String(o.status) === "cancelled" || o.test_mode ? "bg-inset" : "")
                   }
                 >
                   <td className="p-3 whitespace-nowrap text-faded">
