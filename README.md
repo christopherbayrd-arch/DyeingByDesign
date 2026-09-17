@@ -477,7 +477,12 @@ saves to.
 month, how many ship versus sell in person, average price, bandanas attached —
 and the whole month falls out: revenue, cost of goods, gross margin, card fees,
 postage, overhead, EBITDA, and profit after interest, taxes and depreciation,
-with the year beside each one. The curve underneath plots EBITDA against volume
+with the year beside each one. The bottom of that table runs EBITDA, minus
+depreciation, to operating profit (EBIT), minus interest, to profit before tax,
+minus tax, to **net income** — each line only appears once there's something
+filed under it on the Expenses page. Rows in the *Interest, taxes and
+depreciation* category carry a small picker saying which of the three they are,
+which is what puts them in the right order here and on the Expenses page. The curve underneath plots EBITDA against volume
 and marks where the month covers itself; hover to read a point, click to move
 the dial. Nothing is typed twice: prices come from Products & stock, cost per
 shirt from the COGS sheet, overhead from the Expenses page, and how it's been
