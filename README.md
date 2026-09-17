@@ -473,6 +473,23 @@ page. Sales come straight from Sales history, so EBITDA needs no second set of
 books. **Re-run `schema.sql` in Neon once** — it adds the `opex` table the page
 saves to.
 
+**Forecast what a month looks like:** *Forecast* tab. Four dials — shirts a
+month, how many ship versus sell in person, average price, bandanas attached —
+and the whole month falls out: revenue, cost of goods, gross margin, card fees,
+postage, overhead, EBITDA, and profit after interest, taxes and depreciation,
+with the year beside each one. The curve underneath plots EBITDA against volume
+and marks where the month covers itself; hover to read a point, click to move
+the dial. Nothing is typed twice: prices come from Products & stock, cost per
+shirt from the COGS sheet, overhead from the Expenses page, and how it's been
+selling (shipped versus booth, shirts per order, postage actually paid, cash
+versus card) from Sales history. Everything the site can't know is an
+assumption at the bottom of the page — postage, spoilage, swap rate, card fee
+rates — each labelled with where its starting number came from, and typing over
+one only changes the forecast, never the store. The dials save into the same
+record as the Expenses page. Two things it deliberately doesn't model: anyone's
+labour, and overhead that grows with volume (a second booth fee, a bigger
+hosting plan) — add those on the Expenses page first.
+
 **Run a limited drop:** create the design (or edit an existing one), switch
 it to "Only sell what's on hand," put the shirts on the Inventory tab, flip
 it to Shown, and email the drop list (the emails are in `/admin`). Sizes
@@ -633,6 +650,8 @@ app/admin/news/           write news posts and craft fair / market events
 app/admin/sell/           Quick sale: booth and cash sales (phone friendly)
 app/admin/inventory/      Inventory: finished shirts, blanks, other items, history
 app/admin/expenses/       Expenses: standing costs, one offs, month by month, EBITDA
+app/admin/forecast/       Forecast: the dials, the month, the EBITDA curve
+lib/forecast.ts           Forecast math (checked by 27 assertions, see the notes below)
 lib/opex.ts               Expense categories, the monthly math and the EBITDA stack
 lib/inventory.ts          on hand counts + the change log (server)
 lib/inventoryShared.ts    inventory shapes and labels (used in the browser too)
