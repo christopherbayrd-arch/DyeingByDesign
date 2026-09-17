@@ -447,6 +447,15 @@ clears it.) Retired designs are listed in `RETIRED_SLUGS` in
 `lib/products.ts` — the storefront skips them even if they're still in the
 database.
 
+**What the shirts are made on:** a Hanes Beefy-T — 6.1 oz, 100% ring spun
+cotton, relaxed fit. It's named on every design page: the first bullet and the
+*Why the Beefy-T* box in `app/shop/[slug]/page.tsx`, plus the search engine
+data in `lib/seo.ts` (material + the "Blank" property). Heads up if you ever add
+a new blank color: every color in `COLORS` today is a solid Beefy-T, which is
+100% cotton, but the heathers (Ash, Light Steel, Oxford Grey, Charcoal Heather)
+are cotton/poly blends — bleach barely touches the polyester, and that copy
+would stop being true.
+
 **Run a limited drop:** create the design (or edit an existing one), switch
 it to "Only sell what's on hand," put the shirts on the Inventory tab, flip
 it to Shown, and email the drop list (the emails are in `/admin`). Sizes
