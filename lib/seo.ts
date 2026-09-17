@@ -103,7 +103,7 @@ export function productJsonLd(product: Product): Record<string, unknown> {
     sku: product.slug,
     brand: { "@type": "Brand", name: SITE_NAME, alternateName: SITE_SHORT },
     manufacturer: { "@id": BUSINESS_ID },
-    material: "100% cotton",
+    material: bandana ? "100% cotton" : "100% ring spun cotton",
     category: bandana
       ? "Apparel & Accessories > Clothing Accessories > Scarves & Shawls"
       : "Apparel & Accessories > Clothing > Shirts & Tops",
@@ -113,6 +113,9 @@ export function productJsonLd(product: Product): Record<string, unknown> {
         name: "Technique",
         value: bandana ? "Reverse bleach, any design from the lineup" : `Reverse bleach, ${kind}`,
       },
+      ...(bandana
+        ? []
+        : [{ "@type": "PropertyValue", name: "Blank", value: "Hanes Beefy-T, 6.1 oz heavyweight" }]),
       { "@type": "PropertyValue", name: "Made in", value: `${TOWN}, ${STATE_NAME}` },
       ...(bandana
         ? [{ "@type": "PropertyValue", name: "Fits", value: "One size — dogs and people" }]
