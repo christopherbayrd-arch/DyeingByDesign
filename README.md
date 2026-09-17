@@ -456,6 +456,23 @@ a new blank color: every color in `COLORS` today is a solid Beefy-T, which is
 are cotton/poly blends — bleach barely touches the polyester, and that copy
 would stop being true.
 
+**Track what the business spends:** *Expenses* tab. The COGS page is what one
+shirt eats; this one is everything else — hosting, insurance, booth fees,
+mileage. It opens prefilled with the costs a shirt business usually has, all
+blank: put a number on the ones that apply, switch off or remove the rest (a
+row with no number counts as nothing). Yearly bills ask which month they land
+in, so *Month by month* shows the year the way it actually hits the bank.
+Open any month to type what really went out — a typed number beats the plan,
+*reset* puts the plan back — and log one off buys (a tent, a booth fee) with
+the date they were paid. The top cards show the steady monthly number, how
+many shirts a month cover it, and **EBITDA**: sales, minus what those shirts
+cost, minus card fees and postage, minus operating expenses. Anything filed
+under *Interest, taxes and depreciation* is deliberately left out of EBITDA,
+and owner draws aren't an expense at all, so they don't belong anywhere on the
+page. Sales come straight from Sales history, so EBITDA needs no second set of
+books. **Re-run `schema.sql` in Neon once** — it adds the `opex` table the page
+saves to.
+
 **Run a limited drop:** create the design (or edit an existing one), switch
 it to "Only sell what's on hand," put the shirts on the Inventory tab, flip
 it to Shown, and email the drop list (the emails are in `/admin`). Sizes
@@ -615,6 +632,8 @@ app/admin/drop/           write and send a drop announcement
 app/admin/news/           write news posts and craft fair / market events
 app/admin/sell/           Quick sale: booth and cash sales (phone friendly)
 app/admin/inventory/      Inventory: finished shirts, blanks, other items, history
+app/admin/expenses/       Expenses: standing costs, one offs, month by month, EBITDA
+lib/opex.ts               Expense categories, the monthly math and the EBITDA stack
 lib/inventory.ts          on hand counts + the change log (server)
 lib/inventoryShared.ts    inventory shapes and labels (used in the browser too)
 app/swap/                 "ask for a swap" — the size / color exchange form
