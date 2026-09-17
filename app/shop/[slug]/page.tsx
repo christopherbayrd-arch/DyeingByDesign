@@ -29,7 +29,7 @@ export async function generateMetadata({
     title: bandana ? product.name : `${product.name} shirt`,
     description: bandana
       ? `${product.blurb} Hand bleached bandana for dogs and people, made to order in Brunswick, Maine — any design from the lineup, one size.`
-      : `${product.blurb} Hand bleached ${kind} shirt from DBD, made to order in Brunswick, Maine.`,
+      : `${product.blurb} Hand bleached ${kind} shirt from DBD on a heavyweight Hanes Beefy-T, made to order in Brunswick, Maine.`,
     alternates: { canonical: `/shop/${slug}` },
     openGraph: {
       type: "website",
@@ -177,7 +177,7 @@ export default async function DesignPage({
               </>
             ) : (
               <>
-                <li>· Heavyweight ring spun cotton, soft with a relaxed fit — seventeen blank colors, pick yours above</li>
+                <li>· Hanes Beefy-T — heavyweight 6.1 oz, 100% ring spun cotton, soft with a relaxed fit. Pick your color above.</li>
                 <li>· Bleach fully neutralized and washed before shipping</li>
                 <li>· Wash cold, inside out. Hang dry or tumble low.</li>
                 <li>
@@ -208,6 +208,43 @@ export default async function DesignPage({
               </li>
             </ul>
           </div>
+
+          {/* Why the blank is a Hanes Beefy-T. Shirts only — bandanas are a different cloth.
+              Every color in COLORS is a solid Beefy-T, which is 100% cotton. The heathers
+              (Ash, Light Steel, Oxford Grey, Charcoal Heather) are poly blends, so change
+              "100% ring spun cotton" here and in the bullets above before adding one.
+              Keep color counts out of this copy (Chris, 2026-09-17). */}
+          {!isBandana && (
+            <div className="mt-4 rounded-xl bg-black/20 p-5">
+              <p className="kicker">Why the Beefy-T</p>
+              <p className="mt-3 text-sm leading-relaxed text-faded">
+                We tested a stack of blanks before settling on one. The Hanes Beefy-T — a
+                heavyweight classic since 1975 — beat every one of them.
+              </p>
+              <ul className="mt-3 space-y-2 text-sm leading-relaxed text-faded">
+                <li>
+                  <strong className="text-bone">Cleaner, more even burn.</strong> Bleach does its
+                  best work on pure cotton, and this one is 100% ring spun. The color lifts evenly,
+                  so every {isStencil ? "cut edge" : "leaf shadow"} reads clean.
+                </li>
+                <li>
+                  <strong className="text-bone">Built to take the process.</strong> Heavyweight
+                  6.1 oz cotton with taped shoulders and double stitched hems comes through
+                  bleaching, neutralizing, and washing without going thin or losing its shape.
+                </li>
+                <li>
+                  <strong className="text-bone">Soft, with a relaxed fit.</strong> Ring spun yarn
+                  makes a smoother, softer tee, and the cut runs roomy — take your usual size if
+                  you like it closer.
+                </li>
+                <li>
+                  <strong className="text-bone">The best colors we found.</strong> Deep, rich
+                  shades, and each one burns to its own tone — same design, a whole new look on
+                  every color.
+                </li>
+              </ul>
+            </div>
+          )}
         </div>
       </div>
 

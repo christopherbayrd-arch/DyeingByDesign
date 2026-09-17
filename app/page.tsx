@@ -78,7 +78,7 @@ export default async function HomePage() {
             </h2>
           </div>
           <p className="max-w-sm text-sm leading-relaxed text-faded">
-            Nine blank colors, every design. $7 flat rate shipping anywhere in the US.
+            Every design in every color. $7 flat rate shipping anywhere in the US.
             Made to order, one piece at a time — can take 1 to 2 weeks depending on how
             many orders are ahead of you.
           </p>
