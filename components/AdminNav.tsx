@@ -13,6 +13,7 @@ export default function AdminNav({
     | "products"
     | "cogs"
     | "expenses"
+    | "forecast"
     | "history"
     | "news"
     | "drop";
@@ -41,6 +42,7 @@ export default function AdminNav({
       {tab("/admin/products", "Products & stock", "products")}
       {tab("/admin/cogs", "COGS", "cogs")}
       {tab("/admin/expenses", "Expenses", "expenses")}
+      {tab("/admin/forecast", "Forecast", "forecast")}
       {tab("/admin/history", "Sales history", "history")}
       {tab("/admin/news", "News", "news")}
       {tab("/admin/drop", "Announce a drop", "drop")}

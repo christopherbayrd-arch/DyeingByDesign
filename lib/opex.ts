@@ -125,6 +125,9 @@ export type OneOff = {
 export type OpexDoc = {
   recurring: Recurring[];
   oneOffs: OneOff[];
+  // The Forecast tab's dials and assumptions ride along in the same
+  // document (see lib/forecast.ts); it's the same Save button.
+  forecast?: unknown;
   // "<recurring id>:<YYYY-MM>" → what was really paid that month.
   // Absent or "" means use the plan; "0" means nothing went out.
   actuals: Record<string, string>;
@@ -418,6 +421,7 @@ export function normalizeOpex(raw: unknown): OpexDoc | null {
     recurring,
     oneOffs,
     actuals,
+    ...(r.forecast !== undefined && r.forecast !== null ? { forecast: r.forecast } : {}),
     profitPerShirt: String(r.profitPerShirt ?? ""),
     shirtsPerMonth: String(r.shirtsPerMonth ?? ""),
   };
