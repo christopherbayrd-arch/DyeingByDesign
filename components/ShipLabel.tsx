@@ -197,7 +197,7 @@ export default function ShipLabel(p: Props) {
   }
 
   return (
-    <div className="w-[19rem] whitespace-normal rounded-xl border border-bone/10 bg-black/30 p-3 text-xs">
+    <div className="w-[19rem] whitespace-normal rounded-xl border border-bone/10 bg-inset p-3 text-xs">
       <div className="flex items-baseline justify-between">
         <p className="font-semibold text-bone">Shipping label</p>
         <button type="button" onClick={() => setOpen(false)} className="text-faded hover:text-goldlight">close</button>

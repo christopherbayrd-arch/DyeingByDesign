@@ -190,7 +190,7 @@ function RequestCard({ r }: { r: RequestRow }) {
       </div>
 
       {open && (
-        <form onSubmit={convert} className="mt-3 rounded-xl border border-bone/10 bg-black/20 p-4">
+        <form onSubmit={convert} className="mt-3 rounded-xl border border-bone/10 bg-inset p-4">
           <p className="text-xs text-faded">
             Makes a real order for this piece: it gets the same statuses, the Buy label button, and a row in
             Sales history. Price is what you quoted. Cost is optional — type it if you know what this one

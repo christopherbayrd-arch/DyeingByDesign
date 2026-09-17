@@ -281,16 +281,21 @@ export default function CogsManager() {
           One row per thing you buy. <em>Cost</em> is what one purchase costs; <em>Shirts per
           unit</em> is how many shirts that purchase covers. Bleach at $4.50 a gallon that does
           40 shirts is 11¢ a shirt. Packaging counts too — a pack of 100 mailers for $12 is
-          12¢ a shirt.
+          12¢ a shirt. Tick <em>Shipped only</em> on anything only a posted order uses, like
+          shipping labels and mailers: a shirt sold at a booth or through Quick sale is costed
+          without it.
         </p>
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wider text-faded">
                 <th className="pb-2 pr-2 font-medium">Material</th>
                 <th className="pb-2 pr-2 font-medium">What one purchase is</th>
                 <th className="pb-2 pr-2 font-medium">Cost ($)</th>
                 <th className="pb-2 pr-2 font-medium">Shirts per unit</th>
+                <th className="pb-2 pr-2 text-center font-medium" title="Only used when an order gets posted. Booth and Quick sale shirts leave it out.">
+                  Shipped only
+                </th>
                 <th className="pb-2 pr-2 text-right font-medium">Per shirt</th>
                 <th className="pb-2" />
               </tr>
@@ -298,7 +303,7 @@ export default function CogsManager() {
             <tbody>
               {doc.materials.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-3 text-faded">No materials yet.</td>
+                  <td colSpan={7} className="py-3 text-faded">No materials yet.</td>
                 </tr>
               )}
               {doc.materials.map((m) => {
@@ -316,6 +321,15 @@ export default function CogsManager() {
                     </td>
                     <td className="py-1 pr-2">
                       <input className="input w-24 py-1.5" inputMode="decimal" placeholder="40" value={m.yield} onChange={(e) => setMaterial(m.id, { yield: e.target.value })} />
+                    </td>
+                    <td className="py-1 pr-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={m.shippedOnly === true}
+                        onChange={(e) => setMaterial(m.id, { shippedOnly: e.target.checked ? true : undefined })}
+                        className="h-4 w-4 accent-[#cf9440]"
+                        aria-label={`${m.name || "This material"} is only used on shipped orders`}
+                      />
                     </td>
                     <td className="py-1 pr-2 text-right font-semibold text-goldlight whitespace-nowrap">
                       {per > 0 ? money(per) : <span className="font-normal text-faded">—</span>}
@@ -396,6 +410,7 @@ export default function CogsManager() {
                           />
                           <label htmlFor={`${t.id}-${m.id}`} className={"flex-1 " + (on ? "text-bone" : "text-faded")}>
                             {m.name || "Untitled material"}
+                            {m.shippedOnly && <span className="ml-1.5 text-[0.65rem] text-faded">shipped only</span>}
                           </label>
                           {on && (
                             <>
@@ -439,7 +454,7 @@ export default function CogsManager() {
                     <dd>{money(cost.materials)}</dd>
                   </div>
                   <div className="flex justify-between font-semibold text-bone">
-                    <dt>COGS per shirt</dt>
+                    <dt>COGS per shirt{cost.shipOnly > 0 ? ", shipped" : ""}</dt>
                     <dd>
                       {money(cost.typical)}
                       {cost.low !== cost.high && (
@@ -447,8 +462,14 @@ export default function CogsManager() {
                       )}
                     </dd>
                   </div>
+                  {cost.shipOnly > 0 && (
+                    <div className="flex justify-between text-faded">
+                      <dt>Sold in person (no shipping supplies)</dt>
+                      <dd>{money(cost.inPerson)}</dd>
+                    </div>
+                  )}
                   <div className="flex justify-between font-semibold text-goldlight">
-                    <dt>Profit at {hasPrice ? money(cost.price) : "sale price"}</dt>
+                    <dt>Gross profit at {hasPrice ? money(cost.price) : "sale price"}</dt>
                     <dd>
                       {hasPrice ? (
                         <>
@@ -481,7 +502,7 @@ export default function CogsManager() {
         <h2 className="mt-1 font-display text-2xl font-semibold">Margin on each design, at today&apos;s price</h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-faded">
           Every design from Products &amp; stock, priced as it is on the site right now. Pick
-          which product type each one is made like and the cost, profit, and margin fill in.
+          which product type each one is made like and the cost, gross profit, and margin fill in.
           Change a price over on Products &amp; stock and it shows here on reload.
         </p>
         {productsNote && <p className="mt-4 text-sm text-faded">{productsNote}</p>}
@@ -497,7 +518,7 @@ export default function CogsManager() {
                   <th className="pb-2 pr-2 font-medium">Price</th>
                   <th className="pb-2 pr-2 font-medium">Made like</th>
                   <th className="pb-2 pr-2 text-right font-medium">COGS</th>
-                  <th className="pb-2 pr-2 text-right font-medium">Profit</th>
+                  <th className="pb-2 pr-2 text-right font-medium">Gross profit</th>
                   <th className="pb-2 text-right font-medium">Margin</th>
                 </tr>
               </thead>
@@ -541,6 +562,7 @@ export default function CogsManager() {
                             {c.low !== c.high && (
                               <span className="block text-xs">{money(c.low)}–{money(c.high)}</span>
                             )}
+                            {c.shipOnly > 0 && <span className="block text-xs">{money(c.inPerson)} in person</span>}
                           </>
                         ) : (
                           "—"
@@ -567,8 +589,10 @@ export default function CogsManager() {
               </tbody>
             </table>
             <p className="mt-3 text-xs text-faded">
-              Margin is profit as a share of the price. It goes rust below 50%. The small range under
+              Margin is gross profit as a share of the price. It goes rust below 50%. The small range under
               each number is the cheapest to priciest blank; the big number uses the average blank.
+              Costs are for a shipped order; <em>in person</em> is the same shirt without the shipping
+              supplies.
             </p>
           </div>
         )}

@@ -36,6 +36,19 @@ type Line = {
   variantName?: string; // …spelled out, for the receipt line
 };
 export type ShelfStock = { shirts: Record<string, number>; others: InvItem[] };
+// Everything the old "Record a sale" form on Sales history could do that a
+// live booth sale doesn't need. It rides along with the sale so a back dated
+// one still works from the offline queue.
+type BackOffice = {
+  channel?: string;     // market | instagram | other
+  buyer?: string;
+  shipping?: string;    // charged to them
+  fee?: string;         // what the card cost you
+  postage?: string;     // what the stamp cost you
+  note?: string;
+  backdated?: boolean;  // a date was typed by hand, so don't clamp it
+};
+
 type Pending = {
   clientId: string;
   soldAt: string;
@@ -43,6 +56,7 @@ type Pending = {
   eventId: number | null;
   lines: Line[];
   email?: string;
+  extra?: BackOffice;
   state: "sending" | "waiting" | "signin" | "rejected";
   error?: string;
 };
@@ -184,6 +198,16 @@ export default function QuickSale({
   const [cart, setCart] = useState<Line[]>([]);
   const [email, setEmail] = useState("");
   const [showEmail, setShowEmail] = useState(false);
+  // "Not at the table" — the old Record a sale fields, folded in here and
+  // kept shut by default so the booth stays a two tap screen.
+  const [showBack, setShowBack] = useState(false);
+  const [soldOn, setSoldOn] = useState("");        // yyyy-mm-dd, empty = right now
+  const [channel, setChannel] = useState("market");
+  const [buyer, setBuyer] = useState("");
+  const [shipCharged, setShipCharged] = useState("");
+  const [feePaid, setFeePaid] = useState("");
+  const [postagePaid, setPostagePaid] = useState("");
+  const [saleNote, setSaleNote] = useState("");
 
   // ---- what's been rung up ----
   const [server, setServer] = useState<ServerSale[]>([]);
@@ -248,6 +272,7 @@ export default function QuickSale({
           eventId: sale.eventId,
           lines: sale.lines,
           email: sale.email,
+          ...(sale.extra ?? {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -419,13 +444,28 @@ export default function QuickSale({
 
   function record() {
     if (!canRecord) return;
+    // A typed date means noon that day, so a back dated sale is costed with
+    // the COGS sheet that was true then — same rule Record a sale used.
+    const typedDay = showBack && soldOn ? new Date(`${soldOn}T12:00:00`) : null;
+    const extra: BackOffice | undefined = showBack
+      ? {
+          channel,
+          buyer: buyer.trim() || undefined,
+          shipping: shipCharged.trim() || undefined,
+          fee: feePaid.trim() || undefined,
+          postage: postagePaid.trim() || undefined,
+          note: saleNote.trim() || undefined,
+          backdated: Boolean(typedDay),
+        }
+      : undefined;
     const sale: Pending = {
       clientId: newId(),
-      soldAt: new Date().toISOString(),
+      soldAt: (typedDay && !Number.isNaN(typedDay.getTime()) ? typedDay : new Date()).toISOString(),
       pay,
       eventId: eventId || null,
       lines,
       email: showEmail && email.includes("@") ? email.trim() : undefined,
+      extra,
       state: "sending",
     };
     setPending((list) => [sale, ...list]);
@@ -646,6 +686,75 @@ export default function QuickSale({
         <span className="font-display text-3xl font-semibold">{dollars(total)}</span>
       </div>
       {pay === "cash" && total > 0 && <p className="mt-1 text-right text-xs text-faded">Change: {changeHints(total)}</p>}
+
+      {/* Everything the old Record a sale form on Sales history did. Shut by
+          default: at a table you never need any of it, and an extra tap
+          between a customer and their shirt is the wrong trade. */}
+      <div className="mt-4 border-t border-bone/10 pt-3">
+        {!showBack ? (
+          <button
+            type="button"
+            onClick={() => setShowBack(true)}
+            className="text-xs text-faded underline underline-offset-2 transition hover:text-goldlight"
+          >
+            Not at the table? An Instagram DM, or one you forgot to ring up →
+          </button>
+        ) : (
+          <div>
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="kicker">Not at the table</p>
+              <button type="button" onClick={() => setShowBack(false)} className="text-xs text-faded underline underline-offset-2 hover:text-goldlight">
+                close
+              </button>
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <label className="text-xs text-faded">
+                When was it sold
+                <input
+                  type="date"
+                  value={soldOn}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setSoldOn(e.target.value)}
+                  className="input mt-1 block w-full py-1.5 text-sm"
+                />
+              </label>
+              <label className="text-xs text-faded">
+                Where
+                <select value={channel} onChange={(e) => setChannel(e.target.value)} className="input mt-1 block w-full py-1.5 text-sm">
+                  <option value="market" className="bg-ink">Market / in person</option>
+                  <option value="instagram" className="bg-ink">Instagram / DM</option>
+                  <option value="other" className="bg-ink">Other</option>
+                </select>
+              </label>
+              <label className="col-span-2 text-xs text-faded">
+                Who bought it (optional)
+                <input value={buyer} onChange={(e) => setBuyer(e.target.value)} className="input mt-1 block w-full py-1.5 text-sm" />
+              </label>
+              <label className="text-xs text-faded">
+                Shipping you charged
+                <input value={shipCharged} onChange={(e) => setShipCharged(e.target.value)} inputMode="decimal" placeholder="0.00" className="input mt-1 block w-full py-1.5 text-sm" />
+              </label>
+              <label className="text-xs text-faded">
+                Card fee you paid
+                <input value={feePaid} onChange={(e) => setFeePaid(e.target.value)} inputMode="decimal" placeholder="0.00" className="input mt-1 block w-full py-1.5 text-sm" />
+              </label>
+              <label className="col-span-2 text-xs text-faded">
+                Postage you paid
+                <input value={postagePaid} onChange={(e) => setPostagePaid(e.target.value)} inputMode="decimal" placeholder="0.00" className="input mt-1 block w-full py-1.5 text-sm" />
+              </label>
+              <label className="col-span-2 text-xs text-faded">
+                Note
+                <input value={saleNote} onChange={(e) => setSaleNote(e.target.value)} placeholder="Brunswick farmers market" className="input mt-1 block w-full py-1.5 text-sm" />
+              </label>
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-faded">
+              Leave the date empty for right now. Put a date in and the cost gets frozen with the
+              COGS sheet that was true that day, not today&apos;s.
+            </p>
+          </div>
+        )}
+      </div>
+
       <div className="mt-4 grid gap-2">
         <button type="button" className="btn btn-gold min-h-14 w-full text-base" disabled={!canRecord} onClick={record}>
           {recordLabel}
@@ -789,7 +898,7 @@ export default function QuickSale({
                       "relative flex aspect-square flex-col items-center justify-center rounded-2xl border-2 px-2 text-center transition " +
                       (on
                         ? "border-gold bg-gold/15 shadow-[0_0_0_3px_rgba(207,148,64,0.3)]"
-                        : "border-dashed border-bone/25 bg-inkdeep/40")
+                        : "border-dashed border-bone/25 bg-inset")
                     }
                   >
                     <span className="font-display text-base font-semibold leading-tight">{t.name}</span>

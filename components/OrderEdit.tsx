@@ -104,7 +104,7 @@ export default function OrderEdit({
   return (
     <div className="space-y-5">
       {lines.length === 0 ? (
-        <p className="rounded-xl bg-black/20 p-4 text-sm text-faded">
+        <p className="rounded-xl bg-inset p-4 text-sm text-faded">
           This order has no line items saved, so there&apos;s nothing to edit here. Older orders
           need the backfill on{" "}
           <a href="/admin/history" className="text-goldlight underline underline-offset-2">
@@ -123,7 +123,7 @@ export default function OrderEdit({
               return (
                 <li
                   key={l.id}
-                  className={"rounded-xl bg-black/20 p-3 " + (d.remove ? "opacity-40" : "")}
+                  className={"rounded-xl bg-inset p-3 " + (d.remove ? "opacity-55 line-through" : "")}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-sm font-semibold">

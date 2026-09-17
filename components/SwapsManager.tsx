@@ -168,7 +168,7 @@ export default function SwapsManager({
           </a>
         </p>
 
-        {s.note && <p className="mt-2 rounded-xl bg-black/20 px-3 py-2 text-sm leading-relaxed text-faded">{s.note}</p>}
+        {s.note && <p className="mt-2 rounded-xl bg-inset px-3 py-2 text-sm leading-relaxed text-faded">{s.note}</p>}
         {shipTo && <p className="mt-2 text-xs text-faded">New one goes to: {shipTo}</p>}
 
         {OPEN.includes(s.status) && (
@@ -279,7 +279,7 @@ export default function SwapsManager({
       </div>
 
       {!RETURN_ADDRESS && open.some((s) => s.status === "requested") && (
-        <p className="rounded-xl bg-black/20 px-4 py-3 text-xs leading-relaxed text-faded">
+        <p className="rounded-xl bg-inset px-4 py-3 text-xs leading-relaxed text-faded">
           No return address is set on the site, so type where they should send it in the box below and it
           goes in the approval email. To have it filled in every time, set <code>RETURN_ADDRESS</code> in{" "}
           <code>lib/site.ts</code>.

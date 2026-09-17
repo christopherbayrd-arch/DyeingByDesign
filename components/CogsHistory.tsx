@@ -159,7 +159,7 @@ export default function CogsHistory({ current, refreshKey, onRestore }: Props) {
           {versions && !error && tab === "changes" && (
             <div className="mt-6 space-y-3">
               {versions.length === 0 && (
-                <p className="rounded-xl bg-black/20 p-4 text-sm text-faded">
+                <p className="rounded-xl bg-inset p-4 text-sm text-faded">
                   No saved versions yet. From now on every Save keeps a dated copy; the entry below is the sheet as it is right now.
                 </p>
               )}
@@ -175,7 +175,7 @@ export default function CogsHistory({ current, refreshKey, onRestore }: Props) {
                   .map((g) => `${g.rows.length} ${g.rows.length === 1 ? KIND_ONE[g.kind] : KIND_LABEL[g.kind].toLowerCase()}`)
                   .join(" · ");
                 return (
-                  <div key={key} className="rounded-xl border border-bone/10 bg-black/20">
+                  <div key={key} className="rounded-xl border border-bone/10 bg-inset">
                     <button
                       type="button"
                       onClick={() => setExpanded((e) => ({ ...e, [key]: !isOpen }))}

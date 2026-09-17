@@ -189,7 +189,7 @@ export default function OrderActions({
             ) : cancelled ? (
               /* ---- cancelled ---- */
               <div className="mt-6 space-y-4">
-                <div className="rounded-xl border border-bone/15 bg-black/20 p-4 text-sm leading-relaxed text-faded">
+                <div className="rounded-xl border border-bone/15 bg-inset p-4 text-sm leading-relaxed text-faded">
                   <p className="font-semibold text-bone">Cancelled.</p>
                   {cancelReason && <p className="mt-1">{cancelReason}</p>}
                   <p className="mt-1">
@@ -277,7 +277,7 @@ export default function OrderActions({
                     </span>
                   </label>
                 )}
-                <div className="rounded-xl bg-black/20 p-3">
+                <div className="rounded-xl bg-inset p-3">
                   <label className="flex items-start gap-2 text-sm text-faded">
                     <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="mt-1" />
                     <span>
@@ -438,7 +438,7 @@ function Action({
       onClick={onClick}
       disabled={busy}
       className={
-        "w-full rounded-xl bg-black/20 p-3 text-left transition hover:bg-black/40 disabled:opacity-50 " +
+        "w-full rounded-xl bg-inset p-3 text-left transition hover:bg-insethi disabled:opacity-50 " +
         (danger ? "hover:bg-rust/15" : "")
       }
     >

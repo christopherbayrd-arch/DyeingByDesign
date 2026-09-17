@@ -36,7 +36,7 @@ export default function ClearTestOrders({ count }: { count: number }) {
   if (count === 0) return null;
 
   return (
-    <div className="mt-4 rounded-xl border border-bone/15 bg-black/20 p-4 text-sm">
+    <div className="mt-4 rounded-xl border border-bone/15 bg-inset p-4 text-sm">
       <p className="text-faded">
         <strong className="text-bone">
           {count} test order{count === 1 ? "" : "s"}

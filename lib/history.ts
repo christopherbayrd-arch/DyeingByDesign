@@ -73,6 +73,7 @@ export async function loadHistory(sql: Sql): Promise<HistoryData> {
         blankCents: intOrNull(b.blank),
         materialsCents: intOrNull(b.materialsTotal),
         priceSource: b.priceSource === "catalog" ? "catalog" : "order",
+        inPerson: b.shipped === false,
       };
       const oid = Number(r.order_id);
       linesByOrder.set(oid, [...(linesByOrder.get(oid) ?? []), line]);

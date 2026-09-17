@@ -21,6 +21,7 @@ export type HistoryLine = {
   blankCents: number | null;
   materialsCents: number | null;
   priceSource: "order" | "catalog";
+  inPerson?: boolean;              // costed without the shipping supplies (sold in person)
 };
 
 export type HistoryOrder = {

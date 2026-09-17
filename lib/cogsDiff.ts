@@ -49,7 +49,7 @@ export function diffDocs(prev: CogsDoc | null, next: CogsDoc): Change[] {
     const was = pm.get(m.id);
     const label = m.name || "Untitled material";
     if (!was) {
-      out.push({ kind: "material", label, what: "added", from: "—", to: `${d$(num(m.cost))} per ${m.unit || "unit"}, covers ${num(m.yield) || "?"} shirts` });
+      out.push({ kind: "material", label, what: "added", from: "—", to: `${d$(num(m.cost))} per ${m.unit || "unit"}, covers ${num(m.yield) || "?"} shirts${m.shippedOnly ? ", shipped orders only" : ""}` });
       continue;
     }
     if (num(was.cost) !== num(m.cost) || num(was.yield) !== num(m.yield) || (was.unit || "") !== (m.unit || "")) {
@@ -69,6 +69,15 @@ export function diffDocs(prev: CogsDoc | null, next: CogsDoc): Change[] {
       });
     } else if ((was.name || "") !== (m.name || "")) {
       out.push({ kind: "material", label, what: "renamed", from: was.name || "Untitled", to: m.name || "Untitled" });
+    }
+    if ((was.shippedOnly === true) !== (m.shippedOnly === true)) {
+      out.push({
+        kind: "material",
+        label,
+        what: m.shippedOnly ? "now only on shipped orders" : "now on every shirt",
+        from: was.shippedOnly ? "shipped orders only" : "every shirt",
+        to: m.shippedOnly ? "shipped orders only" : "every shirt",
+      });
     }
   }
   for (const m of p.materials) {
@@ -153,7 +162,7 @@ export function itemHistory(versions: { at: string; note: string; doc: CogsDoc }
       const m = v.doc.materials.find((x) => x.id === id);
       if (!m) return { at: v.at, note: v.note, value: null, detail: "not on the sheet" };
       const per = materialPerShirt(m);
-      return { at: v.at, note: v.note, value: per > 0 ? per : null, detail: `${d$(num(m.cost))} per ${m.unit || "unit"} · covers ${num(m.yield) || "?"} → ${d$(per)} per shirt` };
+      return { at: v.at, note: v.note, value: per > 0 ? per : null, detail: `${d$(num(m.cost))} per ${m.unit || "unit"} · covers ${num(m.yield) || "?"} → ${d$(per)} per shirt${m.shippedOnly ? " · shipped orders only" : ""}` };
     }
     const t = v.doc.types.find((x) => x.id === id);
     if (!t) return { at: v.at, note: v.note, value: null, detail: "not on the sheet" };
@@ -178,7 +187,7 @@ export function changesOnly(points: ItemPoint[]): ItemPoint[] {
 export function fingerprint(doc: CogsDoc): string {
   return JSON.stringify({
     b: Object.entries(doc.blanks).filter(([, v]) => num(v) > 0).sort().map(([k, v]) => [k, num(v)]),
-    m: doc.materials.map((m) => [m.id, m.name, m.unit, num(m.cost), num(m.yield)]),
+    m: doc.materials.map((m) => [m.id, m.name, m.unit, num(m.cost), num(m.yield), m.shippedOnly === true]),
     t: doc.types.map((t) => [t.id, t.name, num(t.price), Object.entries(t.uses).sort().map(([k, v]) => [k, num(v)])]),
     d: Object.entries(doc.designs).sort(),
   });

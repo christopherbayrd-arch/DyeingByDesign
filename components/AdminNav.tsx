@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AdminThemeToggle from "@/components/AdminTheme";
 
 export default function AdminNav({
   active,
@@ -42,6 +43,7 @@ export default function AdminNav({
       {tab("/admin/news", "News", "news")}
       {tab("/admin/drop", "Announce a drop", "drop")}
       <span className="ml-auto flex items-center gap-4 pl-2">
+        <AdminThemeToggle />
         <Link href="/" className="text-sm text-faded transition hover:text-goldlight">
           View site ↗
         </Link>

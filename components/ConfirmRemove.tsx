@@ -76,7 +76,7 @@ export default function ConfirmRemove({
           </button>
         </div>
 
-        <div className="mt-5 rounded-xl bg-black/20 p-4">
+        <div className="mt-5 rounded-xl bg-inset p-4">
           <p className="kicker">What leaves</p>
           <ul className="mt-2 space-y-1 text-sm text-bone">
             {what.map((w, i) => (
@@ -85,7 +85,7 @@ export default function ConfirmRemove({
           </ul>
         </div>
 
-        <div className="mt-3 rounded-xl border border-gold/25 bg-black/20 p-4">
+        <div className="mt-3 rounded-xl border border-gold/25 bg-inset p-4">
           <p className="kicker text-goldlight">What the numbers do</p>
           <dl className="mt-2 space-y-1.5 text-sm tabular-nums">
             <div className="flex justify-between">

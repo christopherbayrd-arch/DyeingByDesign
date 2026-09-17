@@ -25,20 +25,24 @@ export type CostBreakdown = {
   reason?: string;
   sheetVersion: number | null;            // cogs_versions.id used, null = the live sheet
   sheetDate?: string;
+  shipped?: boolean;                      // false = sold in person, so "shipped only" materials were left out
 };
 
 export type UnitCost = { cents: number | null; breakdown: CostBreakdown };
 
 // The whole calculation, with nothing hidden: blank for this exact
 // color+size (falls back to the average blank), plus each material
-// the design's shirt type uses.
+// the design's shirt type uses. A shirt sold in person (booth, Quick
+// sale) leaves out the materials marked "shipped only" (label, mailer).
 export function unitCostFromDoc(
   doc: CogsDoc | null,
   slug: string,
   color: string,
   size: string,
-  sheet: { id: number | null; date?: string } = { id: null }
+  sheet: { id: number | null; date?: string } = { id: null },
+  opts: { shipped?: boolean } = {}
 ): UnitCost {
+  const shipped = opts.shipped !== false;
   const base: CostBreakdown = {
     typeName: "",
     blank: 0,
@@ -48,6 +52,7 @@ export function unitCostFromDoc(
     estimated: true,
     sheetVersion: sheet.id,
     sheetDate: sheet.date,
+    shipped,
   };
   if (!doc) return { cents: null, breakdown: { ...base, reason: "No COGS sheet saved yet." } };
 
@@ -80,7 +85,7 @@ export function unitCostFromDoc(
   }
 
   const materials = doc.materials
-    .filter((m) => type.uses[m.id] !== undefined)
+    .filter((m) => type.uses[m.id] !== undefined && (shipped || m.shippedOnly !== true))
     .map((m) => ({
       name: m.name || "Untitled material",
       cents: Math.round(materialPerShirt(m) * num(type.uses[m.id]) * 100),
@@ -189,6 +194,51 @@ export async function insertOrderLines(sql: Sql, orderId: number, lines: LineInp
   }
 }
 
+// What an order row needs to say whether it gets posted.
+export type OrderShipFacts = {
+  channel?: unknown;
+  shipping?: unknown;
+  shipping_cents?: unknown;
+  postage_cents?: unknown;
+  label_bought_at?: unknown;
+  tracking_number?: unknown;
+};
+
+// Does this order get posted? Card checkouts and order requests always do
+// (the site has no pickup). Anything else ships once it has a label,
+// postage, shipping charged, or an address. A sale at the table has none.
+export function orderShips(o: OrderShipFacts): boolean {
+  const channel = String(o.channel ?? "");
+  if (channel === "site" || channel === "request") return true;
+  if (o.label_bought_at || o.tracking_number) return true;
+  if ((Number(o.postage_cents) || 0) > 0) return true;
+  if ((Number(o.shipping_cents) || 0) > 0) return true;
+  let s = o.shipping;
+  if (typeof s === "string") {
+    try {
+      s = JSON.parse(s);
+    } catch {
+      s = null;
+    }
+  }
+  const a = s && typeof s === "object" ? (s as { address?: Record<string, unknown> | null }).address : null;
+  return Boolean(a && (String(a.line1 ?? "").trim() || String(a.postal_code ?? "").trim()));
+}
+
+// Read the whole row as JSON so a database without the label columns yet
+// still answers. If it can't tell, the order counts as shipped, which is
+// how every order was costed before "shipped only" materials existed.
+async function orderShipsById(sql: Sql, orderId: number): Promise<boolean> {
+  try {
+    const rows = (await sql`select to_jsonb(orders) as o from orders where id = ${orderId}`) as { o: unknown }[];
+    let o = rows[0]?.o;
+    if (typeof o === "string") o = JSON.parse(o);
+    return o && typeof o === "object" ? orderShips(o as OrderShipFacts) : true;
+  } catch {
+    return true;
+  }
+}
+
 // Freeze the cost on every line of an order that hasn't been costed yet
 // (or on all of them with force). Uses the sheet that was current when
 // the order was paid; if that sheet can't cost a line (a design that
@@ -199,13 +249,14 @@ export async function insertOrderLines(sql: Sql, orderId: number, lines: LineInp
 export async function costOrder(
   sql: Sql,
   orderId: number,
-  opts: { force?: boolean; afterTheFact?: boolean } = {}
+  opts: { force?: boolean; afterTheFact?: boolean; shippingChanged?: boolean } = {}
 ): Promise<{ costed: number; skipped: number; uncosted: number }> {
   const orders = (await sql`
     select id, coalesce(sold_at, paid_at, created_at) as at from orders where id = ${orderId}
   `) as { id: number; at: string }[];
   if (orders.length === 0) return { costed: 0, skipped: 0, uncosted: 0 };
   const at = new Date(orders[0].at);
+  const shipped = await orderShipsById(sql, orderId);
   const dated = await loadCogsAt(sql, at);
   let live: Awaited<ReturnType<typeof loadCogsAt>> | null = null;
 
@@ -225,7 +276,17 @@ export async function costOrder(
   let skipped = 0;
   let uncosted = 0;
   for (const l of lines) {
-    if (!opts.force && l.unit_cogs_cents !== null && l.unit_cogs_cents !== undefined) {
+    const hasCost = l.unit_cogs_cents !== null && l.unit_cogs_cents !== undefined;
+    if (opts.shippingChanged) {
+      // Only a shirt already costed one way (shipped / in person) that now
+      // needs the other. Shirts frozen before "shipped only" existed never
+      // say which, and stay exactly as they were.
+      const was = (l.cogs_breakdown as { shipped?: unknown } | null)?.shipped;
+      if (!hasCost || typeof was !== "boolean" || was === shipped) {
+        skipped++;
+        continue;
+      }
+    } else if (!opts.force && hasCost) {
       skipped++;
       continue;
     }
@@ -234,11 +295,11 @@ export async function costOrder(
       skipped++;
       continue;
     }
-    let { cents, breakdown } = unitCostFromDoc(dated.doc, l.slug, l.color, l.size, dated.sheet);
+    let { cents, breakdown } = unitCostFromDoc(dated.doc, l.slug, l.color, l.size, dated.sheet, { shipped });
     if (cents === null && dated.sheet.id !== null) {
       // the sheet from back then couldn't cost it — try today's
       if (!live) live = await loadCogsAt(sql, null);
-      const retry = unitCostFromDoc(live.doc, l.slug, l.color, l.size, live.sheet);
+      const retry = unitCostFromDoc(live.doc, l.slug, l.color, l.size, live.sheet, { shipped });
       if (retry.cents !== null) {
         cents = retry.cents;
         breakdown = {
@@ -250,6 +311,11 @@ export async function costOrder(
           ].filter(Boolean).join(" "),
         };
       }
+    }
+    if (opts.shippingChanged && cents === null) {
+      // the sheet can't cost it any more — keep the cost it already has
+      skipped++;
+      continue;
     }
     if (opts.afterTheFact) {
       breakdown.estimated = true;
@@ -269,6 +335,19 @@ export async function costOrder(
     else costed++;
   }
   return { costed, skipped, uncosted };
+}
+
+// An order's shipping changed after its cost was frozen: a label bought
+// for a desk sale, postage typed in or cleared, an address added. Moves the
+// shipping supplies onto (or off) its shirts, same dated sheet as before.
+// Never throws, because it rides along with whatever made the change.
+export async function refreshShippingCost(sql: Sql, orderId: number) {
+  try {
+    return await costOrder(sql, orderId, { shippingChanged: true });
+  } catch (err) {
+    console.error("shipping recost failed:", err);
+    return null;
+  }
 }
 
 // Older orders (before v4) have no line rows yet. Build them from the

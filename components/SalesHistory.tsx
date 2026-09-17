@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ConfirmRemove from "@/components/ConfirmRemove";
-import { COLORS, ONE_SIZE, SIZES, colorName } from "@/lib/products";
+import { ONE_SIZE, colorName } from "@/lib/products";
 import {
   CHANNEL_LABELS,
   byDesign,
@@ -18,8 +18,10 @@ import {
 } from "@/lib/historyMath";
 
 // ============================================================
-//  Sales history table — filters, totals, the orders themselves,
-//  and the "Record a sale" form for sales that never touched the site.
+//  Sales history table — filters, totals, and the orders themselves.
+//  Recording a sale that never touched the site lives on Quick sale
+//  (/admin/sell), which already knows the shelf, takes several pieces in
+//  one sale, and works with no signal.
 //  Every number here comes from order_lines, where the cost was frozen
 //  the day the shirt was paid for.
 // ============================================================
@@ -304,63 +306,6 @@ export default function SalesHistory({
     }
   }
 
-  // ---- record a sale ----
-  const [showForm, setShowForm] = useState(false);
-  const firstProduct = products[0];
-  const [sale, setSale] = useState({
-    slug: firstProduct?.slug ?? "custom",
-    variant: "", // the design, when the thing sold is a bandana
-    size: "M",
-    color: "black",
-    qty: "1",
-    unitPrice: firstProduct ? (firstProduct.priceCents / 100).toFixed(2) : "",
-    channel: "market",
-    soldAt: today(),
-    shipping: "0",
-    fee: "",
-    postage: "",
-    buyer: "",
-    note: "",
-  });
-  const [saleMsg, setSaleMsg] = useState("");
-  const [saleFromStock, setSaleFromStock] = useState(true);
-
-  function setSaleField(k: keyof typeof sale, v: string) {
-    setSale((s) => {
-      const next = { ...s, [k]: v };
-      if (k === "slug") {
-        const p = products.find((x) => x.slug === v);
-        if (p) next.unitPrice = (p.priceCents / 100).toFixed(2);
-        if (p && !p.sizes.includes(next.size)) next.size = p.sizes[0] ?? "M";
-        // only a bandana carries a design
-        if (p?.kind !== "bandana") next.variant = "";
-        else if (!next.variant) next.variant = products.find((x) => x.kind !== "bandana")?.slug ?? "";
-      }
-      return next;
-    });
-  }
-
-  async function recordSale(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy("sale");
-    setSaleMsg("");
-    try {
-      const d = await post("/api/admin/sales", { ...sale, fromStock: saleFromStock });
-      const shelf = d.fromShelf > 0 ? ` ${d.fromShelf} came off the Inventory count.` : "";
-      setSaleMsg(
-        (d.costed > 0
-          ? "Recorded, with today's cost frozen on it."
-          : "Recorded. No cost yet — link the design to a shirt type on the COGS page, then cost it from the table.") + shelf
-      );
-      setSale((s) => ({ ...s, qty: "1", buyer: "", note: "" }));
-      router.refresh();
-    } catch (err) {
-      setSaleMsg(err instanceof Error ? err.message : "Couldn't record that.");
-    }
-    setBusy("");
-  }
-
-  const sizeOptions = products.find((p) => p.slug === sale.slug)?.sizes ?? SIZES;
   const exportHref = `/api/admin/history/export${from || to ? `?${[from && `from=${from}`, to && `to=${to}`].filter(Boolean).join("&")}` : ""}`;
 
   return (
@@ -381,14 +326,14 @@ export default function SalesHistory({
         </div>
       )}
       {!hasSheet && (
-        <p className="rounded-xl border border-bone/10 bg-black/20 p-4 text-sm text-faded">
+        <p className="rounded-xl border border-bone/10 bg-inset p-4 text-sm text-faded">
           There&apos;s no COGS sheet saved yet, so nothing can be costed. Fill in the{" "}
           <Link href="/admin/cogs" className="text-goldlight underline underline-offset-2">COGS page</Link> and hit Save;
           from then on every sale freezes its cost the day it&apos;s paid.
         </p>
       )}
       {total.uncostedUnits > 0 && hasSheet && (
-        <div className="rounded-xl border border-bone/10 bg-black/20 p-4 text-sm">
+        <div className="rounded-xl border border-bone/10 bg-inset p-4 text-sm">
           <p className="text-faded">
             <strong className="text-bone">{total.uncostedUnits} shirt{total.uncostedUnits === 1 ? "" : "s"}</strong> in this view{" "}
             {total.uncostedUnits === 1 ? "has" : "have"} no cost — usually a design that isn&apos;t linked to a shirt type on the COGS page.
@@ -448,121 +393,10 @@ export default function SalesHistory({
             ))}
           </div>
           <span className="flex-1" />
-          <button type="button" onClick={() => setShowForm((v) => !v)} className={"btn " + (showForm ? "btn-ghost" : "btn-gold")}>
-            {showForm ? "Close" : "Record a sale"}
-          </button>
+          <a href="/admin/sell" className="btn btn-gold">Record a sale</a>
           <a href={exportHref} className="btn btn-ghost">Download CSV</a>
         </div>
       </div>
-
-      {/* ---------- record a sale ---------- */}
-      {showForm && (
-        <form onSubmit={recordSale} className="card p-5">
-          <p className="kicker">Record a sale</p>
-          <p className="mt-1 text-sm text-faded">
-            For a market table, a DM, Tap to Pay — anything that didn&apos;t go through the site. The cost is
-            frozen with the COGS sheet from the sale date.
-          </p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <label className="text-xs text-faded">
-              Design
-              <select value={sale.slug} onChange={(e) => setSaleField("slug", e.target.value)} className="input mt-1 block w-full py-1.5 text-sm">
-                {products.map((p) => (
-                  <option key={p.slug} value={p.slug}>{p.name}</option>
-                ))}
-                <option value="custom">Custom piece</option>
-              </select>
-            </label>
-            {products.find((p) => p.slug === sale.slug)?.kind === "bandana" && (
-              <label className="text-xs text-faded">
-                Design on it
-                <select value={sale.variant} onChange={(e) => setSaleField("variant", e.target.value)} className="input mt-1 block w-full py-1.5 text-sm">
-                  {products
-                    .filter((p) => p.kind !== "bandana")
-                    .map((p) => (
-                      <option key={p.slug} value={p.slug}>{p.name}</option>
-                    ))}
-                </select>
-              </label>
-            )}
-            <label className="text-xs text-faded">
-              Color
-              <select value={sale.color} onChange={(e) => setSaleField("color", e.target.value)} className="input mt-1 block w-full py-1.5 text-sm">
-                {COLORS.map((c) => (
-                  <option key={c.key} value={c.key}>{c.name}</option>
-                ))}
-                <option value="">Other / not a blank</option>
-              </select>
-            </label>
-            <label className="text-xs text-faded">
-              Size
-              <select value={sale.size} onChange={(e) => setSaleField("size", e.target.value)} className="input mt-1 block w-full py-1.5 text-sm">
-                {sizeOptions.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </label>
-            <label className="text-xs text-faded">
-              How many
-              <input value={sale.qty} onChange={(e) => setSaleField("qty", e.target.value)} inputMode="numeric" className="input mt-1 block w-full py-1.5 text-sm" />
-            </label>
-            <label className="text-xs text-faded">
-              Price each ($)
-              <input value={sale.unitPrice} onChange={(e) => setSaleField("unitPrice", e.target.value)} inputMode="decimal" className="input mt-1 block w-full py-1.5 text-sm" />
-            </label>
-            <label className="text-xs text-faded">
-              Sold through
-              <select value={sale.channel} onChange={(e) => setSaleField("channel", e.target.value)} className="input mt-1 block w-full py-1.5 text-sm">
-                {CHANNEL_OPTIONS.map((k) => (
-                  <option key={k} value={k}>{CHANNEL_LABELS[k]}</option>
-                ))}
-              </select>
-            </label>
-            <label className="text-xs text-faded">
-              Date
-              <input type="date" value={sale.soldAt} onChange={(e) => setSaleField("soldAt", e.target.value)} className="input mt-1 block w-full py-1.5 text-sm" />
-            </label>
-            <label className="text-xs text-faded">
-              Shipping charged ($)
-              <input value={sale.shipping} onChange={(e) => setSaleField("shipping", e.target.value)} inputMode="decimal" className="input mt-1 block w-full py-1.5 text-sm" />
-            </label>
-            <label className="text-xs text-faded">
-              Card fee ($, optional)
-              <input value={sale.fee} onChange={(e) => setSaleField("fee", e.target.value)} inputMode="decimal" placeholder="Tap to Pay fee" className="input mt-1 block w-full py-1.5 text-sm" />
-            </label>
-            <label className="text-xs text-faded">
-              Postage paid ($, optional)
-              <input value={sale.postage} onChange={(e) => setSaleField("postage", e.target.value)} inputMode="decimal" className="input mt-1 block w-full py-1.5 text-sm" />
-            </label>
-            <label className="text-xs text-faded">
-              Buyer (optional)
-              <input value={sale.buyer} onChange={(e) => setSaleField("buyer", e.target.value)} className="input mt-1 block w-full py-1.5 text-sm" />
-            </label>
-            <label className="text-xs text-faded">
-              Note (optional)
-              <input value={sale.note} onChange={(e) => setSaleField("note", e.target.value)} placeholder="Brunswick farmers market" className="input mt-1 block w-full py-1.5 text-sm" />
-            </label>
-          </div>
-          <label className="mt-4 flex items-start gap-2 text-sm text-faded">
-            <input
-              type="checkbox"
-              checked={saleFromStock}
-              onChange={(e) => setSaleFromStock(e.target.checked)}
-              className="mt-1 h-4 w-4 accent-[#cf9440]"
-            />
-            <span>
-              It came off the shelf — take it out of Inventory
-              <span className="block text-xs">Leave this on for a shirt you already had made. Turn it off for one you made just for this sale.</span>
-            </span>
-          </label>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <button type="submit" disabled={busy !== ""} className="btn btn-gold">
-              {busy === "sale" ? "Saving…" : "Save this sale"}
-            </button>
-            {saleMsg && <p className="text-sm text-faded">{saleMsg}</p>}
-          </div>
-        </form>
-      )}
 
       {/* ---------- totals ---------- */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -794,7 +628,7 @@ export default function SalesHistory({
                                 type="button"
                                 onClick={() => setCostEdit((s) => ({ ...s, [l.id]: true }))}
                                 className="underline decoration-dotted underline-offset-2 hover:text-goldlight"
-                                title={[l.typeName, l.blankCents !== null && !l.manual ? `blank ${fmtMoney(l.blankCents)}` : "", l.materialsCents !== null && !l.manual ? `materials ${fmtMoney(l.materialsCents)}` : "", l.reason, "Click to change"].filter(Boolean).join(" · ")}
+                                title={[l.typeName, l.blankCents !== null && !l.manual ? `blank ${fmtMoney(l.blankCents)}` : "", l.materialsCents !== null && !l.manual ? `materials ${fmtMoney(l.materialsCents)}` : "", l.inPerson && !l.manual ? "sold in person, no shipping supplies" : "", l.reason, "Click to change"].filter(Boolean).join(" · ")}
                               >
                                 {fmtMoney(l.unitCogsCents)}
                                 {l.manual ? <span className="ml-1 text-[0.65rem] text-faded">by hand</span> : l.estimated ? <span className="ml-1 text-[0.65rem] text-faded">est.</span> : null}

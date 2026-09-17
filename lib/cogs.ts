@@ -15,6 +15,9 @@ export type CogsMaterial = {
   unit: string;   // what one purchase is: "1 gallon", "pack of 100"
   cost: string;   // dollars per unit purchased
   yield: string;  // how many shirts one unit covers
+  // Only used when an order gets posted (shipping labels, mailers). A booth
+  // or Quick sale shirt is costed without it. Left off = every shirt uses it.
+  shippedOnly?: boolean;
 };
 
 export type CogsType = {
@@ -72,12 +75,14 @@ export function blankStats(blanks: Record<string, string>) {
 }
 
 export type TypeCost = {
-  lines: { name: string; qty: number; perShirt: number; total: number }[];
-  materials: number;  // all materials, per shirt
+  lines: { name: string; qty: number; perShirt: number; total: number; shippedOnly: boolean }[];
+  materials: number;  // all materials, per shirt (a shipped order)
+  shipOnly: number;   // the part of `materials` only a shipped order uses
   blank: ReturnType<typeof blankStats>;
   low: number;        // cheapest blank + materials
   high: number;       // priciest blank + materials
   typical: number;    // average blank + materials
+  inPerson: number;   // typical without the shipping supplies (booth, Quick sale)
   price: number;
   profit: number;     // at the typical COGS
   profitLow: number;  // with the priciest blank
@@ -97,9 +102,10 @@ export function typeCost(
     .map((m) => {
       const qty = num(t.uses[m.id]);
       const perShirt = materialPerShirt(m);
-      return { name: m.name || "Untitled material", qty, perShirt, total: perShirt * qty };
+      return { name: m.name || "Untitled material", qty, perShirt, total: perShirt * qty, shippedOnly: m.shippedOnly === true };
     });
   const mats = lines.reduce((a, l) => a + l.total, 0);
+  const shipOnly = lines.reduce((a, l) => a + (l.shippedOnly ? l.total : 0), 0);
   const blank = blankStats(blanks);
   const price = priceOverride !== undefined ? priceOverride : num(t.price);
   const low = blank.min + mats;
@@ -108,10 +114,12 @@ export function typeCost(
   return {
     lines,
     materials: mats,
+    shipOnly,
     blank,
     low,
     high,
     typical,
+    inPerson: typical - shipOnly,
     price,
     profit: price - typical,
     profitLow: price - high,
@@ -135,7 +143,7 @@ export function starterDoc(): CogsDoc {
       { id: neutralizer, name: "Neutralizer (hydrogen peroxide)", unit: "1 quart", cost: "", yield: "" },
       { id: stencil, name: "Stencil material", unit: "1 roll", cost: "", yield: "" },
       { id: dye, name: "Tie dye kit", unit: "1 kit", cost: "", yield: "" },
-      { id: mailer, name: "Poly mailer", unit: "pack of 100", cost: "", yield: "100" },
+      { id: mailer, name: "Poly mailer", unit: "pack of 100", cost: "", yield: "100", shippedOnly: true },
     ],
     types: [
       { id: newId(), name: "Bleach shirt (leaf)", price: "39.99", uses: { [bleach]: "1", [neutralizer]: "1", [mailer]: "1" } },
@@ -160,6 +168,7 @@ export function normalizeDoc(raw: unknown): CogsDoc | null {
         unit: String(m?.unit ?? ""),
         cost: String(m?.cost ?? ""),
         yield: String(m?.yield ?? ""),
+        ...(m?.shippedOnly === true ? { shippedOnly: true } : {}),
       }))
     : [];
   const types = Array.isArray(r.types)

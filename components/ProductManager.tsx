@@ -266,7 +266,7 @@ function ProductEditor({
       </div>
 
       {/* availability — always visible */}
-      <div className="mt-4 rounded-xl bg-black/20 p-4">
+      <div className="mt-4 rounded-xl bg-inset p-4">
         <div className="flex flex-wrap items-center gap-4 text-sm">
           <label className="flex cursor-pointer items-center gap-2">
             <input
